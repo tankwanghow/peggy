@@ -1,0 +1,28 @@
+<div class="navbar-item has-dropdown is-hoverable">
+  <a class="navbar-link" href="#">Accounting</a>
+  <div class="navbar-dropdown">
+    <a class="navbar-item" href="#">Chart Of Account</a>
+    <a class="navbar-item" href="#">Fixed Assets</a>
+  </div>
+</div>
+<div class="navbar-item has-dropdown is-hoverable">
+  <a class="navbar-link" href="#">Sales</a>
+  <div class="navbar-dropdown">
+    <a class="navbar-item" href="#">Invoice</a>
+    <a class="navbar-item" href="#">Delivery Order</a>
+  </div>
+</div>
+<div class="navbar-item has-dropdown is-hoverable">
+  <a class="navbar-link" href="#">Purchase</a>
+  <div class="navbar-dropdown">
+    <a class="navbar-item" href="#">Invoice</a>
+    <a class="navbar-item" href="#">Delivery Order</a>
+  </div>
+</div>
+<div class="navbar-item has-dropdown is-hoverable">
+  <a class="navbar-link" href="#">Bank</a>
+  <div class="navbar-dropdown">
+    <a class="navbar-item" href="#">Deposit</a>
+    <a class="navbar-item" href="#">Return Cheques</a>
+  </div>
+</div>

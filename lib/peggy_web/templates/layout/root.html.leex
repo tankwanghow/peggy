@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <%= csrf_meta_tag() %>
+    <%= live_title_tag assigns[:page_title] || "Peggy" , suffix: " · Phoenix Framework" %>
+    <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
+    <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
+  </head>
+
+  <body class='<%= if @current_user, do: "", else: "body-pt-4" %>'>
+    <div id="globalNavBar">
+      <nav class="navbar is-black px-5" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+          <a class="navbar-item brand-text is-size-4-desktop" href="/">
+            <%= if @current_user do %>
+              Kim Poh Sitt Tat Feedmill Sdn. Bhd.
+            <% else %>
+              Peggy
+            <% end %>
+          </a>
+          <div class="navbar-burger burger" data-target="navUserMenu"><span></span><span></span><span></span></div>
+        </div>
+        <div id="navUserMenu" class="navbar-menu navbar-end">
+          <%= render "_user_menu.html" , assigns %>
+        </div>
+      </nav>
+      <%= if @current_user do %>
+        <nav class="navbar is-light px-5" role="navigation" aria-label="main navigation">
+          <div class="navbar-burger burger" data-target="navAppMenu"><span></span><span></span><span></span></div>
+          <div id="navAppMenu" class="navbar-menu">
+            <%= render "_app_menu.html" %>
+          </div>
+        </nav>
+        <% end %>
+    </div>
+    <main role="main" class="container is-fluid">
+      <%= @inner_content %>
+    </main>
+  </body>
+
+</html>

@@ -1,0 +1,23 @@
+<section class="hero">
+  <div class="hero-body">
+    <div class="container has-text-centered">
+      <div class="column is-5 is-offset-3">
+        <h3 class="title has-text-black">Resend confirmation instructions</h3>
+        <hr class="login-hr">
+        <div class="box">
+          <%= form_for :user, Routes.user_confirmation_path(@conn, :create), fn f -> %>
+          <div class="field">
+            <p class="control">
+              <%= email_input f, :email, class: "input is-medium", placeholder: "Email", autofocus: true %>
+            </p>
+          </div>
+          <%= submit "Resend confirmation instructions", class: "button is-primary is-fullwidth is-medium" %>
+        <% end %>
+      </div>
+      <p>
+        <%= link "Register", to: Routes.user_registration_path(@conn, :new), class: "button is-success" %>
+        <%= link "Log in", to: Routes.user_session_path(@conn, :new), class: "button is-warning" %>
+      </p>
+    </div>
+  </div>
+</section>
