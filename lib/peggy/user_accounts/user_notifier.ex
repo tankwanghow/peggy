@@ -3,8 +3,7 @@ defmodule Peggy.UserAccounts.UserNotifier do
 
   defp deliver(email) do
     email = %{ email | from: Application.get_env(:peggy, Peggy.Mailer)[:username] }
-    Peggy.Mailer.deliver_now!(email)
-    {:ok, email}
+    email |> Peggy.Mailer.deliver_now(response: true)
   end
 
   @doc """
