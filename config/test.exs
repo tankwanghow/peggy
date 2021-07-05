@@ -23,3 +23,7 @@ config :peggy, PeggyWeb.Endpoint,
 
 # Print only warnings and errors during test
 config :logger, level: :warn
+
+config :peggy, Peggy.Mailer,
+  adapter: Bamboo.TestAdapter,
+  username: "tankwanghow@yahoo.com"

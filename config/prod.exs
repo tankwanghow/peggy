@@ -53,3 +53,18 @@ config :logger, level: :info
 # Finally import the config/prod.secret.exs which loads secrets
 # and configuration from environment variables.
 import_config "prod.secret.exs"
+
+config :peggy, Peggy.Mailer,
+  adapter: Bamboo.SMTPAdapter,
+  server: "smtp.mail.yahoo.com",
+  hostname: "yahoo.domain",
+  port: 465,
+  username: "tankwanghow@yahoo.com", # or {:system, "SMTP_USERNAME"}
+  password: "rmzbjtwtypauxueg", # or {:system, "SMTP_PASSWORD"}
+  tls: :if_available, # can be `:always` or `:never`
+  allowed_tls_versions: [:tlsv1, :"tlsv1.1", :"tlsv1.2"], # or {:system, "ALLOWED_TLS_VERSIONS"} w/ comma seprated values (e.g. "tlsv1.1,tlsv1.2")
+  tls_log_level: :error,
+  ssl: true, # can be `true`
+  retries: 1,
+  no_mx_lookups: false, # can be `true`
+  auth: :if_available # can be `:always`. If your smtp relay requires authentication set it to `:always`.
