@@ -24,9 +24,7 @@ defmodule PeggyWeb.UserSettingsController do
 
         conn
         |> put_flash(
-          :info,
-          "A link to confirm your email change has been sent to the new address."
-        )
+          :info, gettext("A link to confirm your email change has been sent to the new address."))
         |> redirect(to: Routes.user_settings_path(conn, :edit))
 
       {:error, changeset} ->
@@ -41,7 +39,7 @@ defmodule PeggyWeb.UserSettingsController do
     case UserAccounts.update_user_password(user, password, user_params) do
       {:ok, user} ->
         conn
-        |> put_flash(:success, "Password updated successfully.")
+        |> put_flash(:success, gettext("Password updated successfully."))
         |> put_session(:user_return_to, Routes.user_settings_path(conn, :edit))
         |> UserAuth.log_in_user(user)
 
@@ -54,12 +52,12 @@ defmodule PeggyWeb.UserSettingsController do
     case UserAccounts.update_user_email(conn.assigns.current_user, token) do
       :ok ->
         conn
-        |> put_flash(:success, "Email changed successfully.")
+        |> put_flash(:success, gettext("Email changed successfully."))
         |> redirect(to: Routes.user_settings_path(conn, :edit))
 
       :error ->
         conn
-        |> put_flash(:error, "Email change link is invalid or it has expired.")
+        |> put_flash(:error, gettext("Email change link is invalid or it has expired."))
         |> redirect(to: Routes.user_settings_path(conn, :edit))
     end
   end

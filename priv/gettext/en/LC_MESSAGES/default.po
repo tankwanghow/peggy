@@ -1,0 +1,257 @@
+## "msgid"s in this file come from POT (.pot) files.
+##
+## Do not add, change, or remove "msgid"s manually here as
+## they're tied to the ones in the corresponding POT file
+## (with the same domain).
+##
+## Use "mix gettext.extract --merge" or "mix gettext.merge"
+## to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: en\n"
+"Plural-Forms: nplurals=2\n"
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_settings_controller.ex:27
+msgid "A link to confirm your email change has been sent to the new address."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_settings/edit.html.eex:8
+#: lib/peggy_web/templates/user_settings/edit.html.eex:30
+msgid "Change Email"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_settings/edit.html.eex:35
+#: lib/peggy_web/templates/user_settings/edit.html.eex:64
+msgid "Change Password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_registration/new.html.eex:32
+#: lib/peggy_web/templates/user_reset_password/edit.html.eex:24 lib/peggy_web/templates/user_settings/edit.html.eex:53
+msgid "Confirm Password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_session_controller.ex:18
+msgid "Confirm your account at the email you registered"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_settings/edit.html.eex:26
+#: lib/peggy_web/templates/user_settings/edit.html.eex:60
+msgid "Current Password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:12
+#: lib/peggy_web/templates/user_registration/new.html.eex:18 lib/peggy_web/templates/user_reset_password/new.html.eex:11
+#: lib/peggy_web/templates/user_session/new.html.eex:24 lib/peggy_web/templates/user_settings/edit.html.eex:19
+msgid "Email"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_settings_controller.ex:60
+msgid "Email change link is invalid or it has expired."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_settings_controller.ex:55
+msgid "Email changed successfully."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_registration/new.html.eex:41
+#: lib/peggy_web/templates/user_reset_password/new.html.eex:5 lib/peggy_web/templates/user_session/new.html.eex:41
+msgid "Forgot your password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_confirmation_controller.ex:21
+msgid "If your email is in our system and it has not been confirmed yet, you will receive an email with instructions shortly."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_session_controller.ex:20
+msgid "Invalid email or password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:6
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:22 lib/peggy_web/templates/user_registration/new.html.eex:40
+#: lib/peggy_web/templates/user_reset_password/edit.html.eex:33 lib/peggy_web/templates/user_reset_password/new.html.eex:19
+msgid "Log in"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:3
+msgid "Log out"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_session_controller.ex:26
+msgid "Logged out successfully."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_registration/new.html.eex:12
+#: lib/peggy_web/templates/user_reset_password/edit.html.eex:11 lib/peggy_web/templates/user_settings/edit.html.eex:12
+#: lib/peggy_web/templates/user_settings/edit.html.eex:39
+msgid "Oops, something went wrong! Please check the errors below."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_registration/new.html.eex:25
+#: lib/peggy_web/templates/user_reset_password/edit.html.eex:17 lib/peggy_web/templates/user_session/new.html.eex:29
+#: lib/peggy_web/templates/user_settings/edit.html.eex:46
+msgid "Password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_reset_password_controller.ex:39
+msgid "Password reset successfully."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_settings_controller.ex:42
+msgid "Password updated successfully."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/layout/root.html.leex:9
+#: lib/peggy_web/templates/layout/root.html.leex:22
+msgid "Peggy"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_registration/new.html.eex:7
+msgid "Please Register to proceed."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:5
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:21 lib/peggy_web/templates/user_registration/new.html.eex:5
+#: lib/peggy_web/templates/user_registration/new.html.eex:36 lib/peggy_web/templates/user_reset_password/edit.html.eex:32
+#: lib/peggy_web/templates/user_reset_password/new.html.eex:18 lib/peggy_web/templates/user_session/new.html.eex:40
+msgid "Register"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:5
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:17
+msgid "Resend confirmation instructions"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_reset_password/edit.html.eex:5
+#: lib/peggy_web/templates/user_reset_password/edit.html.eex:28
+msgid "Reset password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_reset_password_controller.ex:54
+msgid "Reset password link is invalid or it has expired."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_reset_password/new.html.eex:14
+msgid "Send instructions to reset password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_settings/edit.html.eex:2
+msgid "User Settings"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_confirmation_controller.ex:48
+msgid "User confirmation link is invalid or it has expired."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_confirmation_controller.ex:34
+msgid "User confirmed successfully."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_registration_controller.ex:23
+msgid "User registered successfully. Please confirm your account at "
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_auth.ex:136
+msgid "You must log in to access this page."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user.ex:84
+msgid "did not change"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user.ex:37 lib/peggy/user_accounts/user.ex:103
+msgid "does not match password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user.ex:138
+msgid "is not valid"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user.ex:44
+msgid "must have the @ sign and no spaces"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_session/new.html.eex:34
+msgid "Keep me logged in for 60 days"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_session/new.html.eex:5
+#: lib/peggy_web/templates/user_session/new.html.eex:36
+msgid "Login"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_session/new.html.eex:7
+msgid "Please Login to proceed."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_session/new.html.eex:18
+msgid "Resend confirmation"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:15
+msgid "==============================\n\nHi %{email},\n\nYou can confirm your account by visiting the URL below:\n\n%{url}\n\nIf you didn't create an account with us, please ignore this.\n\n==============================\n"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:35
+msgid "Confirmation instructions"
+msgstr ""
+
+#, elixir-format, fuzzy
+#: lib/peggy/user_accounts/user_notifier.ex:78
+msgid "\n==============================\n\nHi %{email},\n\nYou can change your email by visiting the URL below:\n\n%{url}\n\nIf you didn't request this change, please ignore this.\n\n==============================\n"
+msgstr ""
+
+#, elixir-format, fuzzy
+#: lib/peggy/user_accounts/user_notifier.ex:46
+msgid "\n==============================\n\nHi %{email},\n\nYou can reset your password by visiting the URL below:\n\n%{url}\n\nIf you didn't request this change, please ignore this.\n\n==============================\n"
+msgstr ""
+
+#, elixir-format, fuzzy
+#: lib/peggy/user_accounts/user_notifier.ex:67
+msgid "Reset Password instructions"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:99
+msgid "Update Emails instructions"
+msgstr ""

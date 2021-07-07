@@ -36,7 +36,7 @@ defmodule PeggyWeb.UserResetPasswordController do
     case UserAccounts.reset_user_password(conn.assigns.user, user_params) do
       {:ok, _} ->
         conn
-        |> put_flash(:success, "Password reset successfully.")
+        |> put_flash(:success, gettext("Password reset successfully."))
         |> redirect(to: Routes.user_session_path(conn, :new))
 
       {:error, changeset} ->
@@ -51,7 +51,7 @@ defmodule PeggyWeb.UserResetPasswordController do
       conn |> assign(:user, user) |> assign(:token, token)
     else
       conn
-      |> put_flash(:error, "Reset password link is invalid or it has expired.")
+      |> put_flash(:error, gettext("Reset password link is invalid or it has expired."))
       |> redirect(to: "/")
       |> halt()
     end

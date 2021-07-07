@@ -1,6 +1,7 @@
 defmodule Peggy.UserAccounts.User do
   use Ecto.Schema
   import Ecto.Changeset
+  import PeggyWeb.Gettext
 
   @derive {Inspect, except: [:password]}
   schema "users" do
@@ -33,13 +34,14 @@ defmodule Peggy.UserAccounts.User do
     user
     |> cast(attrs, [:email, :password])
     |> validate_email()
+    |> validate_confirmation(:password, message: gettext("does not match password"), required: true)
     |> validate_password(opts)
   end
 
   defp validate_email(changeset) do
     changeset
     |> validate_required([:email])
-    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: "must have the @ sign and no spaces")
+    |> validate_format(:email, ~r/^[^\s]+@[^\s]+$/, message: gettext("must have the @ sign and no spaces"))
     |> validate_length(:email, max: 160)
     |> unsafe_validate_unique(:email, Peggy.Repo)
     |> unique_constraint(:email)
@@ -79,7 +81,7 @@ defmodule Peggy.UserAccounts.User do
     |> validate_email()
     |> case do
       %{changes: %{email: _}} = changeset -> changeset
-      %{} = changeset -> add_error(changeset, :email, "did not change")
+      %{} = changeset -> add_error(changeset, :email, gettext("did not change"))
     end
   end
 
@@ -98,7 +100,7 @@ defmodule Peggy.UserAccounts.User do
   def password_changeset(user, attrs, opts \\ []) do
     user
     |> cast(attrs, [:password])
-    |> validate_confirmation(:password, message: "does not match password")
+    |> validate_confirmation(:password, message: gettext("does not match password"))
     |> validate_password(opts)
   end
 
@@ -133,7 +135,7 @@ defmodule Peggy.UserAccounts.User do
     if valid_password?(changeset.data, password) do
       changeset
     else
-      add_error(changeset, :current_password, "is not valid")
+      add_error(changeset, :current_password, gettext("is not valid"))
     end
   end
 end

@@ -2,43 +2,43 @@
   <div class="hero-body">
     <div class="container has-text-centered">
       <div class="column is-5 is-offset-3">
-        <h3 class="title has-text-black">Register</h3>
+        <h3 class="title has-text-black"><%= gettext("Register") %></h3>
         <hr class="login-hr">
-        <p class="subtitle has-text-black">Please Register to proceed.</p>
+        <p class="subtitle has-text-black"><%= gettext("Please Register to proceed.") %></p>
         <div class="box">
           <%= form_for @changeset, Routes.user_registration_path(@conn, :create), fn f -> %>
           <%= if @changeset.action do %>
             <div class="notification is-danger">
-              <p>Oops, something went wrong! Please check the errors below.</p>
+              <p><%= gettext("Oops, something went wrong! Please check the errors below.") %></p>
             </div>
           <% end %>
           <div class="field">
             <p class="control">
               <%= email_input f, :email, class: "input is-medium #{input_error_css_class(f, :email)}",
-                               placeholder: "Email", autofocus: true %>
+                               placeholder: gettext("Email"), autofocus: true %>
               <%= error_tag f, :email, "is-danger help" %>
             </p>
           </div>
           <div class="field">
             <p class="control">
               <%= password_input f, :password, class: "input is-medium #{input_error_css_class(f, :password)}",
-                                 placeholder: "Password" %>
+                                 placeholder: gettext("Password") %>
               <%= error_tag f, :password, "is-danger help" %>
             </p>
           </div>
           <div class="field">
             <p class="control">
               <%= password_input f, :password_confirmation, class: "input is-medium #{input_error_css_class(f, :password_confirmation)}",
-                                 placeholder: "Confirm Password"  %>
+                                 placeholder: gettext("Confirm Password")  %>
               <%= error_tag f, :password_confirmation, "is-danger help" %>
             </p>
           </div>
-          <%= submit "Register", class: "button is-primary is-fullwidth is-medium" %>
+          <%= submit gettext("Register"), class: "button is-primary is-fullwidth is-medium" %>
         <% end %>
       </div>
       <p>
-        <%= link "Log in", to: Routes.user_session_path(@conn, :new), class: "button is-info" %>
-        <%= link "Forgot your password?", to: Routes.user_reset_password_path(@conn, :new), class: "button is-warning" %>
+        <%= link gettext("Log in"), to: Routes.user_session_path(@conn, :new), class: "button is-info" %>
+        <%= link gettext("Forgot your password"), to: Routes.user_reset_password_path(@conn, :new), class: "button is-warning" %>
       </p>
     </div>
   </div>

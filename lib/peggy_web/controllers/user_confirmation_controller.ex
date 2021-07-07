@@ -18,9 +18,9 @@ defmodule PeggyWeb.UserConfirmationController do
     # Regardless of the outcome, show an impartial success/error message.
     conn
     |> put_flash(
-      :info,
+      :info, gettext(
       "If your email is in our system and it has not been confirmed yet, " <>
-        "you will receive an email with instructions shortly."
+        "you will receive an email with instructions shortly.")
     )
     |> redirect(to: "/")
   end
@@ -31,7 +31,7 @@ defmodule PeggyWeb.UserConfirmationController do
     case UserAccounts.confirm_user(token) do
       {:ok, _} ->
         conn
-        |> put_flash(:success, "User confirmed successfully.")
+        |> put_flash(:success, gettext("User confirmed successfully."))
         |> redirect(to: "/")
 
       :error ->
@@ -45,7 +45,7 @@ defmodule PeggyWeb.UserConfirmationController do
 
           %{} ->
             conn
-            |> put_flash(:error, "User confirmation link is invalid or it has expired.")
+            |> put_flash(:error, gettext("User confirmation link is invalid or it has expired."))
             |> redirect(to: "/")
         end
     end

@@ -6,7 +6,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <%= csrf_meta_tag() %>
-    <%= live_title_tag assigns[:page_title] || "Peggy" , suffix: " · Phoenix Framework" %>
+    <%= live_title_tag assigns[:page_title] || gettext("Peggy") %>
     <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
     <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </head>
@@ -19,7 +19,7 @@
             <%= if @current_user do %>
               Kim Poh Sitt Tat Feedmill Sdn. Bhd.
             <% else %>
-              Peggy
+              <%= gettext("Peggy") %>
             <% end %>
           </a>
           <div class="navbar-burger burger" data-target="navUserMenu"><span></span><span></span><span></span></div>

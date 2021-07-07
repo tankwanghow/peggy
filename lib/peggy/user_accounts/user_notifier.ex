@@ -1,8 +1,9 @@
 defmodule Peggy.UserAccounts.UserNotifier do
   import Bamboo.Email
+  import PeggyWeb.Gettext
 
   defp deliver(email) do
-    email = %{ email | from: Application.get_env(:peggy, Peggy.Mailer)[:username] }
+    email = %{email | from: Application.get_env(:peggy, Peggy.Mailer)[:username]}
     email |> Peggy.Mailer.deliver_now(response: true)
   end
 
@@ -10,23 +11,28 @@ defmodule Peggy.UserAccounts.UserNotifier do
   Deliver instructions to confirm account.
   """
   def deliver_confirmation_instructions(user, url) do
-    text_body = """
-    ==============================
+    text_body =
+      gettext(
+        """
+        ==============================
 
-    Hi #{user.email},
+        Hi %{email},
 
-    You can confirm your account by visiting the URL below:
+        You can confirm your account by visiting the URL below:
 
-    #{url}
+        %{url}
 
-    If you didn't create an account with us, please ignore this.
+        If you didn't create an account with us, please ignore this.
 
-    ==============================
-    """
+        ==============================
+        """,
+        email: user.email,
+        url: url
+      )
 
     new_email(
       to: user.email,
-      subject: "Confirmation instructions",
+      subject: gettext("Confirmation instructions"),
       text_body: text_body
     )
     |> deliver
@@ -36,24 +42,29 @@ defmodule Peggy.UserAccounts.UserNotifier do
   Deliver instructions to reset a user password.
   """
   def deliver_reset_password_instructions(user, url) do
-    text_body = """
+    text_body =
+      gettext(
+        """
 
-    ==============================
+        ==============================
 
-    Hi #{user.email},
+        Hi %{email},
 
-    You can reset your password by visiting the URL below:
+        You can reset your password by visiting the URL below:
 
-    #{url}
+        %{url}
 
-    If you didn't request this change, please ignore this.
+        If you didn't request this change, please ignore this.
 
-    ==============================
-    """
+        ==============================
+        """,
+        email: user.email,
+        url: url
+      )
 
     new_email(
       to: user.email,
-      subject: "Reset Password instructions",
+      subject: gettext("Reset Password instructions"),
       text_body: text_body
     )
     |> deliver
@@ -63,24 +74,29 @@ defmodule Peggy.UserAccounts.UserNotifier do
   Deliver instructions to update a user email.
   """
   def deliver_update_email_instructions(user, url) do
-    text_body = """
+    text_body =
+      gettext(
+        """
 
-    ==============================
+        ==============================
 
-    Hi #{user.email},
+        Hi %{email},
 
-    You can change your email by visiting the URL below:
+        You can change your email by visiting the URL below:
 
-    #{url}
+        %{url}
 
-    If you didn't request this change, please ignore this.
+        If you didn't request this change, please ignore this.
 
-    ==============================
-    """
+        ==============================
+        """,
+        email: user.email,
+        url: url
+      )
 
     new_email(
       to: user.email,
-      subject: "Update Emails instructions",
+      subject: gettext("Update Emails instructions"),
       text_body: text_body
     )
     |> deliver

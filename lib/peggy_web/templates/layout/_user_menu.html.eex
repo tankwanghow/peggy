@@ -1,7 +1,7 @@
 <%= if @current_user do %>
   <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item has-text-primary" %>
-  <%= link "Log out", to: Routes.user_session_path(@conn, :delete), method: :delete, class: "navbar-item has-text-danger" %>
+  <%= link gettext("Log out"), to: Routes.user_session_path(@conn, :delete), method: :delete, class: "navbar-item has-text-danger" %>
 <% else %>
-  <%= link "Register", to: Routes.user_registration_path(@conn, :new), class: "navbar-item has-text-warning" %>
-  <%= link "Log in", to: Routes.user_session_path(@conn, :new), class: "navbar-item has-text-primary" %>
+  <%= link gettext("Register"), to: Routes.user_registration_path(@conn, :new), class: "navbar-item has-text-warning" %>
+  <%= link gettext("Log in"), to: Routes.user_session_path(@conn, :new), class: "navbar-item has-text-primary" %>
 <% end %>

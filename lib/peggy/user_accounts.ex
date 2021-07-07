@@ -43,6 +43,12 @@ defmodule Peggy.UserAccounts do
     if User.valid_password?(user, password), do: user
   end
 
+  def get_confirmed_user_by_email_and_password(email, password)
+      when is_binary(email) and is_binary(password) do
+    if user = get_user_by_email_and_password(email, password), do:
+      if user.confirmed_at, do: {:ok, user}, else: {:error, "confirm"}
+  end
+
   @doc """
   Gets a single user.
 
