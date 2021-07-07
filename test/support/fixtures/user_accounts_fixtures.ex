@@ -10,7 +10,8 @@ defmodule Peggy.UserAccountsFixtures do
   def valid_user_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
       email: unique_user_email(),
-      password: valid_user_password()
+      password: valid_user_password(),
+      password_confirmation: valid_user_password()
     })
   end
 
@@ -24,7 +25,7 @@ defmodule Peggy.UserAccountsFixtures do
   end
 
   def extract_user_token(fun) do
-    {:ok, captured} = fun.(&"[TOKEN]#{&1}[TOKEN]")
+    {:ok, captured, _} = fun.(&"[TOKEN]#{&1}[TOKEN]")
     [_, token, _] = String.split(captured.text_body, "[TOKEN]")
     token
   end

@@ -34,6 +34,27 @@ defmodule Peggy.UserAccountsTest do
     end
   end
 
+  describe "get_confirmed_user_by_email_and_password/2" do
+    test "does not return the user if the password is valid but not confirmed" do
+      user = user_fixture()
+      assert {:error, "confirm"} =
+        UserAccounts.get_confirmed_user_by_email_and_password(user.email, valid_user_password())
+    end
+
+    test "returns the user if the email and password are valid and confirmed" do
+      user = user_fixture()
+      token =
+        extract_user_token(fn url ->
+          UserAccounts.deliver_user_confirmation_instructions(user, url)
+        end)
+
+      {:ok, user} = UserAccounts.confirm_user(token)
+
+      assert {:ok, _} =
+               UserAccounts.get_confirmed_user_by_email_and_password(user.email, valid_user_password())
+    end
+  end
+
   describe "get_user!/1" do
     test "raises if id is invalid" do
       assert_raise Ecto.NoResultsError, fn ->
@@ -55,6 +76,11 @@ defmodule Peggy.UserAccountsTest do
                password: ["can't be blank"],
                email: ["can't be blank"]
              } = errors_on(changeset)
+    end
+
+    test "validates password confirmation" do
+      {:error, changeset} = UserAccounts.register_user(valid_user_attributes(password: "password", password_confirmation: "different"))
+      assert "does not match password" in errors_on(changeset).password_confirmation
     end
 
     test "validates email and password when given" do

@@ -20,7 +20,7 @@ defmodule PeggyWeb.UserRegistrationControllerTest do
 
   describe "POST /users/register" do
     @tag :capture_log
-    test "creates account and logs the user in", %{conn: conn} do
+    test "creates account, back to welcome page flash user to confirm account", %{conn: conn} do
       email = unique_user_email()
 
       conn =
@@ -28,15 +28,14 @@ defmodule PeggyWeb.UserRegistrationControllerTest do
           "user" => valid_user_attributes(email: email)
         })
 
-      assert get_session(conn, :user_token)
+      refute get_session(conn, :user_token)
       assert redirected_to(conn) =~ "/"
 
       # Now do a logged in request and assert on the menu
       conn = get(conn, "/")
       response = html_response(conn, 200)
-      assert response =~ email
-      assert response =~ "#{email}</a>"
-      assert response =~ "Log out</a>"
+      assert response =~ "User registered successfully. Please confirm"
+      assert response =~ "#{email}"
     end
 
     test "render errors for invalid data", %{conn: conn} do

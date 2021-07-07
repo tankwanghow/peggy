@@ -2,9 +2,22 @@ defmodule PeggyWeb.UserSessionControllerTest do
   use PeggyWeb.ConnCase, async: true
 
   import Peggy.UserAccountsFixtures
+  alias Peggy.UserAccounts
 
   setup do
-    %{user: user_fixture()}
+
+    user = user_fixture()
+    not_confirm_user = user_fixture()
+
+    token =
+      extract_user_token(fn url ->
+        UserAccounts.deliver_user_confirmation_instructions(user, url)
+      end)
+
+    {:ok, user} = UserAccounts.confirm_user(token)
+
+    %{user: user, not_confirm_user: not_confirm_user}
+
   end
 
   describe "GET /users/log_in" do
@@ -12,7 +25,7 @@ defmodule PeggyWeb.UserSessionControllerTest do
       conn = get(conn, Routes.user_session_path(conn, :new))
       response = html_response(conn, 200)
       assert response =~ "Login</h3>"
-      assert response =~ "Forgot your password?</a>"
+      assert response =~ "Forgot your password</a>"
       assert response =~ "Register</a>"
     end
 
@@ -77,6 +90,18 @@ defmodule PeggyWeb.UserSessionControllerTest do
       response = html_response(conn, 200)
       assert response =~ "Login</h3>"
       assert response =~ "Invalid email or password"
+    end
+
+    test "tell user to confirm", %{conn: conn, not_confirm_user: not_confirm_user} do
+      conn =
+        post(conn, Routes.user_session_path(conn, :create), %{
+          "user" => %{"email" => not_confirm_user.email, "password" => valid_user_password()}
+        })
+
+      response = html_response(conn, 200)
+      assert response =~ "Login</h3>"
+      assert response =~ not_confirm_user.email
+      assert response =~ "Confirm"
     end
   end
 
