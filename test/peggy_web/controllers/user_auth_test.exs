@@ -17,6 +17,11 @@ defmodule PeggyWeb.UserAuthTest do
   end
 
   describe "log_in_user/3" do
+    test "keep locale value", %{conn: conn, user: user} do
+      conn = conn |> put_session(:locale, "hello") |> UserAuth.log_in_user(user)
+      assert "hello" == get_session(conn, :locale)
+    end
+
     test "stores the user token in the session", %{conn: conn, user: user} do
       conn = UserAuth.log_in_user(conn, user)
       assert token = get_session(conn, :user_token)

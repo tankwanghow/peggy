@@ -59,7 +59,7 @@
             <%= error_tag f, :current_password, "is-danger help" %>
           </p>
         </div>
-        <%= submit gettext("Change Password"), class: "button is-primary is-fullwidth is-medium" %>
+        <%= submit gettext("Change Password"), class: "button is-primary" %>
       <% end %>
     </div>
   </div>

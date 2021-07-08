@@ -1,3 +1,9 @@
+<%= if @locale == "zh" do %>
+  <%= link "English", to: "?locale=en", class: "navbar-item has-text-info" %>
+<% else %>
+  <%= link "中文", to: "?locale=zh", class: "navbar-item has-text-info" %>
+<% end %>
+
 <%= if @current_user do %>
   <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item has-text-primary" %>
   <%= link gettext("Log out"), to: Routes.user_session_path(@conn, :delete), method: :delete, class: "navbar-item has-text-danger" %>
