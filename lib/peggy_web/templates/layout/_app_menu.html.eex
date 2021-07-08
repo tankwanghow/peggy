@@ -26,3 +26,19 @@
     <a class="navbar-item" href="#">Return Cheques</a>
   </div>
 </div>
+
+<div class="navbar-item has-dropdown is-hoverable">
+  <a class="navbar-link" href="#">Bank</a>
+  <div class="navbar-dropdown">
+    <a class="navbar-item" href="#">Deposit</a>
+    <a class="navbar-item" href="#">Return Cheques</a>
+  </div>
+</div>
+
+<div class="navbar-item has-dropdown is-hoverable">
+  <a class="navbar-link" href="#">Bank</a>
+  <div class="navbar-dropdown">
+    <a class="navbar-item" href="#">Deposit</a>
+    <a class="navbar-item" href="#">Return Cheques</a>
+  </div>
+</div>

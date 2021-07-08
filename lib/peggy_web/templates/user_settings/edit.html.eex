@@ -1,10 +1,8 @@
-<div class="container">
+<div class="hero has-text-centered">
   <h3 class="title has-text-black"><%= gettext("User Settings") %></h3>
-  <hr>
-
-
+  <hr/>
   <div class="columns">
-    <div class="panel column is-4 is-offset-1">
+    <div class="panel box column mx-4">
       <p class="panel-heading mb-3"><%= gettext("Change Email") %></p>
       <%= form_for @email_changeset, Routes.user_settings_path(@conn, :update), fn f -> %>
         <%= if @email_changeset.action do %>
@@ -27,11 +25,11 @@
             <%= error_tag f, :current_password, "is-danger help" %>
           </p>
         </div>
-        <%= submit gettext("Change Email"), class: "button is-primary is-fullwidth is-medium" %>
+        <%= submit gettext("Change Email"), class: "button is-primary" %>
       <% end %>
     </div>
 
-    <div class="panel column is-4 is-offset-1">
+    <div class="panel box column mx-4">
       <p class="panel-heading mb-3"><%= gettext("Change Password") %></p>
       <%= form_for @password_changeset, Routes.user_settings_path(@conn, :update), fn f -> %>
         <%= if @password_changeset.action do %>
