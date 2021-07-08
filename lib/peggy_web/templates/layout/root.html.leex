@@ -13,7 +13,7 @@
 
   <body class='<%= if @current_user, do: "", else: "body-pt-4" %>'>
     <div id="globalNavBar">
-      <nav class="navbar is-black px-5" role="navigation" aria-label="main navigation">
+      <nav class="navbar is-black" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
           <a class="navbar-item brand-text is-size-4-desktop" href="/">
             <%= if @current_user do %>
@@ -29,7 +29,7 @@
         </div>
       </nav>
       <%= if @current_user do %>
-        <nav class="navbar is-light px-5" role="navigation" aria-label="main navigation">
+        <nav class="navbar is-light" role="navigation" aria-label="main navigation">
           <div class="navbar-burger burger" data-target="navAppMenu"><span></span><span></span><span></span></div>
           <div id="navAppMenu" class="navbar-menu">
             <%= render "_app_menu.html" %>
