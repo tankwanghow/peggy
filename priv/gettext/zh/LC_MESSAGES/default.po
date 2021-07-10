@@ -123,7 +123,7 @@ msgstr "密码更新成功。"
 #: lib/peggy_web/templates/layout/root.html.leex:9
 #: lib/peggy_web/templates/layout/root.html.leex:22
 msgid "Peggy"
-msgstr ""
+msgstr "猪可量"
 
 #, elixir-format
 #: lib/peggy_web/templates/user_registration/new.html.eex:5
@@ -309,4 +309,4 @@ msgstr "改您的电子邮件说明"
 #: lib/peggy_web/live/page_live.html.leex:98 lib/peggy_web/live/page_live.html.leex:99
 #: lib/peggy_web/live/page_live.html.leex:100 lib/peggy_web/live/page_live.html.leex:101
 msgid "Peggy Welcome Page"
-msgstr "佩吉欢迎页面"
+msgstr "猪可量欢迎页面"
