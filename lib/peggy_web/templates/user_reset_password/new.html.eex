@@ -5,7 +5,7 @@
     <%= form_for :user, Routes.user_reset_password_path(@conn, :create), fn f -> %>
       <div class="field">
         <p class="control">
-          <%= email_input f, :email, class: "input is-medium", placeholder: gettext("Email"), autofocus: true %>
+          <%= email_input f, :email, class: "input", placeholder: gettext("Email"), autofocus: true %>
         </p>
       </div>
       <%= submit gettext("Send instructions to reset password"), class: "button is-primary" %>

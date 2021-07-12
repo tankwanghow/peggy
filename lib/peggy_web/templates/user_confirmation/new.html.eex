@@ -6,7 +6,7 @@
       <div class="field">
         <p class="control">
           <%= email_input f, :email,
-                    class: "input is-medium", placeholder: gettext("Email"), autofocus: true,
+                    class: "input", placeholder: gettext("Email"), autofocus: true,
                     value: @conn.params["user"]["email"]
                     %>
         </p>

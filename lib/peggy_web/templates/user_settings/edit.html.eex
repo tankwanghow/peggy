@@ -13,16 +13,16 @@
         <%= hidden_input f, :action, name: "action", value: "update_email" %>
         <div class="field">
           <p class="control">
-            <%= email_input f, :email, class: "input is-medium #{input_error_css_class(f, :email)}",
+            <%= email_input f, :email, class: "input #{input_error_css_class(f, :email)}",
                             placeholder: gettext("Email"), autofocus: true %>
-            <%= error_tag f, :email, "is-danger help" %>
+            <%= error_tag f, :email %>
           </p>
         </div>
         <div class="field">
           <p class="control">
-            <%= password_input f, :current_password, class: "input is-medium #{input_error_css_class(f, :current_password)}",
+            <%= password_input f, :current_password, class: "input #{input_error_css_class(f, :current_password)}",
                                   type: "password", placeholder: gettext("Current Password"), name: "current_password" %>
-            <%= error_tag f, :current_password, "is-danger help" %>
+            <%= error_tag f, :current_password %>
           </p>
         </div>
         <%= submit gettext("Change Email"), class: "button is-primary" %>
@@ -40,23 +40,23 @@
         <%= hidden_input f, :action, name: "action", value: "update_password" %>
         <div class="field">
           <p class="control">
-            <%= password_input f, :password, class: "input is-medium #{input_error_css_class(f, :password)}",
+            <%= password_input f, :password, class: "input #{input_error_css_class(f, :password)}",
                                placeholder: gettext("Password") %>
-            <%= error_tag f, :password, "is-danger help" %>
+            <%= error_tag f, :password %>
           </p>
         </div>
         <div class="field">
           <p class="control">
-            <%= password_input f, :password_confirmation, class: "input is-medium #{input_error_css_class(f, :password_confirmation)}",
+            <%= password_input f, :password_confirmation, class: "input #{input_error_css_class(f, :password_confirmation)}",
                                placeholder: gettext("Confirm Password") %>
-            <%= error_tag f, :password_confirmation, "is-danger help" %>
+            <%= error_tag f, :password_confirmation %>
           </p>
         </div>
         <div class="field">
           <p class="control">
-            <%= password_input f, :current_password, class: "input is-medium #{input_error_css_class(f, :password)}",
+            <%= password_input f, :current_password, class: "input #{input_error_css_class(f, :password)}",
                                placeholder: gettext("Current Password"), name: "current_password" %>
-            <%= error_tag f, :current_password, "is-danger help" %>
+            <%= error_tag f, :current_password %>
           </p>
         </div>
         <%= submit gettext("Change Password"), class: "button is-primary" %>

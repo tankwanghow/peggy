@@ -10,16 +10,16 @@
       <% end %>
       <div class="field">
         <p class="control">
-          <%= password_input f, :password, class: "input is-medium #{input_error_css_class(f, :password)}",
+          <%= password_input f, :password, class: "input #{input_error_css_class(f, :password)}",
                                     placeholder: gettext("Password") %>
-          <%= error_tag f, :password, "is-danger help" %>
+          <%= error_tag f, :password %>
         </p>
       </div>
       <div class="field">
         <p class="control">
-          <%= password_input f, :password_confirmation, class: "input is-medium #{input_error_css_class(f, :password_confirmation)}",
+          <%= password_input f, :password_confirmation, class: "input #{input_error_css_class(f, :password_confirmation)}",
                                     placeholder: gettext("Confirm Password")  %>
-          <%= error_tag f, :password_confirmation, "is-danger help" %>
+          <%= error_tag f, :password_confirmation %>
         </p>
       </div>
       <%= submit gettext("Reset password"), class: "button is-primary" %>
