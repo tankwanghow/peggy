@@ -1,22 +1,15 @@
 <main role="main" class="container has-text-centered">
-
   <p class="notification is-info" role="alert"
     phx-click="lv:clear-flash"
     phx-value-key="info"><%= live_flash(@flash, :info) %></p>
-
   <p class="notification is-danger" role="alert"
     phx-click="lv:clear-flash"
     phx-value-key="error"><%= live_flash(@flash, :error) %></p>
-
   <p class="notification is-warning" role="alert"
     phx-click="lv:clear-flash"
     phx-value-key="warning"><%= live_flash(@flash, :warning) %></p>
-
   <p class="notification is-success" role="alert"
     phx-click="lv:clear-flash"
     phx-value-key="success"><%= live_flash(@flash, :success) %></p>
-
-
   <%= @inner_content %>
-
 </main>
