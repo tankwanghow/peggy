@@ -31,11 +31,23 @@ body {
   display: none;
 }
 
-
-/* LiveView specific classes for your customizations 
+//LiveView specific classes for your customizations 
 .phx-no-feedback.invalid-feedback,
 .phx-no-feedback .invalid-feedback {
   display: none;
+}
+
+.is-danger.input.phx-no-feedback,
+.is-danger.textarea.phx-no-feedback {
+  border-color: #dbdbdb;
+}
+
+.is-danger.input:focus.phx-no-feedback, .is-danger.textarea:focus.phx-no-feedback, 
+.is-danger.is-focused.input.phx-no-feedback, .is-danger.is-focused.textarea.phx-no-feedback, 
+.is-danger.input:active.phx-no-feedback, .is-danger.textarea:active.phx-no-feedback, 
+.is-danger.is-active.input.phx-no-feedback, .is-danger.is-active.textarea.phx-no-feedback {
+  border-color: #485fc7;
+  box-shadow: 0 0 0 0.125em rgba(72, 95, 199, 0.25);
 }
 
 .phx-click-loading {
@@ -85,6 +97,12 @@ body {
   cursor: pointer;
 }
 
+// .invalid-feedback {
+//   color: #a94442;
+//   display: block;
+//   margin: -1rem 0 2rem;
+// }
+
 /* Alerts and form errors 
 .alert {
   padding: 15px;
@@ -113,9 +131,5 @@ body {
 .alert:empty {
   display: none;
 }
-.invalid-feedback {
-  color: #a94442;
-  display: block;
-  margin: -1rem 0 2rem;
-}
+
 */
