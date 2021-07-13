@@ -10,40 +10,49 @@ defmodule PeggyWeb.FormHelpers do
   def peggy_text(form, field, placeholder, opts \\ []) do
     opt = [class: "input #{input_error_css_class(form, field)}", autocomplete: :off,
            placeholder: placeholder, phx_feedback_for: input_name(form, field)]
-    content_tag(:p,
-      [text_input(form, field, opt ++ opts),
-      error_tag(form, field)],
-      class: "field control")
+
+    if Enum.any?(opts, fn {k, _v} -> k == :col_class end) do
+      {:col_class, col_class} = Enum.find(opts, fn {k, _v} -> k == :col_class end)
+      opts = Enum.reject(opts, fn {k, _v} -> k == :col_class end)
+      peggy_column(
+        content_tag(:p,
+          [text_input(form, field, opt ++ opts),
+          error_tag(form, field)],
+          class: "field control"),
+        col_class)
+    else
+      content_tag(:p,
+        [text_input(form, field, opt ++ opts),
+         error_tag(form, field)],
+        class: "field control")
+    end
   end
 
-  def peggy_text_column(form, field, placeholder, column_class, opts \\[]) do
-    content_tag(:div, peggy_text(form, field, placeholder, opts),
+  defp peggy_column(input_tag, column_class) do
+    content_tag(:div, input_tag,
       class: "column #{column_class}"
     )
   end
 
+  def peggy_date(form, field, placeholder, opts \\ []) do
+    peggy_text(form, field, placeholder, [type: :date] ++ opts)
+  end
+
+  def peggy_number(form, field, placeholder, opts \\ []) do
+    peggy_text(form, field, placeholder, [type: :number] ++ opts)
+  end
+
   def peggy_email(form, field, placeholder, opts \\ []) do
-    opt = [class: "input #{input_error_css_class(form, field)}",
-           placeholder: placeholder, phx_feedback_for: input_name(form, field)]
-    content_tag(:p,
-      [email_input(form, field, opt ++ opts),
-      error_tag(form, field)],
-      class: "field control")
+    peggy_text(form, field, placeholder, [type: :email] ++ opts)
   end
 
   def peggy_password(form, field, placeholder, opts \\ []) do
-    opt = [class: "input #{input_error_css_class(form, field)}",
-           placeholder: placeholder, phx_feedback_for: input_name(form, field)]
-    content_tag(:p,
-      [password_input(form, field, opt ++ opts),
-      error_tag(form, field)],
-      class: "field control")
+    peggy_text(form, field, placeholder, [type: :password] ++ opts)
   end
 
   def countries_datalist(id) do
     content_tag(:datalist, countries_option(), id: id)
   end
-
 
   defp countries_option() do
     Enum.map countries(), fn el ->
