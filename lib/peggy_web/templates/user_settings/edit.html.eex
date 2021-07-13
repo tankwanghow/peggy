@@ -11,20 +11,8 @@
           </div>
         <% end %>
         <%= hidden_input f, :action, name: "action", value: "update_email" %>
-        <div class="field">
-          <p class="control">
-            <%= email_input f, :email, class: "input #{input_error_css_class(f, :email)}",
-                            placeholder: gettext("Email"), autofocus: true %>
-            <%= error_tag f, :email %>
-          </p>
-        </div>
-        <div class="field">
-          <p class="control">
-            <%= password_input f, :current_password, class: "input #{input_error_css_class(f, :current_password)}",
-                                  type: "password", placeholder: gettext("Current Password"), name: "current_password" %>
-            <%= error_tag f, :current_password %>
-          </p>
-        </div>
+        <%= peggy_email f, :email, gettext("Email") %>
+        <%= peggy_password f, :current_password, gettext("Current Password"), name: :current_password %>
         <%= submit gettext("Change Email"), class: "button is-primary" %>
       <% end %>
     </div>
@@ -38,27 +26,9 @@
           </div>
         <% end %>
         <%= hidden_input f, :action, name: "action", value: "update_password" %>
-        <div class="field">
-          <p class="control">
-            <%= password_input f, :password, class: "input #{input_error_css_class(f, :password)}",
-                               placeholder: gettext("Password") %>
-            <%= error_tag f, :password %>
-          </p>
-        </div>
-        <div class="field">
-          <p class="control">
-            <%= password_input f, :password_confirmation, class: "input #{input_error_css_class(f, :password_confirmation)}",
-                               placeholder: gettext("Confirm Password") %>
-            <%= error_tag f, :password_confirmation %>
-          </p>
-        </div>
-        <div class="field">
-          <p class="control">
-            <%= password_input f, :current_password, class: "input #{input_error_css_class(f, :password)}",
-                               placeholder: gettext("Current Password"), name: "current_password" %>
-            <%= error_tag f, :current_password %>
-          </p>
-        </div>
+        <%= peggy_password f, :password, gettext("Password") %>
+        <%= peggy_password f, :password_confirmation, gettext("Confirm Password") %>
+        <%= peggy_password f, :current_password, gettext("Current Password"), name: :current_password %>
         <%= submit gettext("Change Password"), class: "button is-primary" %>
       <% end %>
     </div>

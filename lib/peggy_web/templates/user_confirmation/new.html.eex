@@ -3,14 +3,7 @@
     <h3 class="title has-text-black"><%= gettext("Resend confirmation instructions") %></h3>
     <hr class="login-hr">
     <%= form_for :user, Routes.user_confirmation_path(@conn, :create), fn f -> %>
-      <div class="field">
-        <p class="control">
-          <%= email_input f, :email,
-                    class: "input", placeholder: gettext("Email"), autofocus: true,
-                    value: @conn.params["user"]["email"]
-                    %>
-        </p>
-      </div>
+      <%= peggy_email f, :email, gettext("Email"), autofocus: true %>
       <%= submit gettext("Resend confirmation instructions"), class: "button is-primary" %>
     <% end %>
   </div>

@@ -3,11 +3,7 @@
     <h3 class="title has-text-black"><%= gettext("Forgot your password") %></h3>
     <hr class="login-hr">
     <%= form_for :user, Routes.user_reset_password_path(@conn, :create), fn f -> %>
-      <div class="field">
-        <p class="control">
-          <%= email_input f, :email, class: "input", placeholder: gettext("Email"), autofocus: true %>
-        </p>
-      </div>
+      <%= peggy_email f, :email, gettext("Email"), autofocus: true %>
       <%= submit gettext("Send instructions to reset password"), class: "button is-primary" %>
     <% end %>
   </div>

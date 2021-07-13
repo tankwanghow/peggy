@@ -16,16 +16,8 @@
                        to: Routes.user_confirmation_url(@conn, :new, user: %{ email: @conn.params["user"]["email"] }) %>
         </div>
       <% end %>
-      <div class="field">
-        <p class="control">
-          <%= email_input f, :email, class: "input", placeholder: gettext("Email"), autofocus: true %>
-        </p>
-      </div>
-      <div class="field">
-        <p class="control">
-          <%= password_input f, :password, class: "input", placeholder: gettext("Password") %>
-        </p>
-      </div>
+      <%= peggy_email f, :email, gettext("Email") %>
+      <%= peggy_password f, :password, gettext("Password") %>
       <div class="field">
         <%= checkbox f, :remember_me, class: "checkbox" %>
         <%= label f, :remember_me, gettext("Keep me logged in for 60 days"), class: "checkbox" %>
