@@ -70,6 +70,15 @@ defmodule PeggyWeb.Router do
     get "/users/settings", UserSettingsController, :edit
     put "/users/settings", UserSettingsController, :update
     get "/users/settings/confirm_email/:token", UserSettingsController, :confirm_email
+
+    # live "/farms", FarmLive.Index, :index
+    # live "/farms/new", FarmLive.Index, :new
+    # live "/farms/:id/edit", FarmLive.Index, :edit
+
+    # live "/farms/:id", FarmLive.Show, :show
+    # live "/farms/:id/show/edit", FarmLive.Show, :edit
+
+    live "/farms/new", FarmLive.New, :new
   end
 
   scope "/", PeggyWeb do

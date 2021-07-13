@@ -1,0 +1,16 @@
+<div class="columns">
+  <%= peggy_text @f, :name, gettext("Farm Name"), col_class: "pb-0", autofocus: true %>
+  <%= peggy_text @f, :weight_unit, gettext("Weight Unit"), col_class: "is-one-quarter pb-0" %>
+</div>
+<%= peggy_text @f, :address1, gettext("Address Line 1") %>
+<%= peggy_text @f, :address2, gettext("Address Line 2") %>
+<div class="columns">
+  <%= peggy_text @f, :city, gettext("City"), col_class: "pb-0" %>
+  <%= peggy_text @f, :zipcode, gettext("Postal Code"), col_class: "is-one-third pb-0" %>
+</div>
+<div class="columns">
+  <%= peggy_text @f, :state, gettext("State"), col_class: "pb-0" %>
+  <%= peggy_text @f, :country, gettext("Country"), col_class: "pb-0", list: "countries" %>
+</div>
+
+<%= countries_datalist("countries") %>
