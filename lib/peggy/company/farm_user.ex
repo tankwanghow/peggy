@@ -2,10 +2,10 @@ defmodule Peggy.Company.FarmUser do
   use Ecto.Schema
   import Ecto.Changeset
 
-  schema "farm_users" do
+  schema "farm_user" do
     field :role, :string
-    field :farm_id, :id
-    field :user_id, :id
+    belongs_to :farm, Peggy.Company.Farm
+    belongs_to :user, Peggy.UserAccounts.User
 
     timestamps()
   end
@@ -13,7 +13,7 @@ defmodule Peggy.Company.FarmUser do
   @doc false
   def changeset(farm_user, attrs) do
     farm_user
-    |> cast(attrs, [:role])
-    |> validate_required([:role])
+    |> cast(attrs, [:role, :farm_id, :user_id])
+    |> validate_required([:role, :farm_id, :user_id])
   end
 end

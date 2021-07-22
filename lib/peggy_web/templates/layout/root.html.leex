@@ -9,14 +9,13 @@
     <link phx-track-static rel="stylesheet" href="<%= Routes.static_path(@conn, "/css/app.css") %>"/>
     <script defer phx-track-static type="text/javascript" src="<%= Routes.static_path(@conn, "/js/app.js") %>"></script>
   </head>
-
   <body class='<%= if @current_user, do: "", else: "body-pt-4" %>'>
     <div id="globalNavBar">
       <nav class="navbar is-black" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
           <a class="navbar-item brand-text is-size-4-desktop" href="/">
-            <%= if @current_user do %>
-              Kim Poh Sitt Tat Feedmill Sdn. Bhd.
+            <%= if @current_farm do %>
+              @current_farm.name
             <% else %>
               <%= gettext("Peggy")%>
             <% end %>
@@ -27,16 +26,7 @@
           <%= render "_user_menu.html" , assigns %>
         </div>
       </nav>
-      <%= if @current_user do %>
-        <nav class="navbar is-light" role="navigation" aria-label="main navigation">
-          <div class="navbar-burger burger" data-target="navAppMenu"><span></span><span></span><span></span></div>
-          <div id="navAppMenu" class="navbar-menu">
-            <%= render "_app_menu.html" %>
-          </div>
-        </nav>
-        <% end %>
     </div>
     <%= @inner_content %>
   </body>
-
 </html>

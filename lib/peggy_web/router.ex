@@ -12,6 +12,7 @@ defmodule PeggyWeb.Router do
     plug :put_secure_browser_headers
     plug :fetch_current_user
     plug PeggyWeb.Locale
+    plug PeggyWeb.ActiveFarm
   end
 
   pipeline :api do
@@ -20,7 +21,6 @@ defmodule PeggyWeb.Router do
 
   scope "/", PeggyWeb do
     pipe_through :browser
-
     live "/", PageLive, :index
   end
 
@@ -71,14 +71,9 @@ defmodule PeggyWeb.Router do
     put "/users/settings", UserSettingsController, :update
     get "/users/settings/confirm_email/:token", UserSettingsController, :confirm_email
 
-    # live "/farms", FarmLive.Index, :index
-    # live "/farms/new", FarmLive.Index, :new
-    # live "/farms/:id/edit", FarmLive.Index, :edit
-
-    # live "/farms/:id", FarmLive.Show, :show
-    # live "/farms/:id/show/edit", FarmLive.Show, :edit
-
-    live "/farms/new", FarmLive.New, :new
+    live "/farms", FarmLive.Index, :index
+    live "/farms/:id/edit", FarmLive.Form, :edit
+    live "/farms/new", FarmLive.Form, :new
   end
 
   scope "/", PeggyWeb do

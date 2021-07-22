@@ -1,7 +1,15 @@
-<main role="main" class="container has-text-centered">
-  <p class="notification is-info" role="alert"><%= get_flash(@conn, :info) %></p>
-  <p class="notification is-danger" role="alert"><%= get_flash(@conn, :error) %></p>
-  <p class="notification is-warning" role="alert"><%= get_flash(@conn, :warning) %></p>
-  <p class="notification is-success" role="alert"><%= get_flash(@conn, :success) %></p>
+<main role="main" class="container has-text-centered is-max-widescreen">
+  <%= if get_flash(@conn, :info) do %>
+    <p class="notification is-info" role="alert"><button class="delete"></button><%= get_flash(@conn, :info) %></p>
+  <%end %>
+  <%= if get_flash(@conn, :error) do %>
+    <p class="notification is-danger" role="alert"><button class="delete"></button><%= get_flash(@conn, :error) %></p>
+  <%end %>
+  <%= if get_flash(@conn, :warning) do %>
+    <p class="notification is-warning" role="alert"><button class="delete"></button><%= get_flash(@conn, :warning) %></p>
+  <%end %>
+  <%= if get_flash(@conn, :success) do %>
+    <p class="notification is-success" role="alert"><button class="delete"></button><%= get_flash(@conn, :success) %></p>
+  <%end %>
   <%= @inner_content %>
 </main>

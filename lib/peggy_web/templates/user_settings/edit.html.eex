@@ -1,15 +1,9 @@
-<div class="hero has-text-centered">
-  <h3 class="title has-text-black"><%= gettext("User Settings") %></h3>
-  <hr/>
+<div class="has-text-centered">
+  <p class="title has-text-black"><%= gettext("User Settings") %></p>
   <div class="columns">
     <div class="panel box column mx-4">
       <p class="panel-heading mb-3"><%= gettext("Change Email") %></p>
       <%= form_for @email_changeset, Routes.user_settings_path(@conn, :update), fn f -> %>
-        <%= if @email_changeset.action do %>
-          <div class="notification is-danger">
-            <p><%= gettext("Oops, something went wrong! Please check the errors below.") %></p>
-          </div>
-        <% end %>
         <%= hidden_input f, :action, name: "action", value: "update_email" %>
         <%= peggy_email f, :email, gettext("Email") %>
         <%= peggy_password f, :current_password, gettext("Current Password"), name: :current_password %>
@@ -20,11 +14,6 @@
     <div class="panel box column mx-4">
       <p class="panel-heading mb-3"><%= gettext("Change Password") %></p>
       <%= form_for @password_changeset, Routes.user_settings_path(@conn, :update), fn f -> %>
-        <%= if @password_changeset.action do %>
-          <div class="notification is-danger">
-            <p><%= gettext("Oops, something went wrong! Please check the errors below.") %></p>
-          </div>
-        <% end %>
         <%= hidden_input f, :action, name: "action", value: "update_password" %>
         <%= peggy_password f, :password, gettext("Password") %>
         <%= peggy_password f, :password_confirmation, gettext("Confirm Password") %>

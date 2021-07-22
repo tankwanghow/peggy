@@ -1,0 +1,16 @@
+<section class="has-text-centered">
+  <div class="container ">
+    <p class="title"><%= @page_title %></p>
+    <%= for f <- @farms do %>
+      <div id="farm-<%= f.id%>" class="box has-text-left">
+        <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f),
+                       class: "is-size-5 has-text-weight-bold" %>
+        <p><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
+      </div>
+      <%= if f.id == live_flash(@flash, :scroll_to_here_farm_id) do %>
+        <div id="scroll-to-here" phx-hook="ScrollToHere"></div>
+      <% end %>
+    <% end %>
+  </div>
+</section>
+<span><%= live_patch gettext("New Farm"), to: Routes.farm_form_path(@socket, :new), class: "button" %></span>

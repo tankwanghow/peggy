@@ -28,7 +28,7 @@ defmodule PeggyWeb.UserSettingsController do
         |> redirect(to: Routes.user_settings_path(conn, :edit))
 
       {:error, changeset} ->
-        render(conn, "edit.html", email_changeset: changeset)
+        render(conn |> put_flash(:error, gettext("Oops, something went wrong! Please check the errors below.")), "edit.html", email_changeset: changeset)
     end
   end
 
@@ -44,7 +44,7 @@ defmodule PeggyWeb.UserSettingsController do
         |> UserAuth.log_in_user(user)
 
       {:error, changeset} ->
-        render(conn, "edit.html", password_changeset: changeset)
+        render(conn |> put_flash(:error, gettext("Oops, something went wrong! Please check the errors below.")), "edit.html", password_changeset: changeset)
     end
   end
 

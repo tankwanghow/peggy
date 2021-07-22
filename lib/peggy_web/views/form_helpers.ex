@@ -9,7 +9,7 @@ defmodule PeggyWeb.FormHelpers do
 
   def peggy_text(form, field, placeholder, opts \\ []) do
     opt = [class: "input #{input_error_css_class(form, field)}", autocomplete: :off,
-           placeholder: placeholder, phx_feedback_for: input_name(form, field)]
+           placeholder: placeholder, phx_feedback_for: input_name(form, field), phx_debounce: "blur"]
 
     if Enum.any?(opts, fn {k, _v} -> k == :col_class end) do
       {:col_class, col_class} = Enum.find(opts, fn {k, _v} -> k == :col_class end)

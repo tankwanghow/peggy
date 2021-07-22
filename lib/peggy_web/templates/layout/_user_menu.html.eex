@@ -5,9 +5,10 @@
 <% end %>
 
 <%= if @current_user do %>
-  <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item has-text-primary" %>
+  <%= link gettext("Farms"), to: Routes.farm_index_path(@conn, :index), class: "navbar-item" %>
+  <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item" %>
   <%= link gettext("Log out"), to: Routes.user_session_path(@conn, :delete), method: :delete, class: "navbar-item has-text-danger" %>
 <% else %>
-  <%= link gettext("Register"), to: Routes.user_registration_path(@conn, :new), class: "navbar-item has-text-warning" %>
+  <%= link gettext("Register"), to: Routes.user_registration_path(@conn, :new), class: "navbar-item" %>
   <%= link gettext("Log in"), to: Routes.user_session_path(@conn, :new), class: "navbar-item has-text-primary" %>
 <% end %>

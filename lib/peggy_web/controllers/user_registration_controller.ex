@@ -24,7 +24,7 @@ defmodule PeggyWeb.UserRegistrationController do
         |> redirect(to: "/")
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        render(conn, "new.html", changeset: changeset)
+        render(conn |> put_flash(:error, gettext("Oops, something went wrong! Please check the errors below.")), "new.html", changeset: changeset)
     end
   end
 end

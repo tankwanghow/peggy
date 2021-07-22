@@ -40,7 +40,7 @@ defmodule PeggyWeb.UserResetPasswordController do
         |> redirect(to: Routes.user_session_path(conn, :new))
 
       {:error, changeset} ->
-        render(conn, "edit.html", changeset: changeset)
+        render(conn |> put_flash(:error, gettext("Oops, something went wrong! Please check the errors below.")), "edit.html", changeset: changeset)
     end
   end
 

@@ -1,21 +1,8 @@
-<section class="hero has-text-centered">
+<section class="has-text-centered">
   <div class="container box">
     <h3 class="title has-text-black"><%= gettext("Login") %></h3>
-    <hr class="login-hr">
     <p class="subtitle has-text-black"><%= gettext("Please Login to proceed.") %></p>
       <%= form_for @conn, Routes.user_session_path(@conn, :create), [as: :user], fn f -> %>
-      <%= if @error_message do %>
-        <div class="notification is-danger">
-          <p><%= @error_message %></p>
-        </div>
-      <% end %>
-      <%= if @info_message do %>
-        <div class="notification is-info">
-          <p><%= @info_message %></p>
-          <%= link gettext("Resend confirmation"),
-                       to: Routes.user_confirmation_url(@conn, :new, user: %{ email: @conn.params["user"]["email"] }) %>
-        </div>
-      <% end %>
       <%= peggy_email f, :email, gettext("Email") %>
       <%= peggy_password f, :password, gettext("Password") %>
       <div class="field">

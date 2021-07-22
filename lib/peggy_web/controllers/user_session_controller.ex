@@ -15,9 +15,9 @@ defmodule PeggyWeb.UserSessionController do
       {:ok, user} ->
         UserAuth.log_in_user(conn, user, user_params)
       {:error, "confirm"} ->
-        render(conn, "new.html", info_message: gettext("Confirm your account at the email you registered"), error_message: nil)
+        render(conn |> put_flash(:info, gettext("Confirm your account at the email you registered")), "new.html")
       _ ->
-        render(conn, "new.html", error_message: gettext("Invalid email or password"), info_message: nil)
+        render(conn |> put_flash(:error, gettext("Invalid email or password")), "new.html")
     end
   end
 

@@ -1,14 +1,8 @@
-<section class="hero has-text-centered">
+<section class="has-text-centered">
   <div class="container box">
     <h3 class="title has-text-black"><%= gettext("Register") %></h3>
-    <hr class="login-hr">
     <p class="subtitle has-text-black"><%= gettext("Please Register to proceed.") %></p>
     <%= form_for @changeset, Routes.user_registration_path(@conn, :create), fn f -> %>
-      <%= if @changeset.action do %>
-        <div class="notification is-danger">
-          <p><%= gettext("Oops, something went wrong! Please check the errors below.") %></p>
-        </div>
-      <% end %>
       <%= peggy_email f, :email, gettext("Email"), autofocus: true %>
       <%= peggy_password f, :password, gettext("Password") %>
       <%= peggy_password f, :password_confirmation, gettext("Confirm Password") %>

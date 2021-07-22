@@ -9,6 +9,8 @@ defmodule Peggy.UserAccounts.User do
     field :password, :string, virtual: true
     field :hashed_password, :string
     field :confirmed_at, :naive_datetime
+    many_to_many :farms, Peggy.Company.Farm, join_through: Peggy.Company.FarmUser, on_replace: :delete
+    has_many :farm_user, Peggy.Company.FarmUser
 
     timestamps()
   end

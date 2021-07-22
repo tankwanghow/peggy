@@ -11,6 +11,7 @@ defmodule PeggyWeb.ErrorHelpers do
   def error_tag(form, field) do
     Enum.map(Keyword.get_values(form.errors, field), fn error ->
       content_tag(:span, translate_error(error),
+        id: Atom.to_string(field) <> "-invalid-feedback",
         class: "is-danger help invalid-feedback",
         phx_feedback_for: input_name(form, field)
       )
