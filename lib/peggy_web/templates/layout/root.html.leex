@@ -13,17 +13,15 @@
     <div id="globalNavBar">
       <nav class="navbar is-black" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
-          <a class="navbar-item brand-text is-size-4-desktop" href="/">
-            <%= if @current_farm do %>
-              @current_farm.name
-            <% else %>
-              <%= gettext("Peggy")%>
-            <% end %>
-          </a>
+          <%= if Plug.Conn.get_session(@conn, :current_farm) do %>
+            <%= link Plug.Conn.get_session(@conn, :current_farm).name, to: Routes.navigation_path(@conn, :index), class: "navbar-item brand-text is-size-4-desktop" %>
+          <% else %>
+            <%= link gettext("Peggy"), to: "/", class: "navbar-item brand-text is-size-4-desktop" %>
+          <% end %>
           <div class="navbar-burger burger" data-target="navUserMenu"><span></span><span></span><span></span></div>
         </div>
         <div id="navUserMenu" class="navbar-menu navbar-end">
-          <%= render "_user_menu.html" , assigns %>
+          <%= render "_user_menu.html", assigns %>
         </div>
       </nav>
     </div>

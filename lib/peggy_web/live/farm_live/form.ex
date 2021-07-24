@@ -7,6 +7,7 @@ defmodule PeggyWeb.FarmLive.Form do
   def mount(params, session, socket) do
     PeggyWeb.LiveHelpers.set_locale(session)
     socket = assign_current_user(socket, session)
+    socket = assign(socket, :current_farm, session["current_farm"])
 
     case socket.assigns.live_action do
       :new -> mount_new(socket)
@@ -15,21 +16,22 @@ defmodule PeggyWeb.FarmLive.Form do
   end
 
   defp mount_new(socket) do
-    {:ok, socket
-          |> assign(:page_title, gettext("Please Create a Farm."))
-          |> assign(:changeset, Company.change_farm(%Farm{}, %{}, socket.assigns.current_user))}
+    {:ok,
+     socket
+     |> assign(:page_title, gettext("Please Create a Farm."))
+     |> assign(:changeset, Company.change_farm(%Farm{}, %{}, socket.assigns.current_user))}
   end
 
   defp mount_edit(%{"id" => id}, socket) do
     farm = Company.get_farm!(id, socket.assigns.current_user)
     changeset = Company.change_farm(farm, %{}, socket.assigns.current_user)
 
-    {:ok, socket
-          |> assign(:page_title, gettext("Editing Farm."))
-          |> assign(:changeset, changeset)
-          |> assign(:farm, farm)}
+    {:ok,
+     socket
+     |> assign(:page_title, gettext("Editing Farm."))
+     |> assign(:changeset, changeset)
+     |> assign(:farm, farm)}
   end
-
 
   @impl true
   def handle_event("validate", %{"farm" => params}, socket) do
@@ -43,13 +45,29 @@ defmodule PeggyWeb.FarmLive.Form do
     {:noreply, socket}
   end
 
+  @impl true
   def handle_event("save", %{"farm" => farm_params}, socket) do
-    IO.inspect(socket)
     save_farm(socket, socket.assigns.live_action, farm_params)
   end
 
+  @impl true
+  def handle_event("delete", %{"id" => id}, socket) do
+    deleted_redirect_to = if(socket.assigns.current_farm == socket.assigns.farm, do: "/clear_set_active_farm", else: "/farms")
+    case Company.delete_farm(socket.assigns.farm, socket.assigns.current_user) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> put_flash(:success, gettext("Farm Deleted successfully"))
+         |> push_redirect(to: deleted_redirect_to)}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply,
+         assign(socket, :changeset, changeset)
+         |> put_flash(:error, gettext("Failed to Delete Farm"))}
+    end
+  end
+
   defp save_farm(socket, :edit, farm_params) do
-    IO.inspect(socket)
     case Company.update_farm(socket.assigns.farm, farm_params, socket.assigns.current_user) do
       {:ok, farm} ->
         {:noreply,

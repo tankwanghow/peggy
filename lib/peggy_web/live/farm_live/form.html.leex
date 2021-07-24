@@ -1,9 +1,12 @@
 <section class="box has-text-centered">
   <div class="container">
-    <p class="title"><%= @page_title %></p>
+    <p class="is-size-4 has-text-weight-bold"><%= @page_title %></p>
     <%= f = form_for @changeset, "#", id: "farm-form", phx_change: "validate", phx_submit: "save" %>
       <%= live_component PeggyWeb.FarmLive.FieldsComponent, changeset: @changeset, f: f %>
       <%= submit gettext("Save Farm"), phx_disable_with: gettext("Saving..."), class: "button is-primary" %>
+      <%= if @live_action == :edit do %>
+        <%= link "Delete", to: "#", phx_click: "delete", phx_value_id: @farm.id, data: [confirm: gettext("Are you sure?")], class: "button is-danger" %>
+      <% end %>
     </form>
   </div>
 </section>
