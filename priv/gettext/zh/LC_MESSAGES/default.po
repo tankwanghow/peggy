@@ -365,12 +365,12 @@ msgstr "农场清单"
 #, elixir-format
 #: lib/peggy_web/live/farm_live/form.ex:90
 msgid "Farm created successfully"
-msgstr ""
+msgstr "农场创建成功。"
 
 #, elixir-format
 #: lib/peggy_web/live/farm_live/form.ex:76
 msgid "Farm updated successfully"
-msgstr "密码更新成功。"
+msgstr "农场更新成功。"
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:14
@@ -393,7 +393,12 @@ msgstr "您必须创建一个农场才能继续。"
 msgid "is active now."
 msgstr "现在活跃。"
 
-#, elixir-format, fuzzy
+#, elixir-format
 #: lib/peggy_web/live/navigation_live.html.leex:1
 msgid "Navigation Page"
 msgstr "导航页面"
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/form.html.leex:8
+msgid "Delete"
+msgstr "删除"

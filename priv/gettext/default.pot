@@ -396,3 +396,8 @@ msgstr ""
 #: lib/peggy_web/live/navigation_live.html.leex:1
 msgid "Navigation Page"
 msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/form.html.leex:8
+msgid "Delete"
+msgstr ""
