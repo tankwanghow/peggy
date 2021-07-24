@@ -4,6 +4,7 @@
   <%= link "中文", to: "?locale=zh", class: "navbar-item has-text-info" %>
 <% end %>
 <%= if @current_user do %>
+  <%= link gettext("Farms"), to: "/set_active_farm", class: "navbar-item" %>
   <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item" %>
   <%= link gettext("Log out"), to: Routes.user_session_path(@conn, :delete), method: :delete, class: "navbar-item has-text-danger" %>
 <% else %>

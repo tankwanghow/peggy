@@ -2,10 +2,10 @@
   <div class="container ">
     <%= if Enum.count(@farms) > 0 do %>
       <p class="is-size-4 has-text-weight-bold"><%= @page_title %></p>
-      <p class="is-size-5"><%= link gettext("Create a New Farm"), to: Routes.farm_form_path(@conn, :new) %></p>
+      <p class="is-size-5"><%= link gettext("Create a New Farm"), to: Routes.farm_form_path(@conn, :new, from_page: "/set_active_farm"  ) %></p>
     <% else %>
       <p class="is-size-4 has-text-weight-bold"><%= gettext("You have to Create a Farm to procced.") %></p>
-      <p class="is-size-4"><%= link gettext("Create a New Farm"), to: Routes.farm_form_path(@conn, :new), class: "button is-large" %></p>
+      <p class="is-size-4"><%= link gettext("Create a New Farm"), to: Routes.farm_form_path(@conn, :new, from_page: "/set_active_farm"), class: "button is-large" %></p>
     <% end %>
 
     <%= for f <- @farms do %>

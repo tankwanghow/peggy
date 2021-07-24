@@ -8,6 +8,7 @@ defmodule PeggyWeb.FarmLive.Form do
     PeggyWeb.LiveHelpers.set_locale(session)
     socket = assign_current_user(socket, session)
     socket = assign(socket, :current_farm, session["current_farm"])
+    socket = assign(socket, :return_to, params["from_page"])
 
     case socket.assigns.live_action do
       :new -> mount_new(socket)
@@ -52,7 +53,12 @@ defmodule PeggyWeb.FarmLive.Form do
 
   @impl true
   def handle_event("delete", _params, socket) do
-    deleted_redirect_to = if(socket.assigns.current_farm == socket.assigns.farm, do: "/clear_set_active_farm", else: "/farms")
+    deleted_redirect_to =
+      if(socket.assigns.current_farm == socket.assigns.farm,
+        do: "/clear_set_active_farm",
+        else: "/farms"
+      )
+
     case Company.delete_farm(socket.assigns.farm, socket.assigns.current_user) do
       {:ok, _} ->
         {:noreply,
@@ -68,13 +74,19 @@ defmodule PeggyWeb.FarmLive.Form do
   end
 
   defp save_farm(socket, :edit, farm_params) do
+    update_redirect_to =
+      if(socket.assigns.current_farm == socket.assigns.farm,
+        do: "/update_active_farm?id=#{socket.assigns.farm.id}",
+        else: "/farms"
+      )
+
     case Company.update_farm(socket.assigns.farm, farm_params, socket.assigns.current_user) do
       {:ok, farm} ->
         {:noreply,
          socket
          |> put_flash(:scroll_to_here_farm_id, farm.id)
          |> put_flash(:success, gettext("Farm updated successfully"))
-         |> push_redirect(to: "/farms")}
+         |> push_redirect(to: update_redirect_to)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :changeset, changeset)}
@@ -88,7 +100,7 @@ defmodule PeggyWeb.FarmLive.Form do
          socket
          |> put_flash(:scroll_to_here_farm_id, farm.id)
          |> put_flash(:success, gettext("Farm created successfully"))
-         |> push_redirect(to: "/farms")}
+         |> push_redirect(to: socket.assigns.return_to || "/farms")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, changeset: changeset)}

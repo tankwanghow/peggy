@@ -1,7 +1,7 @@
 <section class="has-text-centered">
   <div class="container ">
     <p class="has-text-weight-bold is-size-4"><%= @page_title %></p>
-    <p class="is-size-4"><%= live_patch gettext("Create a New Farm"), to: Routes.farm_form_path(@socket, :new) %></p>
+    <p class="is-size-4"><%= live_patch gettext("Create a New Farm"), to: Routes.farm_form_path(@socket, :new, from_page: "/farms") %></p>
     <%= for f <- @farms do %>
       <div id="farm-<%= f.id%>" class="box has-text-left">
         <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f),

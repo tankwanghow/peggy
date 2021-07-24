@@ -1,23 +1,29 @@
 <main role="main" class="container is-max-widescreen has-text-centered ">
-  <%= if live_flash(@flash, :info) do %>
-    <p class="notification is-info" role="alert" phx-click="lv:clear-flash" phx-value-key="info">
-      <button class="delete"></button>
-      <%= live_flash(@flash, :info) %></p>
-  <%end %>
-  <%= if live_flash(@flash, :error) do %>
-    <p class="notification is-danger" role="alert" phx-click="lv:clear-flash" phx-value-key="error">
-      <button class="delete"></button>
-      <%= live_flash(@flash, :error) %></p>
-  <%end %>
-  <%= if live_flash(@flash, :warning) do %>
-    <p class="notification is-warning" role="alert" phx-click="lv:clear-flash" phx-value-key="warning">
-      <button class="delete"></button>
-      <%= live_flash(@flash, :warning) %></p>
-  <%end %>
-  <%= if live_flash(@flash, :success) do %>
-    <p class="notification is-success" role="alert" phx-click="lv:clear-flash" phx-value-key="success">
-      <button class="delete"></button>
-      <%= live_flash(@flash, :success) %></p>
-  <%end %>
+  <div id="live-flash" class="is-size-3">
+    <%= if live_flash(@flash, :info) do %>
+      <p class="notification is-info" role="alert" phx-click="lv:clear-flash" phx-value-key="info">
+        <button class="delete"></button>
+        <%= live_flash(@flash, :info) %></p>
+    <%end %>
+    <%= if live_flash(@flash, :error) do %>
+      <p class="notification is-danger is-text-weight-bold" role="alert" phx-click="lv:clear-flash" phx-value-key="error">
+        <button class="delete"></button>
+        <%= live_flash(@flash, :error) %></p>
+    <%end %>
+    <%= if live_flash(@flash, :warning) do %>
+      <p class="notification is-warning" role="alert" phx-click="lv:clear-flash" phx-value-key="warning">
+        <button class="delete"></button>
+        <%= live_flash(@flash, :warning) %></p>
+    <%end %>
+    <%= if live_flash(@flash, :success) do %>
+      <p class="notification is-success" role="alert" phx-click="lv:clear-flash" phx-value-key="success">
+        <button class="delete"></button>
+        <%= live_flash(@flash, :success) %></p>
+    <%end %>
+  </div>
+
+  <%= if @current_farm && @page_title != gettext("Navigation Page") do %>
+    <%= live_patch "NAV", to: "/navigation" %>
+  <% end %>
   <%= @inner_content %>
 </main>
