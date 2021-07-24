@@ -51,7 +51,7 @@ defmodule PeggyWeb.FarmLive.Form do
   end
 
   @impl true
-  def handle_event("delete", %{"id" => id}, socket) do
+  def handle_event("delete", _params, socket) do
     deleted_redirect_to = if(socket.assigns.current_farm == socket.assigns.farm, do: "/clear_set_active_farm", else: "/farms")
     case Company.delete_farm(socket.assigns.farm, socket.assigns.current_user) do
       {:ok, _} ->
