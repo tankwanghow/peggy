@@ -35,13 +35,13 @@ body {
   top: 10%;
   position: fixed;
   z-index: 99999;
-  opacity: 0.9;
-  animation: fadeIn linear 0.3s;
+  opacity: 0.85;
+  animation: fadeIn linear 0.5s;
 }
 
 @keyframes fadeIn {
-  0% {opacity:0;}
-  100% {opacity:0.9;}
+  0% { top: -30%; }
+  100% { top: 10%; }
 }
 
 .notification:empty {
