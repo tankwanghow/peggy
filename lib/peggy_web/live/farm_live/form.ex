@@ -36,8 +36,9 @@ defmodule PeggyWeb.FarmLive.Form do
 
   @impl true
   def handle_event("validate", %{"farm" => params}, socket) do
+    farm = if(socket.assigns[:farm], do: socket.assigns.farm, else: %Farm{})
     changeset =
-      %Farm{}
+      farm
       |> Company.change_farm(params, socket.assigns.current_user)
       |> Map.put(:action, :insert)
 
