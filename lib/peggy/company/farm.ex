@@ -30,7 +30,8 @@ defmodule Peggy.Company.Farm do
     farm =
       farm
       |> cast(attrs, [:name, :address1, :address2, :city, :zipcode, :state, :country, :weight_unit])
-      |> validate_required([:name, :address1, :city, :zipcode, :state, :country, :weight_unit]) 
+      |> validate_required([:name, :address1, :city, :zipcode, :state, :country, :weight_unit])
+      |> validate_inclusion(:country, Peggy.Company.countries)
 
     if farm.changes[:name] do
       if Ecto.get_meta(nt_farm, :state) == :loaded do
