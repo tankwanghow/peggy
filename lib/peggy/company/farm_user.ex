@@ -15,5 +15,6 @@ defmodule Peggy.Company.FarmUser do
     farm_user
     |> cast(attrs, [:role, :farm_id, :user_id])
     |> validate_required([:role, :farm_id, :user_id])
+    |> validate_inclusion(:role, Peggy.Company.roles)
   end
 end
