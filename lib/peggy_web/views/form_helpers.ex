@@ -2,29 +2,38 @@ defmodule PeggyWeb.FormHelpers do
   @moduledoc """
   Conveniences for translating and building form elements.
   """
-
   use Phoenix.HTML
-
   import PeggyWeb.ErrorHelpers
 
   def peggy_text(form, field, placeholder, opts \\ []) do
-    opt = [class: "input #{input_error_css_class(form, field)}", autocomplete: :off,
+    [col_class, opts] = find_pop_key_value(:col_class, opts)
+    [class, opts] = find_pop_key_value(:class, opts)
+
+    opt = [class: "#{class} input #{input_error_css_class(form, field)}", autocomplete: :off,
            placeholder: placeholder, phx_feedback_for: input_name(form, field), phx_debounce: "blur"]
 
-    if Enum.any?(opts, fn {k, _v} -> k == :col_class end) do
-      {:col_class, col_class} = Enum.find(opts, fn {k, _v} -> k == :col_class end)
-      opts = Enum.reject(opts, fn {k, _v} -> k == :col_class end)
+    if col_class != "" do
       peggy_column(
-        content_tag(:p,
+        content_tag(:div,
           [text_input(form, field, opt ++ opts),
           error_tag(form, field)],
           class: "field control"),
         col_class)
     else
-      content_tag(:p,
+      content_tag(:div,
         [text_input(form, field, opt ++ opts),
          error_tag(form, field)],
         class: "field control")
+    end
+  end
+
+  defp find_pop_key_value(key, list) do
+    if Enum.any?(list, fn {k, _v} -> k == key end) do
+      {key, value} = Enum.find(list, fn {k, _v} -> k == key end)
+      list = Enum.reject(list, fn {k, _v} -> k == key end)
+      [value, list]
+    else
+      ["", list]
     end
   end
 
@@ -50,50 +59,13 @@ defmodule PeggyWeb.FormHelpers do
     peggy_text(form, field, placeholder, [type: :password] ++ opts)
   end
 
-  def countries_datalist(id) do
-    content_tag(:datalist, countries_option(), id: id)
+  def datalist(list, id) do
+    content_tag(:datalist, options(list), id: id)
   end
 
-  defp countries_option() do
-    Enum.map countries(), fn el ->
+  def options(list) do
+    Enum.map list, fn el ->
       content_tag(:option, "", value: el)
     end
-  end
-
-  defp countries() do
-    ["Afganistan", "Albania", "Algeria", "American Samoa", "Andorra", "Anguilla", "Antigua & Barbuda",
-     "Argentina", "Armenia", "Aruba", "Australia", "Austria", "Azerbaijan",
-     "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus",
-     "Belgium", "Belize", "Benin", "Bermuda", "Bhutan", "Bolivia",
-     "Bonaire", "Bosnia & Herzegovina", "Botswana", "Brazil",
-     "British Indian Ocean Ter", "Brunei", "Bulgaria", "Burkina Faso", "Burundi",
-     "Cambodia", "Cameroon", "Canada", "Canary Islands", "Cape Verde", "Cayman Islands",
-     "Central African Republic", "Chad", "Channel Islands", "Chile", "China", "Christmas Island",
-     "Cocos Island", "Colombia", "Comoros", "Congo", "Cook Islands", "Costa Rica", "Cote DIvoire",
-     "Croatia", "Cuba", "Curaco", "Cyprus", "Czech Republic", "Denmark", "Djibouti", "Dominica",
-     "Dominican Republic", "East Timor", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea",
-     "Eritrea", "Estonia", "Ethiopia", "Falkland Islands", "Faroe Islands", "Fiji", "Finland", "France",
-     "French Guiana", "French Polynesia", "French Southern Ter", "Gabon", "Gambia", "Georgia", "Germany",
-     "Ghana", "Gibraltar", "Great Britain", "Greece", "Greenland", "Grenada", "Guadeloupe", "Guam", "Guatemala",
-     "Guinea", "Guyana", "Haiti", "Hawaii", "Honduras", "Hong Kong", "Hungary", "Iceland", "Indonesia",
-     "India", "Iran", "Iraq", "Ireland", "Isle of Man", "Israel", "Italy", "Jamaica", "Japan", "Jordan",
-     "Kazakhstan", "Kenya", "Kiribati", "Korea North", "Korea Sout", "Kuwait", "Kyrgyzstan", "Laos",
-     "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
-     "Macau", "Macedonia", "Madagascar", "Malaysia", "Malawi", "Maldives", "Mali", "Malta",
-     "Marshall Islands", "Martinique", "Mauritania", "Mauritius", "Mayotte", "Mexico", "Midway Islands",
-     "Moldova", "Monaco", "Mongolia", "Montserrat", "Morocco", "Mozambique", "Myanmar", "Nambia", "Nauru",
-     "Nepal", "Netherland Antilles", "Netherlands", "Nevis", "New Caledonia", "New Zealand", "Nicaragua",
-     "Niger", "Nigeria", "Niue", "Norfolk Island", "Norway", "Oman", "Pakistan", "Palau Island", "Palestine",
-     "Panama", "Papua New Guinea", "Paraguay", "Peru", "Phillipines", "Pitcairn Island", "Poland", "Portugal",
-     "Puerto Rico", "Qatar", "Republic of Montenegro", "Republic of Serbia", "Reunion", "Romania", "Russia",
-     "Rwanda", "St Barthelemy", "St Eustatius", "St Helena", "St Kitts-Nevis", "St Lucia", "St Maarten",
-     "St Pierre & Miquelon", "St Vincent & Grenadines", "Saipan", "Samoa", "Samoa American", "San Marino",
-     "Sao Tome & Principe", "Saudi Arabia", "Senegal", "Seychelles", "Sierra Leone", "Singapore", "Slovakia",
-     "Slovenia", "Solomon Islands", "Somalia", "South Africa", "Spain", "Sri Lanka", "Sudan", "Suriname",
-     "Swaziland", "Sweden", "Switzerland", "Syria", "Tahiti", "Taiwan", "Tajikistan", "Tanzania", "Thailand",
-     "Togo", "Tokelau", "Tonga", "Trinidad & Tobago", "Tunisia", "Turkey", "Turkmenistan", "Turks & Caicos Is",
-     "Tuvalu", "Uganda", "United Kingdom", "Ukraine", "United Arab Erimates", "United States of America",
-     "Uraguay", "Uzbekistan", "Vanuatu", "Vatican City State", "Venezuela", "Vietnam", "Virgin Islands (Brit)",
-     "Virgin Islands (USA)", "Wake Island", "Wallis & Futana Is", "Yemen", "Zaire", "Zambia", "Zimbabwe"]
   end
 end

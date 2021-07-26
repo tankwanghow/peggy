@@ -13,4 +13,4 @@
   <%= peggy_text @f, :country, gettext("Country"), col_class: "pb-0", list: "countries" %>
 </div>
 
-<%= countries_datalist("countries") %>
+<%= datalist(Peggy.Company.countries, "countries") %>
