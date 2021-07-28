@@ -155,4 +155,65 @@ defmodule Peggy.CompanyTest do
       assert %Ecto.Changeset{} = Company.change_farm(farm, admin)
     end
   end
+
+  describe "invite_users" do
+    alias Peggy.Company.InviteUser
+
+    @valid_attrs %{email: "some email", role: "some role"}
+    @update_attrs %{email: "some updated email", role: "some updated role"}
+    @invalid_attrs %{email: nil, role: nil}
+
+    def invite_user_fixture(attrs \\ %{}) do
+      {:ok, invite_user} =
+        attrs
+        |> Enum.into(@valid_attrs)
+        |> Company.create_invite_user()
+
+      invite_user
+    end
+
+    test "list_invite_users/0 returns all invite_users" do
+      invite_user = invite_user_fixture()
+      assert Company.list_invite_users() == [invite_user]
+    end
+
+    test "get_invite_user!/1 returns the invite_user with given id" do
+      invite_user = invite_user_fixture()
+      assert Company.get_invite_user!(invite_user.id) == invite_user
+    end
+
+    test "create_invite_user/1 with valid data creates a invite_user" do
+      assert {:ok, %InviteUser{} = invite_user} = Company.create_invite_user(@valid_attrs)
+      assert invite_user.email == "some email"
+      assert invite_user.role == "some role"
+    end
+
+    test "create_invite_user/1 with invalid data returns error changeset" do
+      assert {:error, %Ecto.Changeset{}} = Company.create_invite_user(@invalid_attrs)
+    end
+
+    test "update_invite_user/2 with valid data updates the invite_user" do
+      invite_user = invite_user_fixture()
+      assert {:ok, %InviteUser{} = invite_user} = Company.update_invite_user(invite_user, @update_attrs)
+      assert invite_user.email == "some updated email"
+      assert invite_user.role == "some updated role"
+    end
+
+    test "update_invite_user/2 with invalid data returns error changeset" do
+      invite_user = invite_user_fixture()
+      assert {:error, %Ecto.Changeset{}} = Company.update_invite_user(invite_user, @invalid_attrs)
+      assert invite_user == Company.get_invite_user!(invite_user.id)
+    end
+
+    test "delete_invite_user/1 deletes the invite_user" do
+      invite_user = invite_user_fixture()
+      assert {:ok, %InviteUser{}} = Company.delete_invite_user(invite_user)
+      assert_raise Ecto.NoResultsError, fn -> Company.get_invite_user!(invite_user.id) end
+    end
+
+    test "change_invite_user/1 returns a invite_user changeset" do
+      invite_user = invite_user_fixture()
+      assert %Ecto.Changeset{} = Company.change_invite_user(invite_user)
+    end
+  end
 end
