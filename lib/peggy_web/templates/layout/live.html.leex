@@ -1,4 +1,4 @@
-<main role="main" class="container is-max-widescreen has-text-centered ">
+<main role="main" class="container is-max-widescreen">
   <div id="live-flash" class="is-size-3">
     <%= if live_flash(@flash, :info) do %>
       <p class="notification is-info" role="alert" phx-click="lv:clear-flash" phx-value-key="info">
@@ -21,9 +21,9 @@
         <%= live_flash(@flash, :success) %></p>
     <%end %>
   </div>
-
-  <%= if @current_farm && @page_title != gettext("Navigation Page") do %>
-    <%= live_patch "NAV", to: "/navigation" %>
-  <% end %>
   <%= @inner_content %>
 </main>
+
+<%= if @current_farm && @page_title != gettext("Navigation Page") do %>
+  <%= live_patch "", to: "/navigation", id: "home-button", class: "button is-rounded is-info fas fa-home" %>
+<% end %>

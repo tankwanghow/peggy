@@ -21,7 +21,7 @@ defmodule PeggyWeb.LiveHelpers do
 
   def assign_current_farm(socket, session) do
     case session["current_farm"] do
-      nil -> push_redirect(socket, to: "/set_active_farm")
+      nil -> push_redirect(socket, to: "/farms")
       farm -> assign(socket, :current_farm, farm)
     end
   end

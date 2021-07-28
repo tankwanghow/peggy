@@ -7,10 +7,14 @@ defmodule PeggyWeb.PageLive do
 
     if session["current_farm"] do
       {:ok,
-       socket
-       |> assign_current_farm(session)}
+        socket
+        |> assign_current_farm(session)
+        |>  assign(:page_title, nil)}
     else
-      {:ok, assign(socket, :current_farm, nil)}
+      {:ok,
+        socket
+        |> assign(:current_farm, nil)
+        |>  assign(:page_title, nil)}
     end
   end
 end

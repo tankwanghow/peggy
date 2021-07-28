@@ -4,26 +4,21 @@ defmodule PeggyWeb.SetActiveFarmController do
   alias Peggy.Company
 
   def new(conn, _params) do
-    conn =
-      conn
-      |> assign(:current_farm, nil)
-      |> put_session(:current_farm, nil)
-
-    render(conn, "index.html",
-      farms: Company.list_farms(conn.assigns.current_user),
-      page_title: gettext("Please select an active farm.")
-    )
+    conn
+    |> assign(:current_farm, nil)
+    |> put_session(:current_farm, nil)
+    |> put_session(:page_title, gettext("Please select an active farm."))
+    |> redirect(to: "/farms")
   end
 
   def update(conn, %{"id" => id}) do
-    conn =
-      conn
-      |> assign(:current_farm, Company.get_farm!(id, conn.assigns.current_user))
+    conn
+    |> assign(:current_farm, Company.get_farm!(id, conn.assigns.current_user))
 
-      conn
-      |> put_session(:current_farm, conn.assigns.current_farm)
-      |> put_flash(:success, gettext("Farm updated successfully"))
-      |> redirect(to: "/farms")
+    conn
+    |> put_session(:current_farm, conn.assigns.current_farm)
+    |> put_flash(:success, gettext("Farm updated successfully"))
+    |> redirect(to: "/farms")
   end
 
   def index(conn, _params) do
@@ -41,6 +36,6 @@ defmodule PeggyWeb.SetActiveFarmController do
     conn
     |> put_session(:current_farm, conn.assigns.current_farm)
     |> put_flash(:warning, "#{conn.assigns.current_farm.name} " <> gettext("is active now."))
-    |> redirect(to: "/navigation")
+    |> redirect(to: "/farms")
   end
 end

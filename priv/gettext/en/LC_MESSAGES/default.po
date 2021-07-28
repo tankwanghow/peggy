@@ -46,9 +46,10 @@ msgid "Current Password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:5
-#: lib/peggy_web/templates/user_registration/new.html.eex:6 lib/peggy_web/templates/user_reset_password/new.html.eex:5
-#: lib/peggy_web/templates/user_session/new.html.eex:6 lib/peggy_web/templates/user_settings/edit.html.eex:8
+#: lib/peggy_web/live/invite_user_live/new.html.leex:7
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:5 lib/peggy_web/templates/user_registration/new.html.eex:6
+#: lib/peggy_web/templates/user_reset_password/new.html.eex:5 lib/peggy_web/templates/user_session/new.html.eex:6
+#: lib/peggy_web/templates/user_settings/edit.html.eex:8
 msgid "Email"
 msgstr ""
 
@@ -79,14 +80,14 @@ msgid "Invalid email or password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:11
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:14
 #: lib/peggy_web/templates/user_confirmation/new.html.eex:11 lib/peggy_web/templates/user_registration/new.html.eex:13
 #: lib/peggy_web/templates/user_reset_password/edit.html.eex:17 lib/peggy_web/templates/user_reset_password/new.html.eex:11
 msgid "Log in"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:8
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:11
 msgid "Log out"
 msgstr ""
 
@@ -121,7 +122,7 @@ msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/templates/layout/root.html.leex:8
-#: lib/peggy_web/templates/layout/root.html.leex:19
+#: lib/peggy_web/templates/layout/root.html.leex:20
 msgid "Peggy"
 msgstr ""
 
@@ -131,7 +132,7 @@ msgid "Please Register to proceed."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:10
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:13
 #: lib/peggy_web/templates/user_confirmation/new.html.eex:10 lib/peggy_web/templates/user_registration/new.html.eex:3
 #: lib/peggy_web/templates/user_registration/new.html.eex:9 lib/peggy_web/templates/user_reset_password/edit.html.eex:16
 #: lib/peggy_web/templates/user_reset_password/new.html.eex:10 lib/peggy_web/templates/user_session/new.html.eex:16
@@ -307,7 +308,7 @@ msgid "Editing Farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.ex:11
+#: lib/peggy_web/live/farm_live/index.ex:19
 msgid "Farms Listing"
 msgstr ""
 
@@ -322,7 +323,7 @@ msgid "Saving..."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company/farm.ex:48 lib/peggy/company/farm.ex:55
+#: lib/peggy/company/farm.ex:49 lib/peggy/company/farm.ex:56
 msgid "has already been taken"
 msgstr ""
 
@@ -332,73 +333,105 @@ msgid "Are you sure?"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:3
-msgid "Change Active Farms"
-msgstr ""
-
-#, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.leex:4
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:5 lib/peggy_web/templates/set_active_farm/index.html.eex:8
 msgid "Create a New Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:22
+#: lib/peggy_web/live/farm_live/index.html.leex:16
 msgid "Current Active"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:66
+#: lib/peggy_web/live/farm_live/form.ex:72
 msgid "Failed to Delete Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:60
+#: lib/peggy_web/live/farm_live/form.ex:66
 msgid "Farm Deleted successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:2
+#: lib/peggy_web/live/navigation_live.html.leex:9
 msgid "Farm List"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:90
+#: lib/peggy_web/live/farm_live/form.ex:102
 msgid "Farm created successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:76
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:20
+#: lib/peggy_web/live/farm_live/form.ex:88
 msgid "Farm updated successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:14
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:20
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:10
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:26 lib/peggy_web/live/farm_live/index.ex:18
 msgid "Please select an active farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:19
+#: lib/peggy_web/live/farm_live/index.html.leex:13
 msgid "Set Active"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:7
+#: lib/peggy_web/live/farm_live/index.ex:15
 msgid "You have to Create a Farm to procced."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:32
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:38
 msgid "is active now."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:1
+#: lib/peggy_web/live/navigation_live.ex:12
+#: lib/peggy_web/templates/layout/app.html.eex:16 lib/peggy_web/templates/layout/live.html.leex:27
 msgid "Navigation Page"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/farm_live/form.html.leex:8
 msgid "Delete"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:8
+msgid "Farms"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:13
+msgid "Invite"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.ex:13
+#: lib/peggy_web/live/invite_user_live/new.html.leex:6 lib/peggy_web/live/navigation_live.html.leex:10
+msgid "Invite User"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:13
+msgid "Inviting..."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:11
+msgid "Role"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:10
+msgid "This user will have role"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:8
+msgid "to join"
 msgstr ""

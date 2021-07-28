@@ -46,9 +46,10 @@ msgid "Current Password"
 msgstr "当前密码"
 
 #, elixir-format
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:5
-#: lib/peggy_web/templates/user_registration/new.html.eex:6 lib/peggy_web/templates/user_reset_password/new.html.eex:5
-#: lib/peggy_web/templates/user_session/new.html.eex:6 lib/peggy_web/templates/user_settings/edit.html.eex:8
+#: lib/peggy_web/live/invite_user_live/new.html.leex:7
+#: lib/peggy_web/templates/user_confirmation/new.html.eex:5 lib/peggy_web/templates/user_registration/new.html.eex:6
+#: lib/peggy_web/templates/user_reset_password/new.html.eex:5 lib/peggy_web/templates/user_session/new.html.eex:6
+#: lib/peggy_web/templates/user_settings/edit.html.eex:8
 msgid "Email"
 msgstr "电子邮件"
 
@@ -79,14 +80,14 @@ msgid "Invalid email or password"
 msgstr "电子邮箱或者密码错误"
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:11
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:14
 #: lib/peggy_web/templates/user_confirmation/new.html.eex:11 lib/peggy_web/templates/user_registration/new.html.eex:13
 #: lib/peggy_web/templates/user_reset_password/edit.html.eex:17 lib/peggy_web/templates/user_reset_password/new.html.eex:11
 msgid "Log in"
 msgstr "登录"
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:8
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:11
 msgid "Log out"
 msgstr "登出"
 
@@ -121,7 +122,7 @@ msgstr "密码更新成功。"
 
 #, elixir-format
 #: lib/peggy_web/templates/layout/root.html.leex:8
-#: lib/peggy_web/templates/layout/root.html.leex:19
+#: lib/peggy_web/templates/layout/root.html.leex:20
 msgid "Peggy"
 msgstr "猪可量"
 
@@ -131,7 +132,7 @@ msgid "Please Register to proceed."
 msgstr "密码更新成功。"
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:10
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:13
 #: lib/peggy_web/templates/user_confirmation/new.html.eex:10 lib/peggy_web/templates/user_registration/new.html.eex:3
 #: lib/peggy_web/templates/user_registration/new.html.eex:9 lib/peggy_web/templates/user_reset_password/edit.html.eex:16
 #: lib/peggy_web/templates/user_reset_password/new.html.eex:10 lib/peggy_web/templates/user_session/new.html.eex:16
@@ -307,7 +308,7 @@ msgid "Editing Farm."
 msgstr "更新农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.ex:11
+#: lib/peggy_web/live/farm_live/index.ex:19
 msgid "Farms Listing"
 msgstr "农场清单"
 
@@ -319,10 +320,10 @@ msgstr "保存农场"
 #, elixir-format
 #: lib/peggy_web/live/farm_live/form.html.leex:6
 msgid "Saving..."
-msgstr "保存..."
+msgstr "保存中..."
 
 #, elixir-format
-#: lib/peggy/company/farm.ex:48 lib/peggy/company/farm.ex:55
+#: lib/peggy/company/farm.ex:49 lib/peggy/company/farm.ex:56
 msgid "has already been taken"
 msgstr "已经被使用"
 
@@ -332,69 +333,65 @@ msgid "Are you sure?"
 msgstr "你确定吗？"
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:3
-msgid "Change Active Farms"
-msgstr "更改活动农场"
-
-#, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.leex:4
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:5 lib/peggy_web/templates/set_active_farm/index.html.eex:8
 msgid "Create a New Farm"
 msgstr "创建一个新农场"
 
 #, elixir-format
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:22
+#: lib/peggy_web/live/farm_live/index.html.leex:16
 msgid "Current Active"
 msgstr "现在活动农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:66
+#: lib/peggy_web/live/farm_live/form.ex:72
 msgid "Failed to Delete Farm"
 msgstr "无法删除场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:60
+#: lib/peggy_web/live/farm_live/form.ex:66
 msgid "Farm Deleted successfully"
 msgstr "已成功删除场"
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:2
+#: lib/peggy_web/live/navigation_live.html.leex:9
 msgid "Farm List"
 msgstr "农场清单"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:90
+#: lib/peggy_web/live/farm_live/form.ex:102
 msgid "Farm created successfully"
 msgstr "农场创建成功。"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:76
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:20
+#: lib/peggy_web/live/farm_live/form.ex:88
 msgid "Farm updated successfully"
 msgstr "农场更新成功。"
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:14
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:20
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:10
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:26 lib/peggy_web/live/farm_live/index.ex:18
 msgid "Please select an active farm."
 msgstr "请选择一个活动的农场。"
 
 #, elixir-format
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:19
+#: lib/peggy_web/live/farm_live/index.html.leex:13
 msgid "Set Active"
 msgstr "启用"
 
 #, elixir-format
-#: lib/peggy_web/templates/set_active_farm/index.html.eex:7
+#: lib/peggy_web/live/farm_live/index.ex:15
 msgid "You have to Create a Farm to procced."
 msgstr "您必须创建一个农场才能继续。"
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:32
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:38
 msgid "is active now."
 msgstr "现在活跃。"
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:1
+#: lib/peggy_web/live/navigation_live.ex:12
+#: lib/peggy_web/templates/layout/app.html.eex:16 lib/peggy_web/templates/layout/live.html.leex:27
 msgid "Navigation Page"
 msgstr "导航页面"
 
@@ -402,3 +399,39 @@ msgstr "导航页面"
 #: lib/peggy_web/live/farm_live/form.html.leex:8
 msgid "Delete"
 msgstr "删除"
+
+#, elixir-format
+#: lib/peggy_web/templates/layout/_user_menu.html.eex:8
+msgid "Farms"
+msgstr "农场清单"
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:13
+msgid "Invite"
+msgstr "邀请"
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.ex:13
+#: lib/peggy_web/live/invite_user_live/new.html.leex:6 lib/peggy_web/live/navigation_live.html.leex:10
+msgid "Invite User"
+msgstr "邀请用户"
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:13
+msgid "Inviting..."
+msgstr "邀请中..."
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:11
+msgid "Role"
+msgstr "角色"
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:10
+msgid "This user will have role"
+msgstr "此用户将具有角色"
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.html.leex:8
+msgid "to join"
+msgstr "加入"

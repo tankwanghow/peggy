@@ -1,4 +1,4 @@
-<main role="main" class="container has-text-centered is-max-widescreen">
+<main role="main" class="container is-max-widescreen">
   <div id="normal-flash" class="is-size-3">
     <%= if get_flash(@conn, :info) do %>
       <p class="notification is-info" role="alert"><button class="delete"></button><%= get_flash(@conn, :info) %></p>

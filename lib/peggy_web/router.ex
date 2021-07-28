@@ -80,6 +80,8 @@ defmodule PeggyWeb.Router do
     live "/farms/new", FarmLive.Form, :new
 
     live "/navigation", NavigationLive, :index
+
+    live "/invite_users/new", InviteUserLive.New, :new
   end
 
   scope "/", PeggyWeb do

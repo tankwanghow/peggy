@@ -8,7 +8,6 @@ defmodule PeggyWeb.FarmLive.Form do
     PeggyWeb.LiveHelpers.set_locale(session)
     socket = assign_current_user(socket, session)
     socket = assign(socket, :current_farm, session["current_farm"])
-    socket = assign(socket, :return_to, params["from_page"])
 
     case socket.assigns.live_action do
       :new -> mount_new(socket)
@@ -101,7 +100,7 @@ defmodule PeggyWeb.FarmLive.Form do
          socket
          |> put_flash(:scroll_to_here_farm_id, farm.id)
          |> put_flash(:success, gettext("Farm created successfully"))
-         |> push_redirect(to: socket.assigns.return_to || "/farms")}
+         |> push_redirect(to: "/farms")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, changeset: changeset)}
