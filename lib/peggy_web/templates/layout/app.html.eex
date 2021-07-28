@@ -13,8 +13,9 @@
       <p class="notification is-success" role="alert"><button class="delete"></button><%= get_flash(@conn, :success) %></p>
     <%end %>
   </div>
-  <%= if Plug.Conn.get_session(@conn, "current_farm") && @page_title != gettext("Navigation Page") do %>
-    <%= link "NAV", to: "/navigation" %>
-  <% end %>
   <%= @inner_content %>
 </main>
+
+<%= if Plug.Conn.get_session(@conn, "current_farm") && Plug.Conn.get_session(@conn, "page_title") != gettext("Navigation Page") do %>
+    <%= link "", to: "/navigation", id: "home-button", class: "button is-rounded is-info fas fa-home" %>
+<% end %>
