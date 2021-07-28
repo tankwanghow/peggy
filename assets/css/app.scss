@@ -1,12 +1,11 @@
 /* This file is for your main application css. */
-// @import "./phoenix.css";
 @import "../node_modules/bulma/bulma.sass";
 
 #globalNavBar {
   position: fixed;
   width: 100%;
   top: 0;
-  z-index: 99999;
+  z-index: 10000;
 }
 
 html {
@@ -16,6 +15,18 @@ html {
 
 body {
   padding-top: 4rem;
+  margin-bottom: 3rem;
+}
+
+#home-button {
+  position: fixed;
+  right: 5px;
+  bottom: 5px;
+  padding-bottom: calc(0.5em - 1px);
+  padding-left: calc(0.75em - 1px);
+  padding-right: calc(0.75em - 1px);
+  padding-top: calc(0.5em - 1px);
+  display: grid;
 }
 
 #live-flash, #normal-flash {
@@ -34,7 +45,7 @@ body {
 .notification {
   top: 10%;
   position: fixed;
-  z-index: 99999;
+  z-index: 10001;
   opacity: 0.85;
   animation: fadeIn linear 0.5s;
 }
