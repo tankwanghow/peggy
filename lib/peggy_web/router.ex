@@ -71,7 +71,6 @@ defmodule PeggyWeb.Router do
     get "/users/settings/confirm_email/:token", UserSettingsController, :confirm_email
 
     get "/clear_set_active_farm/", SetActiveFarmController, :new
-    get "/set_active_farm", SetActiveFarmController, :index
     post "/set_active_farm", SetActiveFarmController, :create
     get "/update_active_farm", SetActiveFarmController, :update
 

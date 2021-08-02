@@ -10,6 +10,7 @@ defmodule PeggyWeb.Locale do
     setup_locale(conn, locale)
   end
 
+  @impl true
   def call(conn, _opts) do
     case get_session(conn, "locale") do
       nil ->

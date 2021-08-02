@@ -5,16 +5,12 @@ defmodule PeggyWeb.PageLive do
   def mount(_params, session, socket) do
     PeggyWeb.LiveHelpers.set_locale(session)
 
+    socket = assign(socket, :page_title, gettext("Peggy Welcome Page"))
+
     if session["current_farm"] do
-      {:ok,
-        socket
-        |> assign_current_farm(session)
-        |>  assign(:page_title, nil)}
+      {:ok, assign_current_farm(socket, session) }
     else
-      {:ok,
-        socket
-        |> assign(:current_farm, nil)
-        |>  assign(:page_title, nil)}
+      {:ok, assign(socket, :current_farm, nil) }
     end
   end
 end

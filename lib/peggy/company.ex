@@ -128,7 +128,7 @@ defmodule Peggy.Company do
   def change_user_role_in_farm(user, farm, role, admin) do
     if(user == admin, do: raise("Cannot change own role"))
 
-    if is_user_admin?(user, farm) do
+    if is_user_admin?(admin, farm) do
       fu = Repo.get_by(FarmUser, farm_id: farm.id, user_id: user.id)
 
       FarmUser.changeset(fu, %{role: role})

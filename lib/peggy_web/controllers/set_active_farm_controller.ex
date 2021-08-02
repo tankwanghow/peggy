@@ -12,20 +12,14 @@ defmodule PeggyWeb.SetActiveFarmController do
   end
 
   def update(conn, %{"id" => id}) do
-    conn
-    |> assign(:current_farm, Company.get_farm!(id, conn.assigns.current_user))
+    conn =
+      conn
+      |> assign(:current_farm, Company.get_farm!(id, conn.assigns.current_user))
 
     conn
     |> put_session(:current_farm, conn.assigns.current_farm)
     |> put_flash(:success, gettext("Farm updated successfully"))
     |> redirect(to: "/farms")
-  end
-
-  def index(conn, _params) do
-    render(conn, "index.html",
-      page_title: gettext("Please select an active farm."),
-      farms: Company.list_farms(conn.assigns.current_user)
-    )
   end
 
   def create(conn, %{"id" => id}) do

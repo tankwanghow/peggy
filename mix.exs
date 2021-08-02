@@ -10,7 +10,14 @@ defmodule Peggy.MixProject do
       compilers: [:phoenix, :gettext] ++ Mix.compilers(),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test
+      ]
     ]
   end
 
@@ -49,6 +56,7 @@ defmodule Peggy.MixProject do
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
       {:bamboo_smtp, "~> 4.0.1"},
+      {:excoveralls, "~> 0.10", only: :test},
       {:phx_gen_auth, "~> 0.7", only: [:dev], runtime: false}
     ]
   end

@@ -8,15 +8,16 @@ defmodule Peggy.CompanyTest do
     alias Peggy.Company.Farm
     alias Peggy.Company.FarmUser
 
-    @valid_attrs %{address1: "some address1", address2: "some address2", city: "some city", country: "some country", name: "some name", state: "some state", weight_unit: "some weight_unit", zipcode: "some zipcode"}
-    @update_attrs %{address1: "some updated address1", address2: "some updated address2", city: "some updated city", country: "some updated country", name: "some updated name", state: "some updated state", weight_unit: "some updated weight_unit", zipcode: "some updated zipcode"}
+    @valid_attrs %{address1: "some address1", address2: "some address2", city: "some city", country: "Malaysia", name: "some name", state: "some state", weight_unit: "some weight_unit", zipcode: "some zipcode"}
+    @update_attrs %{address1: "some updated address1", address2: "some updated address2", city: "some updated city", country: "Thailand", name: "some updated name", state: "some updated state", weight_unit: "some updated weight_unit", zipcode: "some updated zipcode"}
     @invalid_attrs %{address1: nil, address2: nil, city: nil, country: nil, name: nil, state: nil, weight_unit: nil, zipcode: nil}
 
     test "list_farms/1 returns all farms for user" do
       admin = user_fixture()
       user1 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert Company.list_farms(admin) == [farm]
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      assert Company.list_farms(admin) == [farm, farm1]
       assert Company.list_farms(user1) == []
     end
 
@@ -24,7 +25,8 @@ defmodule Peggy.CompanyTest do
       admin = user_fixture()
       user1 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert Company.get_farm!(farm.id, admin) == farm
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      assert Company.get_farm!(farm1.id, admin) == farm1
       assert_raise Ecto.NoResultsError, fn -> Company.get_farm!(farm.id, user1) end
     end
 
@@ -48,7 +50,7 @@ defmodule Peggy.CompanyTest do
       assert farm.address1 == "some address1"
       assert farm.address2 == "some address2"
       assert farm.city == "some city"
-      assert farm.country == "some country"
+      assert farm.country == "Malaysia"
       assert farm.name == "some name"
       assert farm.state == "some state"
       assert farm.weight_unit == "some weight_unit"
@@ -65,7 +67,7 @@ defmodule Peggy.CompanyTest do
     test "user are not allow to have 2 role in a farm" do
       admin = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert_raise Ecto.ConstraintError, fn -> Company.allow_user_access_farm(admin, farm, "other role", admin) end
+      assert_raise Ecto.ConstraintError, fn -> Company.allow_user_access_farm(admin, farm, "clerk", admin) end
     end
 
     test "user_role_in_farm/2 should return :no_access, if not exists" do
@@ -85,10 +87,10 @@ defmodule Peggy.CompanyTest do
       admin = user_fixture()
       user1 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert {:ok, %FarmUser{} = farm_user} = Company.allow_user_access_farm(user1, farm, "some role", admin)
+      assert {:ok, %FarmUser{} = farm_user} = Company.allow_user_access_farm(user1, farm, "manager", admin)
       farm = Peggy.Repo.preload(farm, [:users, :farm_user])
       assert farm.users == [admin, user1]
-      assert farm_user.role == "some role"
+      assert farm_user.role == "manager"
     end
 
     test "only allow admin to allow_user_access_farm" do
@@ -96,8 +98,8 @@ defmodule Peggy.CompanyTest do
       user1 = user_fixture()
       user2 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      Company.allow_user_access_farm(user1, farm, "some role", admin)
-      assert_raise(RuntimeError, "Not Authorized", fn -> Company.allow_user_access_farm(user2, farm, "other role", user1) end)
+      Company.allow_user_access_farm(user1, farm, "manager", admin)
+      assert_raise(RuntimeError, "Not Authorized", fn -> Company.allow_user_access_farm(user2, farm, "clerk", user1) end)
     end
 
     test "only admin can change user role" do
@@ -105,19 +107,19 @@ defmodule Peggy.CompanyTest do
       user1 = user_fixture()
       user2 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert {:ok, %FarmUser{} = farm_user} = Company.allow_user_access_farm(user1, farm, "some role", admin)
-      assert {:ok, %FarmUser{} = farm_user1} = Company.allow_user_access_farm(user2, farm, "some role", admin)
-      assert farm_user.role == "some role"
-      assert farm_user1.role == "some role"
-      assert {:ok, %FarmUser{} = farm_user} = Company.change_user_role_in_farm(user1, farm, "other role", admin)
-      assert farm_user.role == "other role"
-      assert_raise(RuntimeError, "Not Authorized", fn -> Company.change_user_role_in_farm(user2, farm, "other role", user1) end)
+      assert {:ok, %FarmUser{} = farm_user} = Company.allow_user_access_farm(user1, farm, "manager", admin)
+      assert {:ok, %FarmUser{} = farm_user1} = Company.allow_user_access_farm(user2, farm, "manager", admin)
+      assert farm_user.role == "manager"
+      assert farm_user1.role == "manager"
+      assert {:ok, %FarmUser{} = farm_user} = Company.change_user_role_in_farm(user1, farm, "clerk", admin)
+      assert farm_user.role == "clerk"
+      assert_raise(RuntimeError, "Not Authorized", fn -> Company.change_user_role_in_farm(user2, farm, "clerk", user1) end)
     end
 
     test "user cannot change own role" do
       admin = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert_raise(RuntimeError, "Cannot change own role", fn -> Company.change_user_role_in_farm(admin, farm, "other role", admin) end)
+      assert_raise(RuntimeError, "Cannot change own role", fn -> Company.change_user_role_in_farm(admin, farm, "clerk", admin) end)
       assert Company.user_role_in_farm(admin, farm) == "admin"
     end
 
@@ -128,7 +130,7 @@ defmodule Peggy.CompanyTest do
       assert farm.address1 == "some updated address1"
       assert farm.address2 == "some updated address2"
       assert farm.city == "some updated city"
-      assert farm.country == "some updated country"
+      assert farm.country == "Thailand"
       assert farm.name == "some updated name"
       assert farm.state == "some updated state"
       assert farm.weight_unit == "some updated weight_unit"
@@ -159,7 +161,7 @@ defmodule Peggy.CompanyTest do
   describe "invite_users" do
     alias Peggy.Company.InviteUser
 
-    @valid_attrs %{email: "some email", role: "some role"}
+    @valid_attrs %{email: "some email", role: "manager"}
     @update_attrs %{email: "some updated email", role: "some updated role"}
     @invalid_attrs %{email: nil, role: nil}
 
@@ -185,7 +187,7 @@ defmodule Peggy.CompanyTest do
     test "create_invite_user/1 with valid data creates a invite_user" do
       assert {:ok, %InviteUser{} = invite_user} = Company.create_invite_user(@valid_attrs)
       assert invite_user.email == "some email"
-      assert invite_user.role == "some role"
+      assert invite_user.role == "manager"
     end
 
     test "create_invite_user/1 with invalid data returns error changeset" do

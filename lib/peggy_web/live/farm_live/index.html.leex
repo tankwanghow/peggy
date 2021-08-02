@@ -1,7 +1,7 @@
 <section>
   <div class="container">
-    <p class="has-text-centered has-text-weight-bold is-size-4"><%= @page_title %></p>
-    <p class="has-text-centered is-size-4"><%= live_patch gettext("Create a New Farm"), to: Routes.farm_form_path(@socket, :new, from_page: "/farms") %></p>
+    <p id="page-title" class="has-text-centered has-text-weight-bold is-size-4"><%= @page_title %></p>
+    <p class="has-text-centered is-size-4"><%= live_patch gettext("Create a New Farm"), to: Routes.farm_form_path(@socket, :new) %></p>
     <%= for f <- @farms do %>
       <div class="box">
         <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f), class: "is-size-5" %>
@@ -10,9 +10,9 @@
             <p><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
           </div>
           <%= if @current_farm != f do %>
-            <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "button is-medium" %>
+            <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "button is-medium set-active", id: "set-active-#{f.id}" %>
           <% else %>
-            <div class="column has-background-danger-light has-text-centered is-one-third">
+            <div id="active-farm" class="column has-background-danger-light has-text-centered is-one-third">
               <%= gettext("Current Active") %>
             </div>
           <% end %>
