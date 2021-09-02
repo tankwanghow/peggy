@@ -1,0 +1,13 @@
+<section class="box has-text-centered">
+  <div class="container">
+    <p class="is-size-4 has-text-weight-bold"><%= @page_title %></p>
+    <.form let={f} for={@changeset} id="farm-form" autocomplete="off" phx-change="validate" phx-submit="save">
+      <%= live_component PeggyWeb.FarmLive.FieldsComponent, changeset: @changeset, f: f %>
+      <%= submit gettext("Save Farm"), phx_disable_with: gettext("Saving..."), class: "button is-primary" %>
+      <%= if @live_action == :edit do %>
+        <%= link gettext("Delete"), to: "#", phx_click: "delete", phx_value_id: @farm.id, data: [confirm: gettext("Are you sure?")], class: "button is-danger" %>
+      <% end %>
+      <%= live_patch gettext("Back"), to: "/farms", class: "button is-warning" %>
+    </.form>
+  </div>
+</section>

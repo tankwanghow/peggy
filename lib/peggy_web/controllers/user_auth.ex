@@ -129,8 +129,9 @@ defmodule PeggyWeb.UserAuth do
   If you want to enforce the user email is confirmed before
   they use the application at all, here would be a good place.
   """
+  require PeggyWeb.Gettext
+
   def require_authenticated_user(conn, _opts) do
-    require PeggyWeb.Gettext
     if conn.assigns[:current_user] do
       conn
     else
@@ -148,5 +149,5 @@ defmodule PeggyWeb.UserAuth do
 
   defp maybe_store_return_to(conn), do: conn
 
-  defp signed_in_path(_conn), do: "/navigation"
+  defp signed_in_path(_conn), do: "/farms"
 end

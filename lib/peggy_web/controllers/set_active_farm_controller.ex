@@ -12,24 +12,24 @@ defmodule PeggyWeb.SetActiveFarmController do
   end
 
   def update(conn, %{"id" => id}) do
-    conn =
-      conn
-      |> assign(:current_farm, Company.get_farm!(id, conn.assigns.current_user))
-
     conn
-    |> put_session(:current_farm, conn.assigns.current_farm)
+    |> set_active_farm(id)
     |> put_flash(:success, gettext("Farm updated successfully"))
     |> redirect(to: "/farms")
   end
 
   def create(conn, %{"id" => id}) do
-    conn =
-      conn
-      |> assign(:current_farm, Company.get_farm!(id, conn.assigns.current_user))
-
+    conn = set_active_farm(conn, id)
     conn
-    |> put_session(:current_farm, conn.assigns.current_farm)
     |> put_flash(:warning, "#{conn.assigns.current_farm.name} " <> gettext("is active now."))
     |> redirect(to: "/farms")
+  end
+
+  defp set_active_farm(conn, id) do
+    farm = Company.get_farm!(id, conn.assigns.current_user)
+
+    conn
+    |> assign(:current_farm, farm)
+    |> put_session(:current_farm, farm)
   end
 end

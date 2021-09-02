@@ -1,17 +1,30 @@
 defmodule Peggy.UserAccounts.UserNotifier do
-  import Bamboo.Email
+  import Swoosh.Email
   import PeggyWeb.Gettext
 
-  defp deliver(email) do
-    email = %{email | from: Application.get_env(:peggy, Peggy.Mailer)[:username]}
-    email |> Peggy.Mailer.deliver_now(response: true)
+  alias Peggy.Mailer
+
+  # Delivers the email using the application mailer.
+  defp deliver(recipient, subject, body) do
+    email =
+      new()
+      |> to(recipient)
+      |> from({"MyApp", "contact@example.com"})
+      |> subject(subject)
+      |> text_body(body)
+
+    with {:ok, _metadata} <- Mailer.deliver(email) do
+      {:ok, email}
+    end
   end
 
   @doc """
   Deliver instructions to confirm account.
   """
   def deliver_confirmation_instructions(user, url) do
-    text_body =
+    deliver(
+      user.email,
+      gettext("Confirmation instructions"),
       gettext(
         """
         ==============================
@@ -29,20 +42,16 @@ defmodule Peggy.UserAccounts.UserNotifier do
         email: user.email,
         url: url
       )
-
-    new_email(
-      to: user.email,
-      subject: gettext("Confirmation instructions"),
-      text_body: text_body
     )
-    |> deliver
   end
 
   @doc """
   Deliver instructions to reset a user password.
   """
   def deliver_reset_password_instructions(user, url) do
-    text_body =
+    deliver(
+      user.email,
+      gettext("Reset password instructions"),
       gettext(
         """
 
@@ -61,20 +70,16 @@ defmodule Peggy.UserAccounts.UserNotifier do
         email: user.email,
         url: url
       )
-
-    new_email(
-      to: user.email,
-      subject: gettext("Reset Password instructions"),
-      text_body: text_body
     )
-    |> deliver
   end
 
   @doc """
   Deliver instructions to update a user email.
   """
   def deliver_update_email_instructions(user, url) do
-    text_body =
+    deliver(
+      user.email,
+      gettext("Update email instructions"),
       gettext(
         """
 
@@ -93,12 +98,6 @@ defmodule Peggy.UserAccounts.UserNotifier do
         email: user.email,
         url: url
       )
-
-    new_email(
-      to: user.email,
-      subject: gettext("Update Emails instructions"),
-      text_body: text_body
     )
-    |> deliver
   end
 end

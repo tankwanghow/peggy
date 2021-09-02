@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 # Configure your database
 config :peggy, Peggy.Repo,
@@ -14,20 +14,17 @@ config :peggy, Peggy.Repo,
 #
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we use it
-# with webpack to recompile .js and .css sources.
+# with esbuild to bundle .js and .css sources.
 config :peggy, PeggyWeb.Endpoint,
-  http: [port: 4000],
+  # Binding to loopback ipv4 address prevents access from other machines.
+  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
+  http: [ip: {127, 0, 0, 1}, port: 4000],
   debug_errors: true,
   code_reloader: true,
   check_origin: false,
   watchers: [
-    node: [
-      "node_modules/webpack/bin/webpack.js",
-      "--mode",
-      "development",
-      "--watch-stdin",
-      cd: Path.expand("../assets", __DIR__)
-    ]
+    # Start the esbuild watcher by calling Esbuild.install_and_run(:default, args)
+    esbuild: {Esbuild, :install_and_run, [:default, ~w(--sourcemap=inline --watch)]}
   ]
 
 # ## SSL Support
@@ -66,7 +63,7 @@ config :peggy, PeggyWeb.Endpoint,
   ]
 
 # Do not include metadata nor timestamps in development logs
-# config :logger, :console, format: "[$level] $message\n"
+config :logger, :console, format: "[$level] $message\n"
 
 # Set a higher stacktrace during development. Avoid configuring such
 # in production as building large stacktraces may be expensive.
@@ -74,7 +71,3 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
-
-config :peggy, Peggy.Mailer,
-  adapter: Bamboo.LocalAdapter,
-  username: "tankwanghow@yahoo.com"

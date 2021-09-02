@@ -24,7 +24,7 @@ defmodule PeggyWeb.Endpoint do
     at: "/",
     from: :peggy,
     gzip: false,
-    only: ~w(webfonts css fonts images js favicon.ico robots.txt)
+    only: ~w(assets webfonts fonts images favicon.ico robots.txt)
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.

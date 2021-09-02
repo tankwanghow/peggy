@@ -14,7 +14,7 @@ defmodule PeggyWeb.UserRegistrationControllerTest do
 
     test "redirects if already logged in", %{conn: conn} do
       conn = conn |> log_in_user(user_fixture()) |> get(Routes.user_registration_path(conn, :new))
-      assert redirected_to(conn) == "/navigation"
+      assert redirected_to(conn) == "/farms"
     end
   end
 
@@ -41,13 +41,13 @@ defmodule PeggyWeb.UserRegistrationControllerTest do
     test "render errors for invalid data", %{conn: conn} do
       conn =
         post(conn, Routes.user_registration_path(conn, :create), %{
-          "user" => %{"email" => "with spaces", "password" => "too short"}
+          "user" => %{"email" => "with spaces", "password" => "short"}
         })
 
       response = html_response(conn, 200)
       assert response =~ "Register</h3>"
       assert response =~ "must have the @ sign and no spaces"
-      assert response =~ "should be at least 12 character"
+      assert response =~ "should be at least 8 character"
     end
   end
 end

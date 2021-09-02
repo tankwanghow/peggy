@@ -17,11 +17,12 @@ defmodule PeggyWeb.PageLiveTest do
     refute html =~ "href=\"/users/settings\""
     refute html =~ "href=\"/farms\""
     assert html =~ "href=\"/users/log_in\""
+    refute has_element?(view, "#home-button")
   end
 
   describe "logged in page, no active farm" do
     setup :register_and_log_in_user
-    test "show user email", %{conn: conn, user: user} do
+    test "show user email", %{conn: conn} do
       {:ok, view, html} = live(conn, "/")
       assert has_element?(view, "#welcome-title")
       refute html =~ "id=\"navbar-company-name\""
@@ -29,6 +30,7 @@ defmodule PeggyWeb.PageLiveTest do
       assert html =~ "href=\"/users/settings\""
       assert html =~ "href=\"/farms\""
       assert html =~ "href=\"/users/log_out\""
+      refute has_element?(view, "#home-button")
     end
   end
 
@@ -43,6 +45,7 @@ defmodule PeggyWeb.PageLiveTest do
       refute html =~ "href=\"/farms\""
       assert html =~ "href=\"/users/log_out\""
       assert html =~ farm.name <> "</a>"
+      assert has_element?(view, "#home-button")
     end
   end
 end

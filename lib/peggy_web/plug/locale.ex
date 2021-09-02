@@ -1,17 +1,11 @@
 defmodule PeggyWeb.Locale do
-  import Plug.Conn, only: [put_session: 3, get_session: 2, assign: 3]
-  @behaviour Plug
+  import Plug.Conn
 
-  @impl true
-  def init(opts), do: opts
-
-  @impl true
-  def call(%{params: %{"locale" => locale}} = conn, _opts) when locale in ["zh", "en"] do
+  def set_locale(%{params: %{"locale" => locale}} = conn, _opts) when locale in ["zh", "en"] do
     setup_locale(conn, locale)
   end
 
-  @impl true
-  def call(conn, _opts) do
+  def set_locale(conn, _opts) do
     case get_session(conn, "locale") do
       nil ->
         setup_locale(conn, "en")

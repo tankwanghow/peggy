@@ -68,18 +68,6 @@ defmodule Peggy.Company do
     )
   end
 
-  def farm_exists?(user) do
-    if user do
-      Repo.exists?(
-        from f in Farm,
-          join: fu in FarmUser,
-          on: fu.user_id == ^user.id and f.id == fu.farm_id
-      )
-    else
-      false
-    end
-  end
-
   def create_farm(attrs \\ %{}, user) do
     Multi.new()
     |> Multi.insert(:farm, Farm.changeset(%Farm{}, attrs, user))

@@ -2,6 +2,8 @@ defmodule PeggyWeb.Router do
   use PeggyWeb, :router
 
   import PeggyWeb.UserAuth
+  import PeggyWeb.Locale
+  import PeggyWeb.ActiveFarm
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -11,7 +13,7 @@ defmodule PeggyWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :fetch_current_user
-    plug PeggyWeb.Locale
+    plug :set_locale
   end
 
   pipeline :api do
@@ -44,8 +46,16 @@ defmodule PeggyWeb.Router do
     end
   end
 
-  if Mix.env == :dev do
-    forward "/sent_emails", Bamboo.SentEmailViewerPlug
+  # Enables the Swoosh mailbox preview in development.
+  #
+  # Note that preview only shows emails that were sent by the same
+  # node running the Phoenix server.
+  if Mix.env() == :dev do
+    scope "/dev" do
+      pipe_through :browser
+
+      forward "/mailbox", Plug.Swoosh.MailboxPreview
+    end
   end
 
   ## Authentication routes
@@ -77,9 +87,12 @@ defmodule PeggyWeb.Router do
     live "/farms", FarmLive.Index, :index
     live "/farms/:id/edit", FarmLive.Form, :edit
     live "/farms/new", FarmLive.Form, :new
+  end
+
+  scope "/farms/:farm_id", PeggyWeb do
+    pipe_through [:browser, :require_authenticated_user, :require_active_farm]
 
     live "/navigation", NavigationLive, :index
-
     live "/invite_users/new", InviteUserLive.New, :new
   end
 

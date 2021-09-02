@@ -1,0 +1,16 @@
+<section class="has-text-centered">
+  <div class="container box">
+    <h3 class="title has-text-black"><%= gettext("Register") %></h3>
+    <p class="subtitle has-text-black"><%= gettext("Please Register to proceed.") %></p>
+    <.form let={f} for={@changeset} action={Routes.user_registration_path(@conn, :create)}>
+      <%= peggy_email f, :email, gettext("Email"), autofocus: true %>
+      <%= peggy_password f, :password, gettext("Password") %>
+      <%= peggy_password f, :password_confirmation, gettext("Confirm Password") %>
+      <%= submit gettext("Register"), class: "button is-primary" %>
+    </.form>
+  </div>
+  <p>
+    <%= link gettext("Log in"), to: Routes.user_session_path(@conn, :new), class: "button is-info" %>
+    <%= link gettext("Forgot your password"), to: Routes.user_reset_password_path(@conn, :new), class: "button is-warning" %>
+  </p>
+</section>

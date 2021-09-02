@@ -2,7 +2,6 @@ defmodule PeggyWeb.SetActiveFarmControllerTest do
   use PeggyWeb.ConnCase, async: true
 
   alias Peggy.CompanyFixtures
-  alias Peggy.Company
 
   setup :register_and_log_in_user
 

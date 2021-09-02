@@ -1,4 +1,4 @@
-use Mix.Config
+import Config
 
 # For production, don't forget to configure the url host
 # to something meaningful, Phoenix uses this information
@@ -22,14 +22,14 @@ config :logger, level: :info
 # to the previous section and set your `:url` port to 443:
 #
 #     config :peggy, PeggyWeb.Endpoint,
-#       ...
+#       ...,
 #       url: [host: "example.com", port: 443],
 #       https: [
+#         ...,
 #         port: 443,
 #         cipher_suite: :strong,
 #         keyfile: System.get_env("SOME_APP_SSL_KEY_PATH"),
-#         certfile: System.get_env("SOME_APP_SSL_CERT_PATH"),
-#         transport_options: [socket_opts: [:inet6]]
+#         certfile: System.get_env("SOME_APP_SSL_CERT_PATH")
 #       ]
 #
 # The `cipher_suite` is set to `:strong` to support only the
@@ -49,22 +49,3 @@ config :logger, level: :info
 #       force_ssl: [hsts: true]
 #
 # Check `Plug.SSL` for all available options in `force_ssl`.
-
-# Finally import the config/prod.secret.exs which loads secrets
-# and configuration from environment variables.
-import_config "prod.secret.exs"
-
-config :peggy, Peggy.Mailer,
-  adapter: Bamboo.SMTPAdapter,
-  server: "smtp.mail.yahoo.com",
-  hostname: "yahoo.domain",
-  port: 465,
-  username: "tankwanghow@yahoo.com", # or {:system, "SMTP_USERNAME"}
-  password: "rmzbjtwtypauxueg", # or {:system, "SMTP_PASSWORD"}
-  tls: :if_available, # can be `:always` or `:never`
-  allowed_tls_versions: [:tlsv1, :"tlsv1.1", :"tlsv1.2"], # or {:system, "ALLOWED_TLS_VERSIONS"} w/ comma seprated values (e.g. "tlsv1.1,tlsv1.2")
-  tls_log_level: :error,
-  ssl: true, # can be `true`
-  retries: 1,
-  no_mx_lookups: false, # can be `true`
-  auth: :if_available # can be `:always`. If your smtp relay requires authentication set it to `:always`.
