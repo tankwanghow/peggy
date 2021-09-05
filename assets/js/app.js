@@ -55,6 +55,12 @@ liveSocket.connect()
 window.liveSocket = liveSocket
 
 document.addEventListener('DOMContentLoaded', () => {
+  (document.querySelectorAll('#normal-flash .notification') || []).forEach(($delete) => {
+    $delete.addEventListener('click', () => {
+      $delete.remove($delete);
+    });
+  });
+
   // Get all "navbar-burger" elements
   const $navbarBurgers = Array.prototype.slice.call(document.querySelectorAll('.navbar-burger'), 0);
 

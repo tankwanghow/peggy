@@ -1,5 +1,6 @@
 defmodule PeggyWeb.SetActiveFarmController do
   use PeggyWeb, :controller
+  import Phoenix.LiveView.Controller
 
   alias Peggy.Company
 
@@ -8,21 +9,21 @@ defmodule PeggyWeb.SetActiveFarmController do
     |> assign(:current_farm, nil)
     |> put_session(:current_farm, nil)
     |> put_session(:page_title, gettext("Please select an active farm."))
-    |> redirect(to: "/farms")
+    |> live_render(PeggyWeb.FarmLive.Index)
   end
 
   def update(conn, %{"id" => id}) do
     conn
     |> set_active_farm(id)
     |> put_flash(:success, gettext("Farm updated successfully"))
-    |> redirect(to: "/farms")
+    |> live_render(PeggyWeb.FarmLive.Index)
   end
 
   def create(conn, %{"id" => id}) do
     conn = set_active_farm(conn, id)
     conn
     |> put_flash(:warning, "#{conn.assigns.current_farm.name} " <> gettext("is active now."))
-    |> redirect(to: "/farms")
+    |> live_render(PeggyWeb.FarmLive.Index)
   end
 
   defp set_active_farm(conn, id) do
