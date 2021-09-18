@@ -128,7 +128,6 @@ defmodule PeggyWeb.FarmLiveTest do
     test "Submit New Farm From with invalid attributes", %{conn: conn} do
       {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :new))
       v = view |> form("#farm-form", %{farm: @invalid_attrs}) |> render_submit()
-      IO.inspect(v)
     end
   end
 
