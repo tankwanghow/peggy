@@ -18,9 +18,7 @@ defmodule PeggyWeb.SetActiveFarmControllerTest do
       farm = CompanyFixtures.farm_fixture(%{}, user)
       CompanyFixtures.farm_fixture(%{name: "other farm"}, user)
       conn = post(conn, Routes.set_active_farm_path(conn, :create, %{id: farm.id}))
-      assert redirected_to(conn) == Routes.farm_index_path(conn, :index)
       assert get_flash(conn, :warning) =~ "#{farm.name} is active now."
-      conn = get(recycle(conn), Routes.farm_index_path(conn, :index))
       {:ok, fhtml} = Floki.parse_document(html_response(conn, 200))
       assert Enum.count(Floki.find(fhtml, "div#active-farm")) == 1
       assert Floki.text(Floki.find(fhtml, "#navbar-company-name")) == farm.name
@@ -40,8 +38,6 @@ defmodule PeggyWeb.SetActiveFarmControllerTest do
     test "redirect to /farms", %{conn: conn, user: user} do
       CompanyFixtures.farm_fixture(%{}, user)
       conn = get(conn, Routes.set_active_farm_path(conn, :new))
-      assert redirected_to(conn) == Routes.farm_index_path(conn, :index)
-      conn = get(recycle(conn), Routes.farm_index_path(conn, :index))
       {:ok, fhtml} = Floki.parse_document(html_response(conn, 200))
       assert Enum.count(Floki.find(fhtml, "div#active-farm")) == 0
       assert Floki.text(Floki.find(fhtml, "#app-name")) == "Peggy"
@@ -60,8 +56,6 @@ defmodule PeggyWeb.SetActiveFarmControllerTest do
     test "redirect to /farms", %{conn: conn, user: user} do
       farm = CompanyFixtures.farm_fixture(%{}, user)
       conn = get(conn, Routes.set_active_farm_path(conn, :update, %{id: farm.id}))
-      assert redirected_to(conn) == Routes.farm_index_path(conn, :index)
-      conn = get(recycle(conn), Routes.farm_index_path(conn, :index))
       {:ok, fhtml} = Floki.parse_document(html_response(conn, 200))
       assert Enum.count(Floki.find(fhtml, "div#active-farm")) == 1
       assert Floki.text(Floki.find(fhtml, "#navbar-company-name")) == farm.name

@@ -29,9 +29,16 @@ defmodule PeggyWeb.UserSessionControllerTest do
       assert response =~ "Register</a>"
     end
 
-    test "redirects if already logged in", %{conn: conn, user: user} do
+    test "redirects to '/farms' if already logged in", %{conn: conn, user: user} do
       conn = conn |> log_in_user(user) |> get(Routes.user_session_path(conn, :new))
       assert redirected_to(conn) == "/farms"
+    end
+
+    test "redirects to '/farms/:id/navigation' if already logged in", %{conn: conn, user: user} do
+      farm1 = Peggy.CompanyFixtures.farm_fixture(user)
+      Peggy.Company.set_default_farm(user.id, farm1.id)
+      conn = conn |> log_in_user(user) |> get(Routes.user_session_path(conn, :new))
+      assert redirected_to(conn) == "/farms/#{farm1.id}/navigation"
     end
   end
 

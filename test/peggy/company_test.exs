@@ -17,7 +17,9 @@ defmodule Peggy.CompanyTest do
       user1 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      assert Company.list_farms(admin) == [farm, farm1]
+      farm_attrs = Map.merge(@valid_attrs, %{id: farm.id, default_farm: false})
+      farm1_attrs = Map.merge(@update_attrs, %{id: farm1.id, default_farm: false})
+      assert Company.list_farms(admin) == [farm_attrs, farm1_attrs]
       assert Company.list_farms(user1) == []
     end
 
@@ -170,6 +172,18 @@ defmodule Peggy.CompanyTest do
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert_raise(RuntimeError, "Not Authorized", fn -> Company.delete_farm(farm, user) end)
     end
+
+    test "update farm_user default_active_farm" do
+      admin = user_fixture()
+      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      assert nil == Company.get_default_farm(admin)
+      assert {:ok, _} = Company.set_default_farm(admin.id, farm1.id)
+      assert farm1 == Company.get_default_farm(admin)
+      assert {:ok, _} = Company.set_default_farm(admin.id, farm.id)
+      assert farm == Company.get_default_farm(admin)
+    end
+
   end
 
   # describe "invite_users" do

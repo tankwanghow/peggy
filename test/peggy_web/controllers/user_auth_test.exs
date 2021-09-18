@@ -48,6 +48,23 @@ defmodule PeggyWeb.UserAuthTest do
       assert signed_token != get_session(conn, :user_token)
       assert max_age == 5_184_000
     end
+
+    test "redirects to '/farms/:id/navigation' if already logged in", %{conn: conn, user: user} do
+      farm1 = Peggy.CompanyFixtures.farm_fixture(user)
+      Peggy.Company.set_default_farm(user.id, farm1.id)
+      conn = conn |> log_in_user(user) |> get(Routes.user_session_path(conn, :new))
+      assert redirected_to(conn) == "/farms/#{farm1.id}/navigation"
+    end
+
+    test "redirects to '/farms/:session_farm_id/navigation' if already logged in", %{conn: conn, user: user} do
+      farm = Peggy.CompanyFixtures.farm_fixture(user)
+      farm1 = Peggy.CompanyFixtures.farm_fixture(user)
+      Peggy.Company.set_default_farm(user.id, farm1.id)
+      conn = conn |> log_in_user(user) |> get(Routes.user_session_path(conn, :new))
+      conn = post(conn, Routes.set_active_farm_path(conn, :create, %{id: farm.id}))
+      conn = conn |> get(Routes.user_session_path(conn, :new))
+      assert redirected_to(conn) == "/farms/#{farm.id}/navigation"
+    end
   end
 
   describe "logout_user/1" do
@@ -145,7 +162,7 @@ defmodule PeggyWeb.UserAuthTest do
 
     test "stores the path to redirect to on GET", %{conn: conn} do
       halted_conn =
-        %{conn | request_path: "/foo", query_string: ""}
+        %{conn | path_info: ["foo"], query_string: ""}
         |> fetch_flash()
         |> UserAuth.require_authenticated_user([])
 
@@ -153,7 +170,7 @@ defmodule PeggyWeb.UserAuthTest do
       assert get_session(halted_conn, :user_return_to) == "/foo"
 
       halted_conn =
-        %{conn | request_path: "/foo", query_string: "bar=baz"}
+        %{conn | path_info: ["foo"], query_string: "bar=baz"}
         |> fetch_flash()
         |> UserAuth.require_authenticated_user([])
 
@@ -161,7 +178,7 @@ defmodule PeggyWeb.UserAuthTest do
       assert get_session(halted_conn, :user_return_to) == "/foo?bar=baz"
 
       halted_conn =
-        %{conn | request_path: "/foo?bar", method: "POST"}
+        %{conn | path_info: ["foo"], query_string: "bar", method: "POST"}
         |> fetch_flash()
         |> UserAuth.require_authenticated_user([])
 

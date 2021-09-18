@@ -26,7 +26,6 @@ defmodule PeggyWeb.UserAuth do
   """
   def log_in_user(conn, user, params \\ %{}) do
     token = UserAccounts.generate_user_session_token(user)
-    user_return_to = get_session(conn, :user_return_to)
     locale = get_session(conn, :locale)
 
     conn
@@ -35,7 +34,7 @@ defmodule PeggyWeb.UserAuth do
     |> put_session(:locale, locale)
     |> put_session(:live_socket_id, "users_sessions:#{Base.url_encode64(token)}")
     |> maybe_write_remember_me_cookie(token, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> redirect(to: signed_in_path(conn, user))
   end
 
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}) do
@@ -116,7 +115,7 @@ defmodule PeggyWeb.UserAuth do
   def redirect_if_user_is_authenticated(conn, _opts) do
     if conn.assigns[:current_user] do
       conn
-      |> redirect(to: signed_in_path(conn))
+      |> redirect(to: signed_in_path(conn, conn.assigns[:current_user]))
       |> halt()
     else
       conn
@@ -149,5 +148,14 @@ defmodule PeggyWeb.UserAuth do
 
   defp maybe_store_return_to(conn), do: conn
 
-  defp signed_in_path(_conn), do: "/farms"
+  defp signed_in_path(conn, user) do
+    user_return_to = get_session(conn, :user_return_to)
+    
+    if user_return_to != nil do
+      user_return_to
+    else
+      farm = get_session(conn, :current_farm) || Peggy.Company.get_default_farm(user)
+      if(farm, do: "/farms/#{farm.id}/navigation", else: "/farms")
+    end
+  end
 end

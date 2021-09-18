@@ -6,17 +6,30 @@
     </p>
     <%= for f <- @farms do %>
       <div class="box">
-        <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f), class: "farm-edit-link is-size-5" %>
-        <div class="columns is-multiline is-mobile is-vcentered">
-          <div id="farm-{f.id}" class="column has-text-left">
+        <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f.id), class: "farm-edit-link is-size-5" %>
+        <div class="is-mobile is-vcentered">
+          <div id="farm-{f.id}" class="has-text-left">
             <p><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
           </div>
-          <%= if @current_farm != f do %>
-            <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "button is-medium set-active", id: "set-active-#{f.id}" %>
+
+          <%= if @current_farm do %>
+            <%= if @current_farm.id != f.id do %>
+              <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "button set-active", id: "set-active-#{f.id}" %>
+            <% else %>
+              <div id="active-farm" class="button is-danger" disabled>
+                <%= gettext("Current Active") %>
+              </div>
+            <% end %>
           <% else %>
-            <div id="active-farm" class="column has-background-danger-light has-text-centered is-one-third">
-              <%= gettext("Current Active") %>
+            <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "button set-active", id: "set-active-#{f.id}" %>
+          <% end %>
+
+          <%= if f.default_farm do %>
+            <div id="default-farm" class="button is-success" disabled>
+              <%= gettext("Is Default") %>
             </div>
+            <% else %>
+              <%= link gettext("Set Default Farm"), to: "#", phx_click: "set_default", phx_value_id: f.id, class: "button" %>
           <% end %>
         </div>
       </div>

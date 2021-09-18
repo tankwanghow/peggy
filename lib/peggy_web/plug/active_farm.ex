@@ -1,38 +1,29 @@
 defmodule PeggyWeb.ActiveFarm do
   import Plug.Conn
   import Phoenix.Controller
+  require PeggyWeb.Gettext
 
   def require_active_farm(conn, _opts) do
-    farm_id = String.to_integer(conn.params["farm_id"] || "-1")
+    url_farm_id = String.to_integer(conn.params["farm_id"] || "-1")
 
-    current_farm_id =
-      if get_session(conn, "current_farm") do
-        get_session(conn, "current_farm").id
+    session_farm_id =
+      if(get_session(conn, "current_farm"), do: get_session(conn, "current_farm").id, else: -1)
+
+    if session_farm_id != url_farm_id do
+      farm = Peggy.Company.get_farm(url_farm_id, conn.assigns.current_user)
+
+      if farm == nil do
+        conn
+        |> put_flash(:error, PeggyWeb.Gettext.gettext("Not authorise to access farm in the URL."))
+        |> redirect(to: "/")
       else
-        -1
+        conn
+        |> assign(:current_farm, farm)
+        |> put_session(:current_farm, farm)
+        |> put_flash(:warning, "#{farm.name} " <> PeggyWeb.Gettext.gettext("is active now."))
       end
-
-    if farm_id != current_farm_id do
-      set_current_farm(conn, farm_id)
     else
       conn
-    end
-  end
-
-  defp set_current_farm(conn, farm_id) do
-    require PeggyWeb.Gettext
-
-    try do
-      farm = Peggy.Company.get_farm!(farm_id, conn.assigns.current_user)
-
-      conn
-      |> assign(:current_farm, farm)
-      |> put_session(:current_farm, farm)
-      |> put_flash(:warning, "#{farm.name} " <> PeggyWeb.Gettext.gettext("is active now."))
-    rescue
-      Ecto.NoResultsError ->
-        conn
-        |> put_flash(:error, PeggyWeb.Gettext.gettext("Not authorise to access."))
     end
   end
 end

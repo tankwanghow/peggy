@@ -21,6 +21,7 @@ defmodule Peggy.Repo.Migrations.CreateFarms do
       add :role, :string, null: false
       add :farm_id, references(:farms, on_delete: :delete_all), null: false
       add :user_id, references(:users, on_delete: :delete_all), null: false
+      add :default_farm, :boolean, null: false, default: false
 
       timestamps()
     end

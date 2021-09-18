@@ -7,7 +7,7 @@ defmodule PeggyWeb.FarmLive.Index do
     PeggyWeb.LiveHelpers.set_locale(session)
     socket = assign_current_user(socket, session)
     socket = assign(socket, :current_farm, session["current_farm"])
-    
+
     farms = Company.list_farms(socket.assigns.current_user)
 
     title =
@@ -24,5 +24,12 @@ defmodule PeggyWeb.FarmLive.Index do
      socket
      |> assign(:page_title, title)
      |> assign(:farms, farms)}
+  end
+
+  @impl true
+  def handle_event("set_default", %{"id" => farm_id}, socket) do
+    Company.set_default_farm(socket.assigns.current_user.id, farm_id)
+
+    {:noreply, socket |> assign(:farms, Company.list_farms(socket.assigns.current_user))}
   end
 end

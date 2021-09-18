@@ -27,7 +27,7 @@ defmodule PeggyWeb.SetActiveFarmController do
   end
 
   defp set_active_farm(conn, id) do
-    farm = Company.get_farm!(id, conn.assigns.current_user)
+    farm = Company.get_farm(id, conn.assigns.current_user)
 
     conn
     |> assign(:current_farm, farm)
