@@ -14,14 +14,12 @@ defmodule PeggyWeb.SetActiveFarmControllerTest do
       assert conn.assigns.current_farm == farm
     end
 
-    test "redirect to /farms", %{conn: conn, user: user} do
+    test "redirect to /farms/:id/navigation", %{conn: conn, user: user} do
       farm = CompanyFixtures.farm_fixture(%{}, user)
       CompanyFixtures.farm_fixture(%{name: "other farm"}, user)
       conn = post(conn, Routes.set_active_farm_path(conn, :create, %{id: farm.id}))
       assert get_flash(conn, :warning) =~ "#{farm.name} is active now."
-      {:ok, fhtml} = Floki.parse_document(html_response(conn, 200))
-      assert Enum.count(Floki.find(fhtml, "div#active-farm")) == 1
-      assert Floki.text(Floki.find(fhtml, "#navbar-company-name")) == farm.name
+      assert redirected_to(conn) == Routes.navigation_path(conn, :index, farm.id)
     end
   end
 

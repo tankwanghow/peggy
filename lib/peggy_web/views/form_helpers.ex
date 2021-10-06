@@ -6,6 +6,40 @@ defmodule PeggyWeb.FormHelpers do
   import PeggyWeb.ErrorHelpers
 
   def peggy_text(form, field, placeholder, opts \\ []) do
+    i_peggy_text(form, field, placeholder, [type: :text] ++ opts)
+  end
+
+  def peggy_date(form, field, placeholder, opts \\ []) do
+    i_peggy_text(form, field, placeholder, [type: :date] ++ opts)
+  end
+
+  def peggy_number(form, field, placeholder, opts \\ []) do
+    i_peggy_text(form, field, placeholder, [type: :number] ++ opts)
+  end
+
+  def peggy_email(form, field, placeholder, opts \\ []) do
+    i_peggy_text(form, field, placeholder, [type: :email] ++ opts)
+  end
+
+  def peggy_password(form, field, placeholder, opts \\ []) do
+    i_peggy_text(form, field, placeholder, [type: :password] ++ opts)
+  end
+
+  def peggy_select(form, field, values, opts \\ []) do
+    content_tag(:div, [select(form, field, values, opts), error_tag(form, field)], class: "select field control")
+  end
+
+  def datalist(list, id) do
+    content_tag(:datalist, options(list), id: id)
+  end
+
+  def options(list) do
+    Enum.map list, fn el ->
+      content_tag(:option, "", value: el)
+    end
+  end
+
+  defp i_peggy_text(form, field, placeholder, opts) do
     [col_class, opts] = find_pop_key_value(:col_class, opts)
     [class, opts] = find_pop_key_value(:class, opts)
 
@@ -41,31 +75,5 @@ defmodule PeggyWeb.FormHelpers do
     content_tag(:div, input_tag,
       class: "column #{column_class}"
     )
-  end
-
-  def peggy_date(form, field, placeholder, opts \\ []) do
-    peggy_text(form, field, placeholder, [type: :date] ++ opts)
-  end
-
-  def peggy_number(form, field, placeholder, opts \\ []) do
-    peggy_text(form, field, placeholder, [type: :number] ++ opts)
-  end
-
-  def peggy_email(form, field, placeholder, opts \\ []) do
-    peggy_text(form, field, placeholder, [type: :email] ++ opts)
-  end
-
-  def peggy_password(form, field, placeholder, opts \\ []) do
-    peggy_text(form, field, placeholder, [type: :password] ++ opts)
-  end
-
-  def datalist(list, id) do
-    content_tag(:datalist, options(list), id: id)
-  end
-
-  def options(list) do
-    Enum.map list, fn el ->
-      content_tag(:option, "", value: el)
-    end
   end
 end

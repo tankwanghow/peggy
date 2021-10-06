@@ -8,7 +8,7 @@
       <div class="box">
         <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f.id), class: "farm-edit-link is-size-5" %>
         <div class="is-mobile is-vcentered">
-          <div id="farm-{f.id}" class="has-text-left">
+          <div id={"farm-#{f.id}"} class="has-text-left">
             <p><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
           </div>
 
@@ -25,11 +25,11 @@
           <% end %>
 
           <%= if f.default_farm do %>
-            <div id="default-farm" class="button is-success" disabled>
+            <div id={"default-farm-#{f.id}"} class="button is-success" disabled>
               <%= gettext("Is Default") %>
             </div>
             <% else %>
-              <%= link gettext("Set Default Farm"), to: "#", phx_click: "set_default", phx_value_id: f.id, class: "button" %>
+              <%= link gettext("Set Default Farm"), to: "#", phx_click: "set_default", phx_value_id: f.id, class: "button", id: "set-default-farm-#{f.id}" %>
           <% end %>
         </div>
       </div>

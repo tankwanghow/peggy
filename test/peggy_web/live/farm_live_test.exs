@@ -18,14 +18,14 @@ defmodule PeggyWeb.FarmLiveTest do
     zipcode: "some zipcode"
   }
   @valid_attrs_2 %{
-      address1: "some updated address1",
-      address2: "some updated address2",
-      city: "some updated city",
-      country: "Guatemala",
-      name: "some updated name",
-      state: "some updated state",
-      weight_unit: "some updated weight_unit",
-      zipcode: "some updated zipcode"
+    address1: "some updated address1",
+    address2: "some updated address2",
+    city: "some updated city",
+    country: "Guatemala",
+    name: "some updated name",
+    state: "some updated state",
+    weight_unit: "some updated weight_unit",
+    zipcode: "some updated zipcode"
   }
   @invalid_attrs %{
     address1: nil,
@@ -38,11 +38,112 @@ defmodule PeggyWeb.FarmLiveTest do
     zipcode: nil
   }
 
+  describe "FarmLive Delete" do
+    setup %{conn: conn, user: user} do
+      {:ok, farm} = Company.create_farm(@valid_attrs_1, user)
+      Company.create_farm(@valid_attrs_2, user)
+      %{conn: conn, user: user, farm: farm}
+    end
+
+    test "deleting farm", %{conn: conn, user: user, farm: farm} do
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+
+      view |> element("#delete-farm") |> render_click()
+
+      flash = assert_redirect(view, "/farms")
+      assert flash["success"] == "Farm Deleted successfully"
+
+      assert Company.get_farm(farm.id, user) == nil
+    end
+
+    test "deleteing current active farm", %{conn: conn, farm: farm} do
+      conn = post(conn, Routes.set_active_farm_path(conn, :create, %{id: farm.id}))
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+
+      view |> element("#delete-farm") |> render_click()
+
+      flash = assert_redirect(view, "/clear_set_active_farm")
+      assert flash["success"] == "Farm Deleted successfully"
+    end
+
+    test "deleting farm, not admin user", %{conn: conn, user: user, farm: farm} do
+      user1 = Peggy.UserAccountsFixtures.user_fixture()
+      Company.allow_user_access_farm(user1, farm, "guest", user)
+      conn = log_in_user(conn, user1)
+
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+
+      html = view |> element("#delete-farm") |> render_click()
+
+      assert html =~ "Editing Farm."
+      assert html =~ "Failed to Delete Farm"
+      assert html =~ "Not Authorise"
+    end
+  end
+
   describe "FarmLive Edit Form" do
     setup %{conn: conn, user: user} do
       {:ok, farm} = Company.create_farm(@valid_attrs_1, user)
       Company.create_farm(@valid_attrs_2, user)
       %{conn: conn, user: user, farm: farm}
+    end
+
+    test "Submit Edit Farm From with valid attributes, not admin user", %{
+      conn: conn,
+      user: user,
+      farm: farm
+    } do
+      user1 = Peggy.UserAccountsFixtures.user_fixture()
+      Company.allow_user_access_farm(user1, farm, "guest", user)
+      conn = log_in_user(conn, user1)
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+
+      html =
+        view
+        |> form("#farm-form", %{farm: %{name: "stuff", city: "fire", country: "Malaysia"}})
+        |> render_submit()
+
+      assert html =~ "Editing Farm."
+      assert html =~ "Failed to Update Farm"
+      assert html =~ "Not Authorise"
+    end
+
+    test "Submit Edit Farm From with invalid attributes", %{conn: conn, farm: farm} do
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+      html = view |> form("#farm-form", %{farm: @invalid_attrs}) |> render_submit()
+      assert html =~ "Editing Farm."
+    end
+
+    test "submit edit current active farm with valid attributes", %{conn: conn, farm: farm} do
+      conn = post(conn, Routes.set_active_farm_path(conn, :create, %{id: farm.id}))
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+
+      view
+      |> form("#farm-form", %{farm: %{name: "stuff", city: "fire", country: "Malaysia"}})
+      |> render_submit()
+
+      flash = assert_redirect(view, "/update_active_farm?id=#{farm.id}")
+      assert flash["success"] == "Farm updated successfully"
+    end
+
+    test "Submit Edit Farm From with valid attributes", %{conn: conn, farm: farm} do
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+
+      view
+      |> form("#farm-form", %{farm: %{name: "stuff", city: "fire", country: "Malaysia"}})
+      |> render_submit()
+
+      flash = assert_redirect(view, "/farms")
+      assert flash["success"] == "Farm updated successfully"
+    end
+
+    test "Edit Farm From with non-unique farm name for currently logged in user", %{
+      conn: conn,
+      farm: farm
+    } do
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+      view |> form("#farm-form", %{farm: @valid_attrs_2}) |> render_change()
+      assert has_element?(view, "#name-invalid-feedback", "has already been taken")
     end
 
     test "edit with invalid attributes", %{conn: conn, farm: farm} do
@@ -127,7 +228,8 @@ defmodule PeggyWeb.FarmLiveTest do
 
     test "Submit New Farm From with invalid attributes", %{conn: conn} do
       {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :new))
-      v = view |> form("#farm-form", %{farm: @invalid_attrs}) |> render_submit()
+      html = view |> form("#farm-form", %{farm: @invalid_attrs}) |> render_submit()
+      assert html =~ "Please Create a Farm."
     end
   end
 
@@ -161,6 +263,25 @@ defmodule PeggyWeb.FarmLiveTest do
 
       assert {:error, {:redirect, %{to: "/set_active_farm?id=#{farm.id}"}}} ==
                view |> element("a#set-active-#{farm.id}") |> render_click()
+    end
+
+    test "User Farm List, click Set Default", %{conn: conn, user: user} do
+      {:ok, farm1} = Company.create_farm(@valid_attrs_1, user)
+      {:ok, farm2} = Company.create_farm(@valid_attrs_2, user)
+      {:ok, view, html} = live(conn, Routes.farm_index_path(conn, :index))
+      {:ok, fhtml} = Floki.parse_document(html)
+      assert Enum.count(Floki.find(fhtml, "a.farm-edit-link")) == 2
+
+      refute has_element?(view, "#default-farm-#{farm1.id}")
+      refute has_element?(view, "#default-farm-#{farm2.id}")
+
+      view |> element("a#set-default-farm-#{farm1.id}") |> render_click()
+      assert has_element?(view, "#default-farm-#{farm1.id}")
+      refute has_element?(view, "#default-farm-#{farm2.id}")
+
+      view |> element("a#set-default-farm-#{farm2.id}") |> render_click()
+      assert has_element?(view, "#default-farm-#{farm2.id}")
+      refute has_element?(view, "#default-farm-#{farm1.id}")
     end
   end
 end

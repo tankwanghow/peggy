@@ -35,6 +35,7 @@ defmodule PeggyWeb.UserResetPasswordController do
   def update(conn, %{"user" => user_params}) do
     case UserAccounts.reset_user_password(conn.assigns.user, user_params) do
       {:ok, _} ->
+        if conn.assigns.user.confirm_at == nil, do: UserAccounts.confirm_user(conn.assigns.user)
         conn
         |> put_flash(:success, gettext("Password reset successfully."))
         |> redirect(to: Routes.user_session_path(conn, :new))

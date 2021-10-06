@@ -36,6 +36,7 @@ defmodule PeggyWeb.FarmLive.Form do
   @impl true
   def handle_event("validate", %{"farm" => params}, socket) do
     farm = if(socket.assigns[:farm], do: socket.assigns.farm, else: %Farm{})
+
     changeset =
       farm
       |> Company.change_farm(params, socket.assigns.current_user)
@@ -66,10 +67,15 @@ defmodule PeggyWeb.FarmLive.Form do
          |> put_flash(:success, gettext("Farm Deleted successfully"))
          |> push_redirect(to: deleted_redirect_to)}
 
-      {:error, %Ecto.Changeset{} = changeset} ->
+      {:error, farm, msg} ->
+        changeset = Company.change_farm(farm, %{}, socket.assigns.current_user)
+
         {:noreply,
          assign(socket, :changeset, changeset)
-         |> put_flash(:error, gettext("Failed to Delete Farm"))}
+         |> put_flash(
+           :error,
+           msg <> " " <> gettext("Failed to Delete Farm")
+         )}
     end
   end
 
@@ -90,6 +96,16 @@ defmodule PeggyWeb.FarmLive.Form do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :changeset, changeset)}
+
+      {:error, farm, msg} ->
+        changeset = Company.change_farm(farm, %{}, socket.assigns.current_user)
+
+        {:noreply,
+         assign(socket, :changeset, changeset)
+         |> put_flash(
+           :error,
+           msg <> " " <> gettext("Failed to Update Farm")
+         )}
     end
   end
 

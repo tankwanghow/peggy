@@ -45,8 +45,8 @@ defmodule Peggy.UserAccounts do
 
   def get_confirmed_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
-    if user = get_user_by_email_and_password(email, password), do:
-      if user.confirmed_at, do: {:ok, user}, else: {:error, "confirm"}
+    if user = get_user_by_email_and_password(email, password),
+      do: if(user.confirmed_at, do: {:ok, user}, else: {:error, "confirm"})
   end
 
   @doc """
@@ -267,6 +267,41 @@ defmodule Peggy.UserAccounts do
       Repo.insert!(user_token)
       UserNotifier.deliver_confirmation_instructions(user, confirmation_url_fun.(encoded_token))
     end
+  end
+
+  def deliver_user_invitation_instructions(
+        admin,
+        %User{} = user,
+        farm,
+        password,
+        invitation_url_fun
+      )
+      when is_function(invitation_url_fun) do
+    {encoded_token, user_token} = UserToken.build_email_token(user, "confirm")
+    Repo.insert!(user_token)
+
+    UserNotifier.deliver_new_user_invitation_instructions(
+      admin,
+      user,
+      farm.name,
+      password,
+      invitation_url_fun.(encoded_token)
+    )
+  end
+
+  def deliver_user_invitation_instructions(
+        admin,
+        %User{} = user,
+        farm,
+        invitation_url_fun
+      )
+      when is_function(invitation_url_fun) do
+    UserNotifier.deliver_invitation_instructions(
+      admin,
+      user,
+      farm.name,
+      invitation_url_fun.(farm.id)
+    )
   end
 
   @doc """

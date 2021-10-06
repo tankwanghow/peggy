@@ -17,20 +17,20 @@ msgid "A link to confirm your email change has been sent to the new address."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.eex:5
-#: lib/peggy_web/templates/user_settings/edit.html.eex:10
+#: lib/peggy_web/templates/user_settings/edit.html.heex:5
+#: lib/peggy_web/templates/user_settings/edit.html.heex:10
 msgid "Change Email"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.eex:15
-#: lib/peggy_web/templates/user_settings/edit.html.eex:21
+#: lib/peggy_web/templates/user_settings/edit.html.heex:15
+#: lib/peggy_web/templates/user_settings/edit.html.heex:21
 msgid "Change Password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_registration/new.html.eex:8
-#: lib/peggy_web/templates/user_reset_password/edit.html.eex:11 lib/peggy_web/templates/user_settings/edit.html.eex:19
+#: lib/peggy_web/templates/user_registration/new.html.heex:8
+#: lib/peggy_web/templates/user_reset_password/edit.html.heex:11 lib/peggy_web/templates/user_settings/edit.html.heex:19
 msgid "Confirm Password"
 msgstr ""
 
@@ -40,16 +40,16 @@ msgid "Confirm your account at the email you registered"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.eex:9
-#: lib/peggy_web/templates/user_settings/edit.html.eex:20
+#: lib/peggy_web/templates/user_settings/edit.html.heex:9
+#: lib/peggy_web/templates/user_settings/edit.html.heex:20
 msgid "Current Password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.html.leex:7
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:5 lib/peggy_web/templates/user_registration/new.html.eex:6
-#: lib/peggy_web/templates/user_reset_password/new.html.eex:5 lib/peggy_web/templates/user_session/new.html.eex:6
-#: lib/peggy_web/templates/user_settings/edit.html.eex:8
+#: lib/peggy_web/live/invite_user_live/new.html.heex:7
+#: lib/peggy_web/templates/user_confirmation/new.html.heex:5 lib/peggy_web/templates/user_registration/new.html.heex:6
+#: lib/peggy_web/templates/user_reset_password/new.html.heex:5 lib/peggy_web/templates/user_session/new.html.heex:6
+#: lib/peggy_web/templates/user_settings/edit.html.heex:8
 msgid "Email"
 msgstr ""
 
@@ -64,8 +64,8 @@ msgid "Email changed successfully."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_registration/new.html.eex:14
-#: lib/peggy_web/templates/user_reset_password/new.html.eex:3 lib/peggy_web/templates/user_session/new.html.eex:17
+#: lib/peggy_web/templates/user_registration/new.html.heex:14
+#: lib/peggy_web/templates/user_reset_password/new.html.heex:3 lib/peggy_web/templates/user_session/new.html.heex:17
 msgid "Forgot your password"
 msgstr ""
 
@@ -80,14 +80,14 @@ msgid "Invalid email or password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:14
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:11 lib/peggy_web/templates/user_registration/new.html.eex:13
-#: lib/peggy_web/templates/user_reset_password/edit.html.eex:17 lib/peggy_web/templates/user_reset_password/new.html.eex:11
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:14
+#: lib/peggy_web/templates/user_confirmation/new.html.heex:11 lib/peggy_web/templates/user_registration/new.html.heex:13
+#: lib/peggy_web/templates/user_reset_password/edit.html.heex:17 lib/peggy_web/templates/user_reset_password/new.html.heex:11
 msgid "Log in"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:11
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:11
 msgid "Log out"
 msgstr ""
 
@@ -99,14 +99,14 @@ msgstr ""
 #, elixir-format
 #: lib/peggy_web/controllers/user_registration_controller.ex:27
 #: lib/peggy_web/controllers/user_reset_password_controller.ex:43 lib/peggy_web/controllers/user_settings_controller.ex:31
-#: lib/peggy_web/controllers/user_settings_controller.ex:47 lib/peggy_web/templates/user_reset_password/edit.html.eex:7
+#: lib/peggy_web/controllers/user_settings_controller.ex:47 lib/peggy_web/templates/user_reset_password/edit.html.heex:7
 msgid "Oops, something went wrong! Please check the errors below."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_registration/new.html.eex:7
-#: lib/peggy_web/templates/user_reset_password/edit.html.eex:10 lib/peggy_web/templates/user_session/new.html.eex:7
-#: lib/peggy_web/templates/user_settings/edit.html.eex:18
+#: lib/peggy_web/templates/user_registration/new.html.heex:7
+#: lib/peggy_web/templates/user_reset_password/edit.html.heex:10 lib/peggy_web/templates/user_session/new.html.heex:7
+#: lib/peggy_web/templates/user_settings/edit.html.heex:18
 msgid "Password"
 msgstr ""
 
@@ -121,33 +121,33 @@ msgid "Password updated successfully."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/root.html.leex:8
-#: lib/peggy_web/templates/layout/root.html.leex:20
+#: lib/peggy_web/templates/layout/root.html.heex:8
+#: lib/peggy_web/templates/layout/root.html.heex:21
 msgid "Peggy"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_registration/new.html.eex:4
+#: lib/peggy_web/templates/user_registration/new.html.heex:4
 msgid "Please Register to proceed."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:13
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:10 lib/peggy_web/templates/user_registration/new.html.eex:3
-#: lib/peggy_web/templates/user_registration/new.html.eex:9 lib/peggy_web/templates/user_reset_password/edit.html.eex:16
-#: lib/peggy_web/templates/user_reset_password/new.html.eex:10 lib/peggy_web/templates/user_session/new.html.eex:16
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:13
+#: lib/peggy_web/templates/user_confirmation/new.html.heex:10 lib/peggy_web/templates/user_registration/new.html.heex:3
+#: lib/peggy_web/templates/user_registration/new.html.heex:9 lib/peggy_web/templates/user_reset_password/edit.html.heex:16
+#: lib/peggy_web/templates/user_reset_password/new.html.heex:10 lib/peggy_web/templates/user_session/new.html.heex:16
 msgid "Register"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:3
-#: lib/peggy_web/templates/user_confirmation/new.html.eex:6
+#: lib/peggy_web/templates/user_confirmation/new.html.heex:3
+#: lib/peggy_web/templates/user_confirmation/new.html.heex:6
 msgid "Resend confirmation instructions"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_reset_password/edit.html.eex:3
-#: lib/peggy_web/templates/user_reset_password/edit.html.eex:12
+#: lib/peggy_web/templates/user_reset_password/edit.html.heex:3
+#: lib/peggy_web/templates/user_reset_password/edit.html.heex:12
 msgid "Reset password"
 msgstr ""
 
@@ -157,12 +157,12 @@ msgid "Reset password link is invalid or it has expired."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_reset_password/new.html.eex:6
+#: lib/peggy_web/templates/user_reset_password/new.html.heex:6
 msgid "Send instructions to reset password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.eex:2
+#: lib/peggy_web/templates/user_settings/edit.html.heex:2
 msgid "User Settings"
 msgstr ""
 
@@ -207,78 +207,68 @@ msgid "must have the @ sign and no spaces"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_session/new.html.eex:10
+#: lib/peggy_web/templates/user_session/new.html.heex:10
 msgid "Keep me logged in for 60 days"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_session/new.html.eex:3
-#: lib/peggy_web/templates/user_session/new.html.eex:12
+#: lib/peggy_web/templates/user_session/new.html.heex:3
+#: lib/peggy_web/templates/user_session/new.html.heex:12
 msgid "Login"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_session/new.html.eex:4
+#: lib/peggy_web/templates/user_session/new.html.heex:4
 msgid "Please Login to proceed."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:15
+#: lib/peggy/user_accounts/user_notifier.ex:93
 msgid "==============================\n\nHi %{email},\n\nYou can confirm your account by visiting the URL below:\n\n%{url}\n\nIf you didn't create an account with us, please ignore this.\n\n==============================\n"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:35
+#: lib/peggy/user_accounts/user_notifier.ex:92
 msgid "Confirmation instructions"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:78
+#: lib/peggy/user_accounts/user_notifier.ex:148
 msgid "\n==============================\n\nHi %{email},\n\nYou can change your email by visiting the URL below:\n\n%{url}\n\nIf you didn't request this change, please ignore this.\n\n==============================\n"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:46
+#: lib/peggy/user_accounts/user_notifier.ex:120
 msgid "\n==============================\n\nHi %{email},\n\nYou can reset your password by visiting the URL below:\n\n%{url}\n\nIf you didn't request this change, please ignore this.\n\n==============================\n"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:67
-msgid "Reset Password instructions"
-msgstr ""
-
-#, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:99
-msgid "Update Emails instructions"
-msgstr ""
-
-#, elixir-format
-#: lib/peggy_web/live/page_live.html.leex:1
+#: lib/peggy_web/controllers/welcome_controller.ex:6
 msgid "Peggy Welcome Page"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:5
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:5
 msgid "Address Line 1"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:6
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
 msgid "Address Line 2"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:8
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:8
 msgid "City"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:13
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:13
 msgid "Country"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:2
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:2
 msgid "Farm Name"
 msgstr ""
 
@@ -288,17 +278,17 @@ msgid "Please Create a Farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:9
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
 msgid "Postal Code"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:12
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:12
 msgid "State"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.leex:3
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
 msgid "Weight Unit"
 msgstr ""
 
@@ -313,12 +303,12 @@ msgid "Farms Listing"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.leex:6
+#: lib/peggy_web/live/farm_live/form.html.heex:6
 msgid "Save Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.leex:6
+#: lib/peggy_web/live/farm_live/form.html.heex:6
 msgid "Saving..."
 msgstr ""
 
@@ -328,54 +318,55 @@ msgid "has already been taken"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.leex:8
+#: lib/peggy_web/live/farm_live/form.html.heex:8
 msgid "Are you sure?"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.leex:4
+#: lib/peggy_web/live/farm_live/index.html.heex:5
 msgid "Create a New Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.leex:16
+#: lib/peggy_web/live/farm_live/index.html.heex:20
 msgid "Current Active"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:72
+#: lib/peggy_web/live/farm_live/form.ex:77
 msgid "Failed to Delete Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:66
+#: lib/peggy_web/live/farm_live/form.ex:67
 msgid "Farm Deleted successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.html.leex:9
+#: lib/peggy_web/templates/navigation/index.html.heex:9
 msgid "Farm List"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:102
+#: lib/peggy_web/live/farm_live/form.ex:118
 msgid "Farm created successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:20
-#: lib/peggy_web/live/farm_live/form.ex:88
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:18
+#: lib/peggy_web/live/farm_live/form.ex:94
 msgid "Farm updated successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:10
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:26 lib/peggy_web/live/farm_live/index.ex:18
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:11
+#: lib/peggy_web/live/farm_live/index.ex:18
 msgid "Please select an active farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.leex:13
+#: lib/peggy_web/live/farm_live/index.html.heex:17
+#: lib/peggy_web/live/farm_live/index.html.heex:24
 msgid "Set Active"
 msgstr ""
 
@@ -385,53 +376,121 @@ msgid "You have to Create a Farm to procced."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/controllers/set_active_farm_controller.ex:38
+#: lib/peggy_web/controllers/set_active_farm_controller.ex:25
+#: lib/peggy_web/plug/active_farm.ex:24
 msgid "is active now."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live.ex:12
-#: lib/peggy_web/templates/layout/app.html.eex:16 lib/peggy_web/templates/layout/live.html.leex:27
+#: lib/peggy_web/controllers/navigation_controller.ex:6
+#: lib/peggy_web/templates/layout/app.html.heex:27 lib/peggy_web/templates/layout/live.html.heex:30
 msgid "Navigation Page"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.leex:8
+#: lib/peggy_web/live/farm_live/form.html.heex:8
 msgid "Delete"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.eex:8
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:8
 msgid "Farms"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.html.leex:13
+#: lib/peggy_web/live/invite_user_live/new.html.heex:13
 msgid "Invite"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/invite_user_live/new.ex:13
-#: lib/peggy_web/live/invite_user_live/new.html.leex:6 lib/peggy_web/live/navigation_live.html.leex:10
+#: lib/peggy_web/live/invite_user_live/new.html.heex:6 lib/peggy_web/templates/navigation/index.html.heex:10
 msgid "Invite User"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.html.leex:13
+#: lib/peggy_web/live/invite_user_live/new.html.heex:13
 msgid "Inviting..."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.html.leex:11
-msgid "Role"
-msgstr ""
-
-#, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.html.leex:10
+#: lib/peggy_web/live/invite_user_live/new.html.heex:10
 msgid "This user will have role"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.html.leex:8
+#: lib/peggy_web/live/invite_user_live/new.html.heex:8
 msgid "to join"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/form.html.heex:10
+msgid "Back"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/form.ex:107
+msgid "Failed to Update Farm"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.ex:59
+msgid "Invitation email has been sent to "
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:27
+#: lib/peggy/user_accounts/user_notifier.ex:61
+msgid "Invitation instructions"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/index.html.heex:29
+msgid "Is Default"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/plug/active_farm.ex:17
+msgid "Not authorise to access farm in the URL."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:119
+msgid "Reset password instructions"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/index.html.heex:32
+msgid "Set Default Farm"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:147
+msgid "Update email instructions"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:28
+msgid "==============================\n\nHi %{email},\n\n%{admin} has invited you to join %{farm} at Peggy.\n\nPlease follow the URL below:\n\n%{url}\n\nAnd Login using the following:\n\nemail: %{email}\npassword: %{pwd}\n\nIf you don't want to join, please ignore this.\n\n==============================\n"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/user_accounts/user_notifier.ex:62
+msgid "==============================\n\nHi %{email},\n\n%{admin} has invited you to join %{farm} at Peggy.\n\nPlease follow the URL below:\n\n%{url}\n\nIf you don't want to join, please ignore this.\n\n==============================\n"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/company.ex:326 lib/peggy/company.ex:379 lib/peggy/company.ex:396
+#: lib/peggy/company.ex:406
+msgid "Not Authorise"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/company.ex:385
+msgid "Cannot change own role"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/company/farm_user.ex:21
+msgid "user already in farm"
 msgstr ""

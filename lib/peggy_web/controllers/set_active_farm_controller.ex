@@ -23,7 +23,7 @@ defmodule PeggyWeb.SetActiveFarmController do
     conn = set_active_farm(conn, id)
     conn
     |> put_flash(:warning, "#{conn.assigns.current_farm.name} " <> gettext("is active now."))
-    |> live_render(PeggyWeb.FarmLive.Index)
+    |> redirect(to: "/farms/#{id}/navigation")
   end
 
   defp set_active_farm(conn, id) do

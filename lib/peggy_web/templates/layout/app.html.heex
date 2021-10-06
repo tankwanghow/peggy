@@ -24,6 +24,6 @@
   <%= @inner_content %>
 
 
-<%= if Plug.Conn.get_session(@conn, "current_farm") && Plug.Conn.get_session(@conn, "page_title") != gettext("Navigation Page") do %>
+<%= if Plug.Conn.get_session(@conn, "current_farm") && assigns[:page_title] != gettext("Navigation Page") do %>
     <%= link "", to: "/farms/#{Plug.Conn.get_session(@conn, "current_farm").id}/navigation", id: "home-button", class: "button is-rounded is-info fas fa-home" %>
 <% end %>

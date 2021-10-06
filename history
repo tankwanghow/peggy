@@ -1,0 +1,4 @@
+u = Peggy.UserAccounts.get_user!(14)
+k = %{id: 1}
+f = Peggy.Company.get_farm(1,k)
+Peggy.UserAccounts.UserNotifier.deliver_invitation_instructions(u,u,f.name,"fdsa")

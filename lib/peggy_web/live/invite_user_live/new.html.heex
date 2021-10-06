@@ -1,17 +1,20 @@
 <section class="box has-text-centered">
   <div class="container is-max-desktop">
     <p class="title"><%= @page_title %></p>
-    <.form let={f} for={@changeset} id="farm-form" phx_submit="save">
+    <.form let={f} for={:invite_user} id="invite-form" phx_submit="invite">
       <div class="columns is-gapless">
         <div class="column is-1"><%= gettext("Invite User") %></div>
-        <%= peggy_email(f, :email, gettext("Email"), autofocus: true, col_class: "is-3") %>
+        <%= peggy_email(f, :email, gettext("Email"), value: @email, autofocus: true, col_class: "is-3", required: true) %>
         <div class="column is-1"><%= gettext("to join") %></div>
         <div class="column has-text-weight-semibold is-3"><%= @current_farm.name %></div>
         <div class="column is-2"><%= gettext("This user will have role") %></div>
-        <%= peggy_text f, :role, gettext("Role"), list: "roles", col_class: "is-2" %>
+        <%= peggy_select f, :role, Company.roles %>
       </div>
-      <%= submit gettext("Invite"), phx_disable_with: gettext("Inviting..."), class: "button is-primary" %>
+      <%=if @resend do %>
+        <%= submit gettext("Resend Invitation Email"), phx_disable_with: gettext("Resending..."), class: "button is-primary" %>
+      <% else %>
+        <%= submit gettext("Invite"), phx_disable_with: gettext("Inviting..."), class: "button is-primary" %>
+      <% end %>
     </.form>
   </div>
 </section>
-<%= datalist(Company.roles, "roles") %>

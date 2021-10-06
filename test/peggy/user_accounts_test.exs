@@ -37,12 +37,17 @@ defmodule Peggy.UserAccountsTest do
   describe "get_confirmed_user_by_email_and_password/2" do
     test "does not return the user if the password is valid but not confirmed" do
       user = user_fixture()
+
       assert {:error, "confirm"} =
-        UserAccounts.get_confirmed_user_by_email_and_password(user.email, valid_user_password())
+               UserAccounts.get_confirmed_user_by_email_and_password(
+                 user.email,
+                 valid_user_password()
+               )
     end
 
     test "returns the user if the email and password are valid and confirmed" do
       user = user_fixture()
+
       token =
         extract_user_token(fn url ->
           UserAccounts.deliver_user_confirmation_instructions(user, url)
@@ -51,7 +56,10 @@ defmodule Peggy.UserAccountsTest do
       {:ok, user} = UserAccounts.confirm_user(token)
 
       assert {:ok, _} =
-               UserAccounts.get_confirmed_user_by_email_and_password(user.email, valid_user_password())
+               UserAccounts.get_confirmed_user_by_email_and_password(
+                 user.email,
+                 valid_user_password()
+               )
     end
   end
 
@@ -79,7 +87,11 @@ defmodule Peggy.UserAccountsTest do
     end
 
     test "validates password confirmation" do
-      {:error, changeset} = UserAccounts.register_user(valid_user_attributes(password: "password", password_confirmation: "different"))
+      {:error, changeset} =
+        UserAccounts.register_user(
+          valid_user_attributes(password: "password", password_confirmation: "different")
+        )
+
       assert "does not match password" in errors_on(changeset).password_confirmation
     end
 
@@ -248,7 +260,9 @@ defmodule Peggy.UserAccountsTest do
     end
 
     test "does not update email if user email changed", %{user: user, token: token} do
-      assert UserAccounts.update_user_email(%{user | email: "current@example.com"}, token) == :error
+      assert UserAccounts.update_user_email(%{user | email: "current@example.com"}, token) ==
+               :error
+
       assert Repo.get!(User, user.id).email == user.email
       assert Repo.get_by(UserToken, user_id: user.id)
     end
@@ -513,7 +527,9 @@ defmodule Peggy.UserAccountsTest do
     end
 
     test "updates the password", %{user: user} do
-      {:ok, updated_user} = UserAccounts.reset_user_password(user, %{password: "new valid password"})
+      {:ok, updated_user} =
+        UserAccounts.reset_user_password(user, %{password: "new valid password"})
+
       assert is_nil(updated_user.password)
       assert UserAccounts.get_user_by_email_and_password(user.email, "new valid password")
     end
@@ -528,6 +544,58 @@ defmodule Peggy.UserAccountsTest do
   describe "inspect/2" do
     test "does not include password" do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
+    end
+  end
+
+  describe "deliver_user_invitation_instructions/5" do
+    test "send token to new user through notification" do
+      pwd = "12345678"
+      admin = user_fixture()
+      user = user_fixture(%{password: pwd, password_confirmation: pwd})
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, admin)
+
+      token =
+        extract_user_token(fn url ->
+          UserAccounts.deliver_user_invitation_instructions(admin, user, farm, pwd, url)
+        end)
+
+      {:ok, token} = Base.url_decode64(token, padding: false)
+      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, token))
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == "confirm"
+    end
+
+    test "send token to new user through notification text_body" do
+      pwd = "12345678"
+      admin = user_fixture()
+      user = user_fixture(%{password: pwd, password_confirmation: pwd})
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, admin)
+
+      {:ok, email} =
+        UserAccounts.deliver_user_invitation_instructions(admin, user, farm, pwd, fn _ -> "some url" end)
+
+      assert email.text_body =~ "some url"
+      assert email.text_body =~ farm.name
+      assert email.text_body =~ user.email
+      assert email.text_body =~ pwd
+      assert email.text_body =~ admin.email
+    end
+  end
+
+  describe "deliver_user_invitation_instructions/4" do
+    test "send token to user through notification" do
+      user = user_fixture()
+      admin = user_fixture()
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, admin)
+
+      {:ok, email} =
+        UserAccounts.deliver_user_invitation_instructions(admin, user, farm, fn _ -> "some url" end)
+
+      assert email.text_body =~ "some url"
+      assert email.text_body =~ farm.name
+      assert email.text_body =~ user.email
+      assert email.text_body =~ admin.email
     end
   end
 end

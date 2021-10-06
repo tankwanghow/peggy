@@ -10,6 +10,13 @@ defmodule PeggyWeb.ActiveFarmTest do
     %{conn: conn, user: user, can_access_farm: can_access_farm, cannot_access_farm: cannot_access_farm}
   end
 
+  test "should not set active farm, and show error", %{conn: conn, cannot_access_farm: farm} do
+    conn = get(conn, "/farms/#{farm.id}/navigation")
+    assert get_session(conn, :current_farm) == nil
+    assert get_flash(conn, :error) == "Not authorise to access farm in the URL."
+    assert redirected_to(conn) == "/"
+  end
+
   test "should set active farm, and warn user", %{conn: conn, can_access_farm: farm} do
     conn = get(conn, "/farms/#{farm.id}/navigation")
     response = html_response(conn, 200)
@@ -18,12 +25,5 @@ defmodule PeggyWeb.ActiveFarmTest do
     assert get_flash(conn, :warning) ==
              "#{farm.name} " <> "is active now."
     assert response =~ "Navigation Page"
-  end
-
-  test "should not set active farm, and show error", %{conn: conn, cannot_access_farm: farm} do
-    conn = get(conn, "/farms/#{farm.id}/navigation")
-    response = html_response(conn, 200)
-    # assert get_session(conn, :current_farm) == nil
-    # assert get_flash(conn, :error) == "Not authorise to access farm in the URL."
   end
 end

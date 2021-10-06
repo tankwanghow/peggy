@@ -22,7 +22,7 @@ defmodule PeggyWeb.Router do
 
   scope "/", PeggyWeb do
     pipe_through :browser
-    live "/", PageLive, :index
+    get "/", WelcomeController, :index
   end
 
   # Other scopes may use custom stacks.
@@ -92,7 +92,7 @@ defmodule PeggyWeb.Router do
   scope "/farms/:farm_id", PeggyWeb do
     pipe_through [:browser, :require_authenticated_user, :require_active_farm]
 
-    live "/navigation", NavigationLive, :index
+    get "/navigation", NavigationController, :index
     live "/invite_users/new", InviteUserLive.New, :new
   end
 

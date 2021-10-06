@@ -63,7 +63,7 @@ defmodule PeggyWeb.UserConfirmationControllerTest do
         end)
 
       conn = get(conn, Routes.user_confirmation_path(conn, :confirm, token))
-      assert redirected_to(conn) == "/"
+      assert redirected_to(conn) == "/users/log_in"
       assert get_flash(conn, :success) =~ "User confirmed successfully"
       assert UserAccounts.get_user!(user.id).confirmed_at
       refute get_session(conn, :user_token)

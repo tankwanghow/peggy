@@ -1,5 +1,6 @@
 defmodule Peggy.Company do
   import Ecto.Query, warn: false
+  import PeggyWeb.Gettext
 
   alias Ecto.Multi
   alias Peggy.Repo
@@ -7,7 +8,7 @@ defmodule Peggy.Company do
   alias Peggy.Company.FarmUser
 
   def roles do
-    ["admin", "manager", "supervisor", "operator", "clerk"]
+    ["guest", "admin", "manager", "supervisor", "operator", "clerk", "disable"]
   end
 
   def countries do
@@ -261,7 +262,7 @@ defmodule Peggy.Company do
   end
 
   def list_farms(user) do
-   Repo.all(
+    Repo.all(
       from f in Farm,
         join: fu in FarmUser,
         on: fu.user_id == ^user.id and f.id == fu.farm_id,
@@ -322,21 +323,22 @@ defmodule Peggy.Company do
     if is_user_admin?(user, farm) do
       Repo.delete(farm)
     else
-      raise "Not Authorized"
+      {:error, farm, gettext("Not Authorise")}
     end
   end
 
   def user_role_in_farm(user, farm) do
-    roles =
-      Repo.all(
+    role =
+      Repo.one(
         from fu in FarmUser,
           where: fu.user_id == ^user.id and fu.farm_id == ^farm.id,
           select: fu.role
       )
 
-    case roles do
-      [role] -> role
-      _ -> :no_access
+    if role == "disable" || role == nil do
+      :no_access
+    else
+      role
     end
   end
 
@@ -367,26 +369,36 @@ defmodule Peggy.Company do
     )
   end
 
+  def allow_user_access_farm(user, farm, role, admin) when user == admin do
+    {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
+     gettext("Cannot allow our self")}
+  end
+
   def allow_user_access_farm(user, farm, role, admin) do
     if is_user_admin?(admin, farm) do
       %FarmUser{}
       |> FarmUser.changeset(%{user_id: user.id, farm_id: farm.id, role: role})
       |> Repo.insert()
     else
-      raise "Not Authorized"
+      {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
+       gettext("Not Authorise")}
     end
   end
 
-  def change_user_role_in_farm(user, farm, role, admin) do
-    if(user == admin, do: raise("Cannot change own role"))
+  def change_user_role_in_farm(user, farm, role, admin) when user == admin do
+    {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
+     gettext("Cannot change own role")}
+  end
 
+  def change_user_role_in_farm(user, farm, role, admin) do
     if is_user_admin?(admin, farm) do
       fu = Repo.get_by(FarmUser, farm_id: farm.id, user_id: user.id)
 
       FarmUser.changeset(fu, %{role: role})
       |> Repo.update()
     else
-      raise "Not Authorized"
+      {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
+       gettext("Not Authorise")}
     end
   end
 
@@ -396,7 +408,7 @@ defmodule Peggy.Company do
       |> Farm.changeset(attrs, user)
       |> Repo.update()
     else
-      raise "Not Authorized"
+      {:error, farm, gettext("Not Authorise")}
     end
   end
 
@@ -406,33 +418,5 @@ defmodule Peggy.Company do
 
   defp is_user_admin?(user, farm) do
     user_role_in_farm(user, farm) == "admin"
-  end
-
-  alias Peggy.Company.InviteUser
-
-  def list_invite_users do
-    Repo.all(InviteUser)
-  end
-
-  def get_invite_user!(id), do: Repo.get!(InviteUser, id)
-
-  def create_invite_user(attrs \\ %{}) do
-    %InviteUser{}
-    |> InviteUser.changeset(attrs)
-    |> Repo.insert()
-  end
-
-  def update_invite_user(%InviteUser{} = invite_user, attrs) do
-    invite_user
-    |> InviteUser.changeset(attrs)
-    |> Repo.update()
-  end
-
-  def delete_invite_user(%InviteUser{} = invite_user) do
-    Repo.delete(invite_user)
-  end
-
-  def change_invite_user(%InviteUser{} = invite_user, attrs \\ %{}) do
-    InviteUser.changeset(invite_user, attrs)
   end
 end

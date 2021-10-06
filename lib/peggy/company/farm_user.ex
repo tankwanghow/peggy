@@ -1,6 +1,7 @@
 defmodule Peggy.Company.FarmUser do
   use Ecto.Schema
   import Ecto.Changeset
+  import PeggyWeb.Gettext
 
   schema "farm_user" do
     field :role, :string
@@ -17,5 +18,6 @@ defmodule Peggy.Company.FarmUser do
     |> cast(attrs, [:role, :default_farm, :farm_id, :user_id])
     |> validate_required([:role, :farm_id, :user_id])
     |> validate_inclusion(:role, Peggy.Company.roles)
+    |> unsafe_validate_unique([:user_id, :farm_id], Peggy.Repo, message: gettext("user already in farm"))
   end
 end

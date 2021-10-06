@@ -16,6 +16,7 @@ defmodule PeggyWeb.ActiveFarm do
         conn
         |> put_flash(:error, PeggyWeb.Gettext.gettext("Not authorise to access farm in the URL."))
         |> redirect(to: "/")
+        |> halt()
       else
         conn
         |> assign(:current_farm, farm)
