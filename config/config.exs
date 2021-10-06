@@ -27,6 +27,18 @@ config :peggy, PeggyWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :peggy, Peggy.Mailer, adapter: Swoosh.Adapters.Local
 
+# config :peggy, Peggy.Mailer,
+#   adapter: Swoosh.Adapters.SMTP,
+#   relay: "smtp.gmail.com",
+#   port: 587,
+#   username: "tankwanghow@gmail.com",
+#   password: "tpykjljdwjxfbgym",
+#   tls: :always,
+#   ssl: false,
+#   auth: :always,
+#   retries: 2,
+#   no_mx_lookups: false
+
 # Swoosh API client is needed for adapters other than SMTP.
 config :swoosh, :api_client, false
 
