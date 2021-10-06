@@ -97,8 +97,9 @@ defmodule Peggy.CompanyTest do
       admin = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
 
-      assert {:error, %Ecto.Changeset{}} =
-               Company.allow_user_access_farm(admin, farm, "clerk", admin)
+      {:error, changeset, _} = Company.allow_user_access_farm(admin, farm, "clerk", admin)
+
+      assert "user already in farm" in errors_on(changeset).user_id
     end
 
     test "user_role_in_farm/2 should return :no_access, if not exists" do

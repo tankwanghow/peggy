@@ -101,9 +101,19 @@ defmodule Peggy.UserAccounts.User do
   """
   def password_changeset(user, attrs, opts \\ []) do
     user
+    |> try_confirm_user()
     |> cast(attrs, [:password])
     |> validate_confirmation(:password, message: gettext("does not match password"))
     |> validate_password(opts)
+  end
+
+  defp try_confirm_user(user) do
+    if user.confirmed_at == nil do
+      now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+      change(user, confirmed_at: now)
+    else
+      user
+    end
   end
 
   @doc """
