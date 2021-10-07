@@ -7,4 +7,6 @@
   </span>
 </div>
 <%= link gettext("Farm List"), to: Routes.farm_index_path(@conn, :index), class: "button" %>
-<%= link gettext("Invite User"), to: Routes.invite_user_new_path(@conn, :new, @current_farm.id), class: "button" %>
+<%= if Peggy.Company.user_role_in_farm(@current_user, @current_farm) == "admin" do %>
+  <%= link gettext("Invite User"), to: Routes.invite_user_new_path(@conn, :new, @current_farm.id), class: "button" %>
+<% end %>
