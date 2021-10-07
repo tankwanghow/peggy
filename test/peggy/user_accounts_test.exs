@@ -507,6 +507,16 @@ defmodule Peggy.UserAccountsTest do
       %{user: user_fixture()}
     end
 
+    test "confirm user if not confirmed", %{user: user} do
+      assert user.confirmed_at == nil
+      assert {:ok, changeset} =
+      UserAccounts.reset_user_password(user, %{
+        password: "valid_password",
+        password_confirmation: "valid_password"
+      })
+      refute changeset.confirmed_at == nil
+    end
+
     test "validates password", %{user: user} do
       {:error, changeset} =
         UserAccounts.reset_user_password(user, %{
