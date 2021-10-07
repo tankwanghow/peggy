@@ -124,7 +124,7 @@ defmodule Peggy.CompanyTest do
                Company.allow_user_access_farm(user1, farm, "manager", admin)
 
       farm = Peggy.Repo.preload(farm, [:users, :farm_user])
-      assert Enum.sort(farm.users, :desc) == [admin, user1]
+      assert Enum.sort(farm.users) == Enum.sort([admin, user1])
       assert farm_user.role == "manager"
     end
 
