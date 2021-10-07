@@ -135,7 +135,7 @@ defmodule Peggy.CompanyTest do
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       Company.allow_user_access_farm(user1, farm, "manager", admin)
 
-      assert {:error, %Ecto.Changeset{}, "Not Authorise"} =
+      assert {:error, %Ecto.Changeset{}, "Only Admin allow to invite"} =
                Company.allow_user_access_farm(user2, farm, "clerk", user1)
     end
 

@@ -371,7 +371,7 @@ defmodule Peggy.Company do
 
   def allow_user_access_farm(user, farm, role, admin) when user == admin do
     {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
-     gettext("Cannot allow our self")}
+     gettext("Cannot invite yourself")}
   end
 
   def allow_user_access_farm(user, farm, role, admin) do
@@ -381,7 +381,7 @@ defmodule Peggy.Company do
       |> Repo.insert()
     else
       {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
-       gettext("Not Authorise")}
+       gettext("Only Admin allow to invite")}
     end
   end
 

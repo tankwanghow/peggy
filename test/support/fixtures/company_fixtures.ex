@@ -25,7 +25,6 @@ defmodule Peggy.CompanyFixtures do
       attrs
       |> valid_farm_attributes()
       |> Peggy.Company.create_farm(user)
-
     farm
   end
 end
