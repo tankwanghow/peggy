@@ -33,10 +33,10 @@ defmodule PeggyWeb.InviteUserLive.New do
          socket
          |> put_flash(:success, gettext("Invitation email has been sent to ") <> flag <> user.email)}
 
-      {:error, %Ecto.Changeset{} = changeset, message} ->
+      {:error, changeset, message} ->
         {:noreply, socket |> assign(:changeset, changeset) |> put_flash(:error, message)}
 
-      {:error, %Ecto.Changeset{}} ->
+      {:error, %Ecto.Changeset{errors: [user_id: {"user already in farm", _}]}} ->
         {:noreply, socket |> assign(:email, email) |> put_flash(:error, "#{user.email} already invited")}
     end
   end

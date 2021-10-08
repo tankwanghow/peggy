@@ -52,7 +52,6 @@ defmodule PeggyWeb.InviteUserLiveTest do
 
     test "cannot send Invitation to user already in farm", %{conn: conn, user: user, farm: farm} do
       otheruser = Peggy.UserAccountsFixtures.user_fixture()
-
       Company.allow_user_access_farm(otheruser, farm, "clerk", user)
       {:ok, view, _html} = live(conn, Routes.invite_user_new_path(conn, :new, farm.id))
       html = view |> form("#invite-form", %{invite_user: %{email: otheruser.email, role: "clerk"}}) |> render_submit()
