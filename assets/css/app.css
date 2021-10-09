@@ -29,6 +29,10 @@ body {
   display: grid;
 }
 
+input#update_password_current_password{
+  background-color: cornsilk;
+}
+
 #live-flash,
 #normal-flash {
   flex-direction: row;

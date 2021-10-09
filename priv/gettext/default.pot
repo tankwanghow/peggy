@@ -29,7 +29,7 @@ msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/templates/user_registration/new.html.heex:8
-#: lib/peggy_web/templates/user_reset_password/edit.html.heex:11 lib/peggy_web/templates/user_settings/edit.html.heex:19
+#: lib/peggy_web/templates/user_reset_password/edit.html.heex:11
 msgid "Confirm Password"
 msgstr ""
 
@@ -105,7 +105,6 @@ msgstr ""
 #, elixir-format
 #: lib/peggy_web/templates/user_registration/new.html.heex:7
 #: lib/peggy_web/templates/user_reset_password/edit.html.heex:10 lib/peggy_web/templates/user_session/new.html.heex:7
-#: lib/peggy_web/templates/user_settings/edit.html.heex:18
 msgid "Password"
 msgstr ""
 
@@ -524,6 +523,16 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has resend an 
 msgstr ""
 
 #, elixir-format
+#: lib/peggy_web/templates/user_settings/edit.html.heex:19
+msgid "Confirm New Password"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/templates/user_settings/edit.html.heex:18
+msgid "New Password"
+msgstr ""
+
+#, elixir-format
 #: lib/peggy_web/live/invite_user_live/new.ex:47
-msgid "Resended Invitation, bacause "
+msgid "Resended Invitation, because "
 msgstr ""
