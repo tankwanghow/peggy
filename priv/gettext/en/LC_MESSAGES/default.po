@@ -192,12 +192,12 @@ msgid "did not change"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user.ex:39 lib/peggy/user_accounts/user.ex:105
+#: lib/peggy/user_accounts/user.ex:39 lib/peggy/user_accounts/user.ex:106
 msgid "does not match password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user.ex:140
+#: lib/peggy/user_accounts/user.ex:150
 msgid "is not valid"
 msgstr ""
 
@@ -223,22 +223,22 @@ msgid "Please Login to proceed."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:93
+#: lib/peggy/user_accounts/user_notifier.ex:125
 msgid "==============================\n\nHi %{email},\n\nYou can confirm your account by visiting the URL below:\n\n%{url}\n\nIf you didn't create an account with us, please ignore this.\n\n==============================\n"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:92
+#: lib/peggy/user_accounts/user_notifier.ex:124
 msgid "Confirmation instructions"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:148
+#: lib/peggy/user_accounts/user_notifier.ex:180
 msgid "\n==============================\n\nHi %{email},\n\nYou can change your email by visiting the URL below:\n\n%{url}\n\nIf you didn't request this change, please ignore this.\n\n==============================\n"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:120
+#: lib/peggy/user_accounts/user_notifier.ex:152
 msgid "\n==============================\n\nHi %{email},\n\nYou can reset your password by visiting the URL below:\n\n%{url}\n\nIf you didn't request this change, please ignore this.\n\n==============================\n"
 msgstr ""
 
@@ -404,7 +404,7 @@ msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/invite_user_live/new.ex:13
-#: lib/peggy_web/live/invite_user_live/new.html.heex:6 lib/peggy_web/templates/navigation/index.html.heex:10
+#: lib/peggy_web/live/invite_user_live/new.html.heex:6 lib/peggy_web/templates/navigation/index.html.heex:11
 msgid "Invite User"
 msgstr ""
 
@@ -434,13 +434,13 @@ msgid "Failed to Update Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:59
+#: lib/peggy_web/live/invite_user_live/new.ex:36
 msgid "Invitation email has been sent to "
 msgstr ""
 
 #, elixir-format
 #: lib/peggy/user_accounts/user_notifier.ex:27
-#: lib/peggy/user_accounts/user_notifier.ex:61
+#: lib/peggy/user_accounts/user_notifier.ex:61 lib/peggy/user_accounts/user_notifier.ex:89
 msgid "Invitation instructions"
 msgstr ""
 
@@ -455,7 +455,7 @@ msgid "Not authorise to access farm in the URL."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:119
+#: lib/peggy/user_accounts/user_notifier.ex:151
 msgid "Reset password instructions"
 msgstr ""
 
@@ -465,7 +465,7 @@ msgid "Set Default Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/user_accounts/user_notifier.ex:147
+#: lib/peggy/user_accounts/user_notifier.ex:179
 msgid "Update email instructions"
 msgstr ""
 
@@ -480,17 +480,51 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has invited yo
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company.ex:326 lib/peggy/company.ex:379 lib/peggy/company.ex:396
-#: lib/peggy/company.ex:406
+#: lib/peggy/company.ex:326 lib/peggy/company.ex:401 lib/peggy/company.ex:411
 msgid "Not Authorise"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company.ex:385
+#: lib/peggy/company.ex:390
 msgid "Cannot change own role"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy/company/farm_user.ex:21
 msgid "user already in farm"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/company.ex:374
+msgid "Cannot invite yourself"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy/company.ex:384
+msgid "Only Admin allow to invite"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.ex:60
+msgid "existing user - "
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.ex:70
+msgid "new user - "
+msgstr ""
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/invite_user_live/new.ex:47
+msgid " already invited."
+msgstr ""
+
+#, elixir-format, fuzzy
+#: lib/peggy/user_accounts/user_notifier.ex:90
+msgid "==============================\n\nHi %{email},\n\n%{admin} has resend an invite to you for joining %{farm} at Peggy.\n\nemail: %{email}\n\nPlease Click \"Forgot Password\" if you don't remember it.\n\nPlease follow the URL below:\n\n%{url}\n\nIf you don't want to join, please ignore this.\n\n==============================\n"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/invite_user_live/new.ex:47
+msgid "Resended Invitation, bacause "
 msgstr ""
