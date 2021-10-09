@@ -600,7 +600,7 @@ defmodule Peggy.UserAccountsTest do
       farm = Peggy.CompanyFixtures.farm_fixture(%{}, admin)
 
       {:ok, email} =
-        UserAccounts.deliver_user_invitation_instructions(admin, user, farm, fn _ -> "some url" end)
+        UserAccounts.deliver_user_invitation_instructions(admin, user, farm, "some url")
 
       assert email.text_body =~ "some url"
       assert email.text_body =~ farm.name
@@ -608,4 +608,23 @@ defmodule Peggy.UserAccountsTest do
       assert email.text_body =~ admin.email
     end
   end
+
+  describe "resend_user_invitation_instructions/4" do
+    test "send token to user through notification" do
+      user = user_fixture()
+      admin = user_fixture()
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, admin)
+
+      {:ok, email} =
+        UserAccounts.resend_user_invitation_instructions(admin, user, farm, "some url")
+
+      assert email.text_body =~ "some url"
+      assert email.text_body =~ farm.name
+      assert email.text_body =~ user.email
+      assert email.text_body =~ admin.email
+      assert email.text_body =~ "resend"
+    end
+  end
+
+
 end

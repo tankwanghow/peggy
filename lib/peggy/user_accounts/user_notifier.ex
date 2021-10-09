@@ -83,6 +83,38 @@ defmodule Peggy.UserAccounts.UserNotifier do
     )
   end
 
+  def resend_invitation_instructions(admin, user, farm_name, url) do
+    deliver(
+      user.email,
+      gettext("Invitation instructions"),
+      gettext(
+        """
+        ==============================
+
+        Hi %{email},
+
+        %{admin} has resend an invite to you for joining %{farm} at Peggy.
+
+        email: %{email}
+
+        Please Click "Forgot Password" if you don't remember it.
+
+        Please follow the URL below:
+
+        %{url}
+
+        If you don't want to join, please ignore this.
+
+        ==============================
+        """,
+        email: user.email,
+        url: url,
+        farm: farm_name,
+        admin: admin.email
+      )
+    )
+  end
+
   @doc """
   Deliver instructions to confirm account.
   """

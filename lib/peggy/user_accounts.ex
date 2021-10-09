@@ -293,14 +293,27 @@ defmodule Peggy.UserAccounts do
         admin,
         %User{} = user,
         farm,
-        invitation_url_fun
-      )
-      when is_function(invitation_url_fun) do
+        navigation_url
+      ) do
     UserNotifier.deliver_invitation_instructions(
       admin,
       user,
       farm.name,
-      invitation_url_fun.(farm.id)
+      navigation_url
+    )
+  end
+
+  def resend_user_invitation_instructions(
+        admin,
+        %User{} = user,
+        farm,
+        login_url
+      ) do
+    UserNotifier.resend_invitation_instructions(
+      admin,
+      user,
+      farm.name,
+      login_url
     )
   end
 

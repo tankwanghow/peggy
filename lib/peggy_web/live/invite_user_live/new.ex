@@ -31,13 +31,20 @@ defmodule PeggyWeb.InviteUserLive.New do
 
         {:noreply,
          socket
-         |> put_flash(:success, gettext("Invitation email has been sent to ") <> flag <> user.email)}
+         |> put_flash(
+           :success,
+           gettext("Invitation email has been sent to ") <> flag <> user.email
+         )}
 
-      {:error, changeset, message} ->
-        {:noreply, socket |> assign(:changeset, changeset) |> put_flash(:error, message)}
+      {:error, %Ecto.Changeset{}, message} ->
+        {:noreply, socket |> assign(:email, email) |> put_flash(:error, message)}
 
-      {:error, %Ecto.Changeset{errors: [user_id: {"user already in farm", _}]}} ->
-        {:noreply, socket |> assign(:email, email) |> put_flash(:error, "#{user.email} already invited")}
+      {:error, %Ecto.Changeset{errors: [user_id: _]}} ->
+        resend_invitation_email(user, socket)
+        {:noreply,
+         socket
+         |> assign(:email, email)
+         |> put_flash(:warning, gettext("Resended Invitation, because ") <> email <> gettext(" already invited."))}
     end
   end
 
@@ -47,8 +54,9 @@ defmodule PeggyWeb.InviteUserLive.New do
         socket.assigns.current_user,
         user,
         socket.assigns.current_farm,
-        &Routes.navigation_url(socket, :index, &1)
+        Routes.navigation_url(socket, :index, socket.assigns.current_farm.id)
       )
+
       gettext("existing user - ")
     else
       UserAccounts.deliver_user_invitation_instructions(
@@ -58,8 +66,18 @@ defmodule PeggyWeb.InviteUserLive.New do
         password,
         &Routes.user_confirmation_url(socket, :confirm, &1)
       )
+
       gettext("new user - ")
     end
+  end
+
+  defp resend_invitation_email(user, socket) do
+    UserAccounts.resend_user_invitation_instructions(
+        socket.assigns.current_user,
+        user,
+        socket.assigns.current_farm,
+        Routes.user_session_url(socket, :new)
+      )
   end
 
   defp find_or_create_user(email, password) do
