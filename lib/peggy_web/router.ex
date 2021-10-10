@@ -94,6 +94,7 @@ defmodule PeggyWeb.Router do
 
     get "/navigation", NavigationController, :index
     live "/invite_users/new", InviteUserLive.New, :new
+    live "/users", UserLive.Index, :index
   end
 
   scope "/", PeggyWeb do

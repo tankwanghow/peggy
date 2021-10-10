@@ -1,0 +1,22 @@
+<section>
+  <div class="container has-text-centered">
+    <p class="title"><%= @page_title %></p>
+    <.form let={f} for={:user_list} id="user-list" phx-change="update_role">
+      <%= for u <- @users do %>
+        <div class="card m-2">
+          <div class="card-content is-vcentered">
+            <p class="is-family-monospace"><%= u.email %></p>
+            <p class="has-text-weight-semibold">has role</p>
+            <%= if u.email == @current_user.email  do %>
+              <p class="button has-background-success"><%= u.role %></p>
+            <% else %>
+              <%= hidden_input(f, :id, name: "user_#{u.id}[id]", id: "user_#{u.id}_id", value: u.id) %>
+              <%= peggy_select f, :role, Company.roles, class: "has-text-centered has-background-link-light",
+                      name: "user_#{u.id}[role]", id: "user_#{u.id}_role", selected: u.role %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </.form>
+  </div>
+</section>
