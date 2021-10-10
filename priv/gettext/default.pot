@@ -40,7 +40,7 @@ msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/templates/user_settings/edit.html.heex:9
-#: lib/peggy_web/templates/user_settings/edit.html.heex:20
+#: lib/peggy_web/templates/user_settings/edit.html.heex:18
 msgid "Current Password"
 msgstr ""
 
@@ -326,11 +326,6 @@ msgid "Create a New Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:20
-msgid "Current Active"
-msgstr ""
-
-#, elixir-format
 #: lib/peggy_web/live/farm_live/form.ex:77
 msgid "Failed to Delete Farm"
 msgstr ""
@@ -363,8 +358,8 @@ msgid "Please select an active farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:17
-#: lib/peggy_web/live/farm_live/index.html.heex:24
+#: lib/peggy_web/live/farm_live/index.html.heex:18
+#: lib/peggy_web/live/farm_live/index.html.heex:25
 msgid "Set Active"
 msgstr ""
 
@@ -443,11 +438,6 @@ msgid "Invitation instructions"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:29
-msgid "Is Default"
-msgstr ""
-
-#, elixir-format
 #: lib/peggy_web/plug/active_farm.ex:17
 msgid "Not authorise to access farm in the URL."
 msgstr ""
@@ -478,12 +468,12 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has invited yo
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company.ex:326 lib/peggy/company.ex:401 lib/peggy/company.ex:411
+#: lib/peggy/company.ex:333 lib/peggy/company.ex:408 lib/peggy/company.ex:418
 msgid "Not Authorise"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company.ex:390
+#: lib/peggy/company.ex:397
 msgid "Cannot change own role"
 msgstr ""
 
@@ -493,12 +483,12 @@ msgid "user already in farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company.ex:374
+#: lib/peggy/company.ex:381
 msgid "Cannot invite yourself"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company.ex:384
+#: lib/peggy/company.ex:391
 msgid "Only Admin allow to invite"
 msgstr ""
 
@@ -523,16 +513,32 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has resend an 
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.heex:19
+#: lib/peggy_web/templates/user_settings/edit.html.heex:20
 msgid "Confirm New Password"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.heex:18
+#: lib/peggy_web/templates/user_settings/edit.html.heex:19
 msgid "New Password"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/invite_user_live/new.ex:47
 msgid "Resended Invitation, because "
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/index.html.heex:21
+msgid "Currently Active"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/index.html.heex:29
+msgid "Is Default Farm"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:13
+#: lib/peggy_web/templates/navigation/index.html.heex:12
+msgid "User List"
 msgstr ""

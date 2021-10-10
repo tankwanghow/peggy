@@ -6,6 +6,7 @@ defmodule Peggy.Company do
   alias Peggy.Repo
   alias Peggy.Company.Farm
   alias Peggy.Company.FarmUser
+  alias Peggy.UserAccounts.User
 
   def roles do
     ["guest", "admin", "manager", "supervisor", "operator", "clerk", "disable"]
@@ -265,7 +266,9 @@ defmodule Peggy.Company do
     Repo.all(
       from f in Farm,
         join: fu in FarmUser,
-        on: fu.user_id == ^user.id and f.id == fu.farm_id,
+        on: fu.user_id == ^user.id and
+            f.id == fu.farm_id and
+            fu.role != "disable",
         order_by: f.name,
         select: %{
           address1: f.address1,
@@ -286,7 +289,9 @@ defmodule Peggy.Company do
     Repo.get!(
       from(f in Farm,
         join: fu in FarmUser,
-        on: fu.user_id == ^user.id and f.id == fu.farm_id,
+        on: fu.user_id == ^user.id and
+            f.id == fu.farm_id and
+            fu.role != "disable",
         select: f,
         order_by: f.name
       ),
@@ -298,7 +303,9 @@ defmodule Peggy.Company do
     Repo.get(
       from(f in Farm,
         join: fu in FarmUser,
-        on: fu.user_id == ^user.id and f.id == fu.farm_id,
+        on: fu.user_id == ^user.id and
+            f.id == fu.farm_id and
+            fu.role != "disable",
         select: f,
         order_by: f.name
       ),
@@ -320,18 +327,18 @@ defmodule Peggy.Company do
   end
 
   def delete_farm(%Farm{} = farm, user) do
-    if is_user_admin?(user, farm) do
+    if is_user_admin?(user.id, farm) do
       Repo.delete(farm)
     else
       {:error, farm, gettext("Not Authorise")}
     end
   end
 
-  def user_role_in_farm(user, farm) do
+  def user_role_in_farm(user_id, farm) do
     role =
       Repo.one(
         from fu in FarmUser,
-          where: fu.user_id == ^user.id and fu.farm_id == ^farm.id,
+          where: fu.user_id == ^user_id and fu.farm_id == ^farm.id,
           select: fu.role
       )
 
@@ -375,7 +382,7 @@ defmodule Peggy.Company do
   end
 
   def allow_user_access_farm(user, farm, role, admin) do
-    if is_user_admin?(admin, farm) do
+    if is_user_admin?(admin.id, farm) do
       %FarmUser{}
       |> FarmUser.changeset(%{user_id: user.id, farm_id: farm.id, role: role})
       |> Repo.insert()
@@ -385,25 +392,25 @@ defmodule Peggy.Company do
     end
   end
 
-  def change_user_role_in_farm(user, farm, role, admin) when user == admin do
-    {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
+  def change_user_role_in_farm(user_id, farm, role, admin_id) when user_id == admin_id do
+    {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user_id, farm_id: farm.id, role: role}),
      gettext("Cannot change own role")}
   end
 
-  def change_user_role_in_farm(user, farm, role, admin) do
-    if is_user_admin?(admin, farm) do
-      fu = Repo.get_by(FarmUser, farm_id: farm.id, user_id: user.id)
+  def change_user_role_in_farm(user_id, farm, role, admin_id) do
+    if is_user_admin?(admin_id, farm) do
+      fu = Repo.get_by(FarmUser, farm_id: farm.id, user_id: user_id)
 
       FarmUser.changeset(fu, %{role: role})
       |> Repo.update()
     else
-      {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
+      {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user_id, farm_id: farm.id, role: role}),
        gettext("Not Authorise")}
     end
   end
 
   def update_farm(%Farm{} = farm, attrs, user) do
-    if is_user_admin?(user, farm) do
+    if is_user_admin?(user.id, farm) do
       farm
       |> Farm.changeset(attrs, user)
       |> Repo.update()
@@ -416,7 +423,25 @@ defmodule Peggy.Company do
     Farm.changeset(farm, attrs, user)
   end
 
-  defp is_user_admin?(user, farm) do
-    user_role_in_farm(user, farm) == "admin"
+  defp is_user_admin?(user_id, farm) do
+    user_role_in_farm(user_id, farm) == "admin"
+  end
+
+  def farm_users(farm, admin_id) do
+    if is_user_admin?(admin_id, farm) do
+      Repo.all(
+        from u in User,
+          join: fu in FarmUser,
+          on: fu.farm_id == ^farm.id and u.id == fu.user_id,
+          order_by: u.email,
+          select: %{
+            email: u.email,
+            role: fu.role,
+            id: u.id
+          }
+      )
+    else
+      []
+    end
   end
 end

@@ -41,7 +41,7 @@ msgstr "在您注册的电子邮件中确认您的帐户"
 
 #, elixir-format
 #: lib/peggy_web/templates/user_settings/edit.html.heex:9
-#: lib/peggy_web/templates/user_settings/edit.html.heex:20
+#: lib/peggy_web/templates/user_settings/edit.html.heex:18
 msgid "Current Password"
 msgstr "当前密码"
 
@@ -327,11 +327,6 @@ msgid "Create a New Farm"
 msgstr "创建一个新农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:20
-msgid "Current Active"
-msgstr "现在活动农场"
-
-#, elixir-format
 #: lib/peggy_web/live/farm_live/form.ex:77
 msgid "Failed to Delete Farm"
 msgstr "无法删除场"
@@ -364,8 +359,8 @@ msgid "Please select an active farm."
 msgstr "请选择一个活动的农场。"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:17
-#: lib/peggy_web/live/farm_live/index.html.heex:24
+#: lib/peggy_web/live/farm_live/index.html.heex:18
+#: lib/peggy_web/live/farm_live/index.html.heex:25
 msgid "Set Active"
 msgstr "启用"
 
@@ -444,11 +439,6 @@ msgid "Invitation instructions"
 msgstr "确认说明"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:29
-msgid "Is Default"
-msgstr "默认农场"
-
-#, elixir-format
 #: lib/peggy_web/plug/active_farm.ex:17
 msgid "Not authorise to access farm in the URL."
 msgstr "未授权访问URL中的农场。"
@@ -479,12 +469,12 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has invited yo
 msgstr "==============================\n\n您好%{email}，您可以通过访问以下URL来确认您的帐户：\n\n%{url}\n\n如果您没有在我们这里创建帐户，请忽略此电子邮件。\n\n==============================\n"
 
 #, elixir-format
-#: lib/peggy/company.ex:326 lib/peggy/company.ex:401 lib/peggy/company.ex:411
+#: lib/peggy/company.ex:333 lib/peggy/company.ex:408 lib/peggy/company.ex:418
 msgid "Not Authorise"
 msgstr "不授权"
 
 #, elixir-format
-#: lib/peggy/company.ex:390
+#: lib/peggy/company.ex:397
 msgid "Cannot change own role"
 msgstr "不能改变自己的角色"
 
@@ -494,12 +484,12 @@ msgid "user already in farm"
 msgstr "用户已经在农场"
 
 #, elixir-format
-#: lib/peggy/company.ex:374
+#: lib/peggy/company.ex:381
 msgid "Cannot invite yourself"
 msgstr "不能邀请自己"
 
 #, elixir-format
-#: lib/peggy/company.ex:384
+#: lib/peggy/company.ex:391
 msgid "Only Admin allow to invite"
 msgstr "只有管​​理员允许邀请"
 
@@ -524,12 +514,12 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has resend an 
 msgstr "==============================\n\n嗨 %{email}，\n\n您已被邀请加入 %{ Farm} at Peggy，请访问以下 URL：\n\n%{url}\n\n并使用以下方式登录：\n\nemail: %{email}\n密码：%{pwd}\n\n如果你不这样做不想加入，请无视。\n\n==============================\n"
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.heex:19
+#: lib/peggy_web/templates/user_settings/edit.html.heex:20
 msgid "Confirm New Password"
 msgstr "确认新密码"
 
 #, elixir-format
-#: lib/peggy_web/templates/user_settings/edit.html.heex:18
+#: lib/peggy_web/templates/user_settings/edit.html.heex:19
 msgid "New Password"
 msgstr "新密码"
 
@@ -537,3 +527,19 @@ msgstr "新密码"
 #: lib/peggy_web/live/invite_user_live/new.ex:47
 msgid "Resended Invitation, because "
 msgstr "重新发送邀请，原因"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/farm_live/index.html.heex:21
+msgid "Currently Active"
+msgstr "现在活动农场"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/farm_live/index.html.heex:29
+msgid "Is Default Farm"
+msgstr "默认农场"
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:13
+#: lib/peggy_web/templates/navigation/index.html.heex:12
+msgid "User List"
+msgstr "用户列表"

@@ -41,7 +41,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
       html = view |> form("#invite-form", %{invite_user: %{email: "a@a.a", role: "clerk"}}) |> render_submit()
       assert html =~ "Invitation email has been sent to new user - a@a.a"
       refute (user = Peggy.UserAccounts.get_user_by_email("a@a.a")) == nil
-      assert Peggy.Company.user_role_in_farm(user, farm) == "clerk"
+      assert Peggy.Company.user_role_in_farm(user.id, farm) == "clerk"
     end
 
     test "send email to invited registered user", %{conn: conn, farm: farm} do
@@ -50,7 +50,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
       {:ok, view, _html} = live(conn, Routes.invite_user_new_path(conn, :new, farm.id))
       html = view |> form("#invite-form", %{invite_user: %{email: otheruser.email, role: "clerk"}}) |> render_submit()
       assert html =~ "Invitation email has been sent to existing user - #{otheruser.email}"
-      assert Peggy.Company.user_role_in_farm(otheruser, farm) == "clerk"
+      assert Peggy.Company.user_role_in_farm(otheruser.id, farm) == "clerk"
     end
 
     test "resend Invitation to user already allow to access farm", %{conn: conn, user: user, farm: farm} do
