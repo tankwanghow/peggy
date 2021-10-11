@@ -251,7 +251,7 @@ defmodule PeggyWeb.FarmLiveTest do
       assert has_element?(view, "#page-title", "Please select an active farm.")
       assert html =~ "href=\"/farms/new"
       {:ok, fhtml} = Floki.parse_document(html)
-      assert Enum.count(Floki.find(fhtml, "a.set-active")) == 2
+      assert Enum.count(Floki.find(fhtml, "a.set-active-button")) == 2
       refute html =~ "Current Active"
       assert Enum.count(Floki.find(fhtml, "a.farm-edit-link")) == 2
     end

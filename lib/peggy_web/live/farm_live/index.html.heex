@@ -7,7 +7,7 @@
     <%= for f <- @farms do %>
       <div class="card m-3">
         <div class="card-header">
-          <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f.id), class: "card-header-title has-text-link is-size-5" %>
+          <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f.id), class: "farm-edit-link card-header-title has-text-link is-size-5" %>
         </div>
         <div id={"farm-#{f.id}"} class="card-content has-text-left">
           <p><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
@@ -15,14 +15,14 @@
         <div class="card-footer">
           <%= if @current_farm do %>
             <%= if @current_farm.id != f.id do %>
-              <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "has-text-black has-background-danger card-footer-item", id: "set-active-#{f.id}" %>
+              <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "has-text-black has-background-danger card-footer-item set-active-button", id: "set-active-#{f.id}" %>
             <% else %>
               <div id="active-farm" class="card-footer-item has-text-grey-light">
                 <%= gettext("Currently Active") %>
               </div>
             <% end %>
           <% else %>
-            <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "has-text-black has-background-danger card-footer-item", id: "set-active-#{f.id}" %>
+            <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "has-text-black has-background-danger card-footer-item set-active-button", id: "set-active-#{f.id}" %>
           <% end %>
           <%= if f.default_farm do %>
             <div id={"default-farm-#{f.id}"} class="card-footer-item has-text-grey-light">

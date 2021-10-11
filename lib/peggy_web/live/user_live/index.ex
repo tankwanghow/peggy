@@ -32,7 +32,7 @@ defmodule PeggyWeb.UserLive.Index do
            |> get_user_list()
            |> put_flash(
              :success,
-             gettext("Updated user to ") <> p["role"]
+             gettext("Successfully updated user role to ") <> p["role"]
            )}
 
         {:error, %Ecto.Changeset{}, message} ->
