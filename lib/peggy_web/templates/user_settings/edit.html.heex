@@ -15,7 +15,7 @@
       <p class="panel-heading mb-3"><%= gettext("Change Password") %></p>
       <.form let={f} for={@password_changeset} action={Routes.user_settings_path(@conn, :update)} id="update_password">
         <%= hidden_input f, :action, name: "action", value: "update_password" %>
-        <%= peggy_password f, :current_password, gettext("Current Password"), name: :current_password, class: "is-success" %>
+        <%= peggy_password f, :current_password, gettext("Current Password"), name: :current_password, class: "has-background-info-light" %>
         <%= peggy_password f, :password, gettext("New Password") %>
         <%= peggy_password f, :password_confirmation, gettext("Confirm New Password") %>
         <%= submit gettext("Change Password"), class: "button is-primary" %>
