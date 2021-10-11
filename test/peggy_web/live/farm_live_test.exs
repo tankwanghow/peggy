@@ -1,8 +1,6 @@
 defmodule PeggyWeb.FarmLiveTest do
   use PeggyWeb.ConnCase
-
   import Phoenix.LiveViewTest
-
   alias Peggy.Company
 
   setup :register_and_log_in_user
