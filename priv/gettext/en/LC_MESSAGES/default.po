@@ -206,11 +206,6 @@ msgid "must have the @ sign and no spaces"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/templates/user_session/new.html.heex:10
-msgid "Keep me logged in for 60 days"
-msgstr ""
-
-#, elixir-format
 #: lib/peggy_web/templates/user_session/new.html.heex:3
 #: lib/peggy_web/templates/user_session/new.html.heex:12
 msgid "Login"
@@ -528,18 +523,33 @@ msgstr ""
 msgid "Resended Invitation, because "
 msgstr ""
 
-#, elixir-format, fuzzy
+#, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.heex:21
 msgid "Currently Active"
 msgstr ""
 
-#, elixir-format, fuzzy
+#, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.heex:29
 msgid "Is Default Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/user_live/index.ex:13
+#: lib/peggy_web/live/user_live/index.ex:12
 #: lib/peggy_web/templates/navigation/index.html.heex:12
 msgid "User List"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:44
+msgid "Failed to change user to "
+msgstr ""
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/templates/user_session/new.html.heex:10
+msgid "Keep me logged in for 5 days"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:35
+msgid "Updated user to "
 msgstr ""

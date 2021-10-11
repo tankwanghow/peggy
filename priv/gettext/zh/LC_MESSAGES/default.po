@@ -206,11 +206,6 @@ msgid "must have the @ sign and no spaces"
 msgstr "必须有@ 符号且不能有空格"
 
 #, elixir-format
-#: lib/peggy_web/templates/user_session/new.html.heex:10
-msgid "Keep me logged in for 60 days"
-msgstr "让我保持登录状态60天"
-
-#, elixir-format
 #: lib/peggy_web/templates/user_session/new.html.heex:3
 #: lib/peggy_web/templates/user_session/new.html.heex:12
 msgid "Login"
@@ -528,18 +523,33 @@ msgstr "新密码"
 msgid "Resended Invitation, because "
 msgstr "重新发送邀请，原因"
 
-#, elixir-format, fuzzy
+#, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.heex:21
 msgid "Currently Active"
 msgstr "现在活动农场"
 
-#, elixir-format, fuzzy
+#, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.heex:29
 msgid "Is Default Farm"
 msgstr "默认农场"
 
 #, elixir-format
-#: lib/peggy_web/live/user_live/index.ex:13
+#: lib/peggy_web/live/user_live/index.ex:12
 #: lib/peggy_web/templates/navigation/index.html.heex:12
 msgid "User List"
 msgstr "用户列表"
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:44
+msgid "Failed to change user to "
+msgstr "无法将用户角色更改为"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/templates/user_session/new.html.heex:10
+msgid "Keep me logged in for 5 days"
+msgstr "让我保持登录状态5天"
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:35
+msgid "Successfully updated user role to "
+msgstr "已成功将用户角色更新为"
