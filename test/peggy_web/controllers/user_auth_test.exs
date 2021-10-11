@@ -46,7 +46,7 @@ defmodule PeggyWeb.UserAuthTest do
 
       assert %{value: signed_token, max_age: max_age} = conn.resp_cookies[@remember_me_cookie]
       assert signed_token != get_session(conn, :user_token)
-      assert max_age == 5_184_000
+      assert max_age == 432_000
     end
 
     test "redirects to '/farms/:id/navigation' if already logged in", %{conn: conn, user: user} do

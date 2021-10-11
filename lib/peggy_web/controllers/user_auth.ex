@@ -5,10 +5,10 @@ defmodule PeggyWeb.UserAuth do
   alias Peggy.UserAccounts
   alias PeggyWeb.Router.Helpers, as: Routes
 
-  # Make the remember me cookie valid for 60 days.
+  # Make the remember me cookie valid for 5 days.
   # If you want bump or reduce this value, also change
   # the token expiry itself in UserToken.
-  @max_age 60 * 60 * 24 * 60
+  @max_age 60 * 60 * 24 * 5
   @remember_me_cookie "_peggy_web_user_remember_me"
   @remember_me_options [sign: true, max_age: @max_age, same_site: "Lax"]
 
@@ -150,7 +150,7 @@ defmodule PeggyWeb.UserAuth do
 
   defp signed_in_path(conn, user) do
     user_return_to = get_session(conn, :user_return_to)
-    
+
     if user_return_to != nil do
       user_return_to
     else
