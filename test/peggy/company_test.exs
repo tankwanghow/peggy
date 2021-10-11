@@ -4,7 +4,7 @@ defmodule Peggy.CompanyTest do
   alias Peggy.Company
   import Peggy.UserAccountsFixtures
 
-  describe "farms" do
+  describe "company" do
     alias Peggy.Company.Farm
     alias Peggy.Company.FarmUser
 
@@ -39,9 +39,64 @@ defmodule Peggy.CompanyTest do
       zipcode: nil
     }
 
-    test "list_farms/1 return no farm if user is disable"
-    test "get_farm!/2 returns no farm if user is disable"
-    test "get_farm/2 returns no farm if user is disable"
+    test "farm_users/2 will list all users in farm" do
+      admin = user_fixture()
+      user = user_fixture()
+      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      Company.allow_user_access_farm(user, farm, "disable", admin)
+      Company.allow_user_access_farm(user, farm1, "guest", admin)
+
+      assert Enum.sort([
+               %{email: admin.email, role: "admin", id: admin.id},
+               %{email: user.email, role: "disable", id: user.id}
+             ]) == Company.farm_users(farm, admin.id)
+    end
+
+    test "farm_users/2 will not list users in farm" do
+      admin = user_fixture()
+      user = user_fixture()
+      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      Company.allow_user_access_farm(user, farm, "disable", admin)
+      Company.allow_user_access_farm(user, farm1, "guest", admin)
+
+      assert [] == Company.farm_users(farm, user.id)
+    end
+
+    test "list_farms/1 return no farm if user role disable" do
+      admin = user_fixture()
+      user = user_fixture()
+      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      Company.allow_user_access_farm(user, farm, "disable", admin)
+      Company.allow_user_access_farm(user, farm1, "guest", admin)
+
+      assert [Map.merge(@update_attrs, %{id: farm1.id, default_farm: false})] ==
+               Company.list_farms(user)
+    end
+
+    test "get_farm/2 returns no farm if user role disable" do
+      admin = user_fixture()
+      user = user_fixture()
+      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      Company.allow_user_access_farm(user, farm, "disable", admin)
+      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      assert Company.get_farm(farm.id, user) == nil
+      assert Company.get_farm(farm1.id, user) == farm1
+    end
+
+    test "get_farm!/2 returns no farm if user role disable" do
+      admin = user_fixture()
+      user = user_fixture()
+      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
+      assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
+      Company.allow_user_access_farm(user, farm, "disable", admin)
+      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      assert_raise(Ecto.NoResultsError, fn -> Company.get_farm!(farm.id, user) end)
+      assert Company.get_farm!(farm1.id, user) == farm1
+    end
 
     test "list_farms/1 returns all farms for user" do
       admin = user_fixture()
