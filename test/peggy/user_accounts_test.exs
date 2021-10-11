@@ -354,6 +354,12 @@ defmodule Peggy.UserAccountsTest do
       %{user: user_fixture()}
     end
 
+    test "update user last login at", %{user: user} do
+      _ = UserAccounts.generate_user_session_token(user)
+      user = UserAccounts.get_user!(user.id)
+      assert NaiveDateTime.diff(user.last_log_in_at, NaiveDateTime.utc_now()) == 0
+    end
+
     test "generates a token", %{user: user} do
       token = UserAccounts.generate_user_session_token(user)
       assert user_token = Repo.get_by(UserToken, token: token)

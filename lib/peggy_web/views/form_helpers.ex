@@ -4,6 +4,7 @@ defmodule PeggyWeb.FormHelpers do
   """
   use Phoenix.HTML
   import PeggyWeb.ErrorHelpers
+  import PeggyWeb.Gettext
 
   def peggy_text(form, field, placeholder, opts \\ []) do
     i_peggy_text(form, field, placeholder, [type: :text] ++ opts)
@@ -26,38 +27,79 @@ defmodule PeggyWeb.FormHelpers do
   end
 
   def peggy_select(form, field, values, opts \\ []) do
-    content_tag(:div, [select(form, field, values, opts), error_tag(form, field)], class: "select field control")
+    content_tag(:div, [select(form, field, values, opts), error_tag(form, field)],
+      class: "select field control"
+    )
   end
 
   def datalist(list, id) do
     content_tag(:datalist, options(list), id: id)
   end
 
-  def options(list) do
-    Enum.map list, fn el ->
-      content_tag(:option, "", value: el)
+  def ago(date) do
+    if date do
+      days = round(NaiveDateTime.diff(NaiveDateTime.utc_now(), date) / 24 / 60 / 60)
+      if(days == 0, do: gettext("today"), else: ago_words(days))
+    else
+      gettext("never")
     end
+  end
+
+  defp ago_words(days) when days > 0 and days <= 14 do
+    "#{days} " <> gettext("days ago")
+  end
+
+  defp ago_words(days) when days > 14 and days <= 59 do
+    "#{round(days / 7)} " <> gettext("weeks ago")
+  end
+
+  defp ago_words(days) when days > 60 and days <= 364 do
+    "#{round(days / 30)} " <> gettext("months ago")
+  end
+
+  defp ago_words(days) when days > 364 do
+    year = round(days / 365)
+
+    if year > 1 do
+      "#{year} " <> gettext("years ago")
+    else
+      "#{year} " <> gettext("year ago")
+    end
+  end
+
+  def options(list) do
+    Enum.map(list, fn el ->
+      content_tag(:option, "", value: el)
+    end)
   end
 
   defp i_peggy_text(form, field, placeholder, opts) do
     [col_class, opts] = find_pop_key_value(:col_class, opts)
     [class, opts] = find_pop_key_value(:class, opts)
 
-    opt = [class: "#{class} input #{input_error_css_class(form, field)}", autocomplete: :off,
-           placeholder: placeholder, phx_feedback_for: input_name(form, field), phx_debounce: "blur"]
+    opt = [
+      class: "#{class} input #{input_error_css_class(form, field)}",
+      autocomplete: :off,
+      placeholder: placeholder,
+      phx_feedback_for: input_name(form, field),
+      phx_debounce: "blur"
+    ]
 
     if col_class != "" do
       peggy_column(
-        content_tag(:div,
-          [text_input(form, field, opt ++ opts),
-          error_tag(form, field)],
-          class: "field control"),
-        col_class)
+        content_tag(
+          :div,
+          [text_input(form, field, opt ++ opts), error_tag(form, field)],
+          class: "field control"
+        ),
+        col_class
+      )
     else
-      content_tag(:div,
-        [text_input(form, field, opt ++ opts),
-         error_tag(form, field)],
-        class: "field control")
+      content_tag(
+        :div,
+        [text_input(form, field, opt ++ opts), error_tag(form, field)],
+        class: "field control"
+      )
     end
   end
 
@@ -72,8 +114,6 @@ defmodule PeggyWeb.FormHelpers do
   end
 
   defp peggy_column(input_tag, column_class) do
-    content_tag(:div, input_tag,
-      class: "column #{column_class}"
-    )
+    content_tag(:div, input_tag, class: "column #{column_class}")
   end
 end

@@ -9,6 +9,7 @@ defmodule Peggy.UserAccounts.User do
     field :password, :string, virtual: true
     field :hashed_password, :string
     field :confirmed_at, :naive_datetime
+    field :last_log_in_at, :naive_datetime
     many_to_many :farms, Peggy.Company.Farm, join_through: Peggy.Company.FarmUser, on_replace: :delete
     has_many :farm_user, Peggy.Company.FarmUser
 
@@ -122,6 +123,11 @@ defmodule Peggy.UserAccounts.User do
   def confirm_changeset(user) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
     change(user, confirmed_at: now)
+  end
+
+  def last_log_in_changeset(user) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+    change(user, last_log_in_at: now)
   end
 
   @doc """

@@ -224,7 +224,10 @@ defmodule Peggy.UserAccounts do
   """
   def generate_user_session_token(user) do
     {token, user_token} = UserToken.build_session_token(user)
-    Repo.insert!(user_token)
+    Ecto.Multi.new()
+    |> Ecto.Multi.insert(:token, user_token)
+    |> Ecto.Multi.update(:user, User.last_log_in_changeset(user))
+    |> Peggy.Repo.transaction()
     token
   end
 

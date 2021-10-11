@@ -437,7 +437,8 @@ defmodule Peggy.Company do
           select: %{
             email: u.email,
             role: fu.role,
-            id: u.id
+            id: u.id,
+            last_log_in_at: u.last_log_in_at
           }
       )
     else

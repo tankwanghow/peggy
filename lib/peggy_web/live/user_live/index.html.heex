@@ -6,7 +6,8 @@
         <div class="card m-2">
           <div class="card-content is-vcentered">
             <p class="is-family-monospace"><%= u.email %></p>
-            <p class="has-text-weight-semibold">has role</p>
+            <p class="is-italic has-text-grey has-text-weight-semibold"><%= gettext("Last login ") <> ago(u.last_log_in_at) %></p>
+            <p class="has-text-weight-semibold"><%= gettext("Has Role") %></p>
             <%= if u.email == @current_user.email  do %>
               <p class="button has-background-success"><%= u.role %></p>
             <% else %>

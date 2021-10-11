@@ -19,9 +19,10 @@ defmodule PeggyWeb.UserLive.Index do
 
     if user do
       p = params[user]
+      {user_id, _} = Integer.parse(p["id"])
 
       case Company.change_user_role_in_farm(
-             p["id"],
+             user_id,
              socket.assigns.current_farm,
              p["role"],
              socket.assigns.current_user.id
@@ -61,7 +62,7 @@ defmodule PeggyWeb.UserLive.Index do
     targets = params["_target"]
 
     if Enum.find(targets, nil, fn v -> v == "role" end) do
-      Enum.find(targets, nil, fn v -> v =~ "user" end)
+      Enum.find(targets, nil, fn v -> v =~ "user_" end)
     else
       nil
     end
