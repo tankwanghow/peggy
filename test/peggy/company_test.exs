@@ -48,8 +48,8 @@ defmodule Peggy.CompanyTest do
       Company.allow_user_access_farm(user, farm1, "guest", admin)
 
       assert Enum.sort([
-               %{email: admin.email, role: "admin", id: admin.id},
-               %{email: user.email, role: "disable", id: user.id}
+               %{email: admin.email, role: "admin", id: admin.id, last_log_in_at: nil},
+               %{email: user.email, role: "disable", id: user.id, last_log_in_at: nil}
              ]) == Company.farm_users(farm, admin.id)
     end
 
