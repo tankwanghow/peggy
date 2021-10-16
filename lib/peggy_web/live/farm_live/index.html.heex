@@ -5,24 +5,24 @@
       <%= live_patch gettext("Create a New Farm"), to: Routes.farm_form_path(@socket, :new) %>
     </p>
     <%= for f <- @farms do %>
-      <div class="card m-3">
+      <div class={if(Util.attempt(@current_farm_user, :farm_id) != f.id, do:
+                      "card m-3",
+                    else:
+                      "has-background-success-light card m-3")}>
         <div class="card-header">
           <%= live_patch f.name, to: Routes.farm_form_path(@socket, :edit, f.id), class: "farm-edit-link card-header-title has-text-link is-size-5" %>
         </div>
-        <div id={"farm-#{f.id}"} class="card-content has-text-left">
-          <p><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
+        <div id={"farm-#{f.id}"} class="card-content">
+          <p class="has-text-centered"><%= f.address1 %> <%= f.address2 %> <%= f.city %> <%= f.zipcode %> <%= f.state %> <%= f.country %></p>
+          <p class="has-text-centered has-text-grey-light"><%= gettext("Your are ") %><b><%= f.role %></b> <%= gettext(" in this farm.") %></p>
         </div>
         <div class="card-footer">
-          <%= if @current_farm do %>
-            <%= if @current_farm.id != f.id do %>
-              <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "has-text-black has-background-danger card-footer-item set-active-button", id: "set-active-#{f.id}" %>
-            <% else %>
-              <div id="active-farm" class="card-footer-item has-text-grey-light">
-                <%= gettext("Currently Active") %>
-              </div>
-            <% end %>
-          <% else %>
+          <%= if Util.attempt(@current_farm_user, :farm_id) != f.id do %>
             <%= link gettext("Set Active"), to: Routes.set_active_farm_path(@socket, :create, id: f.id), method: :post, class: "has-text-black has-background-danger card-footer-item set-active-button", id: "set-active-#{f.id}" %>
+          <% else %>
+            <div id="active-farm" class="card-footer-item has-text-grey-light">
+              <%= gettext("Currently Active") %>
+            </div>
           <% end %>
           <%= if f.default_farm do %>
             <div id={"default-farm-#{f.id}"} class="card-footer-item has-text-grey-light">
@@ -33,8 +33,8 @@
           <% end %>
         </div>
       </div>
-      <%= if @current_farm do %>
-        <%= if f.id == @current_farm.id or f.id == live_flash(@flash, :scroll_to_here_farm_id) do %>
+      <%= if @current_farm_user do %>
+        <%= if f.id == @current_farm_user.farm_id or f.id == live_flash(@flash, :scroll_to_here_farm_id) do %>
           <div id="scroll-to-here" phx-hook="ScrollToHere"></div>
         <% end %>
       <% end %>

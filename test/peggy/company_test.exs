@@ -44,13 +44,13 @@ defmodule Peggy.CompanyTest do
       user = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      Company.allow_user_access_farm(user, farm, "disable", admin)
-      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      Company.allow_user_access_farm(user.id, "disable", Company.get_farm_user(farm.id, admin.id))
+      Company.allow_user_access_farm(user.id, "guest", Company.get_farm_user(farm1.id, admin.id))
 
       assert Enum.sort([
                %{email: admin.email, role: "admin", id: admin.id, last_log_in_at: nil},
                %{email: user.email, role: "disable", id: user.id, last_log_in_at: nil}
-             ]) == Company.farm_users(farm, admin.id)
+             ]) == Company.farm_users(farm.id, admin.id)
     end
 
     test "farm_users/2 will not list users in farm" do
@@ -58,10 +58,10 @@ defmodule Peggy.CompanyTest do
       user = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      Company.allow_user_access_farm(user, farm, "disable", admin)
-      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      Company.allow_user_access_farm(user.id, "disable", Company.get_farm_user(farm.id, admin.id))
+      Company.allow_user_access_farm(user.id, "guest", Company.get_farm_user(farm1.id, admin.id))
 
-      assert [] == Company.farm_users(farm, user.id)
+      assert [] == Company.farm_users(farm.id, user.id)
     end
 
     test "list_farms/1 return no farm if user role disable" do
@@ -69,10 +69,10 @@ defmodule Peggy.CompanyTest do
       user = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      Company.allow_user_access_farm(user, farm, "disable", admin)
-      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      Company.allow_user_access_farm(user.id, "disable", Company.get_farm_user(farm.id, admin.id))
+      Company.allow_user_access_farm(user.id, "guest", Company.get_farm_user(farm1.id, admin.id))
 
-      assert [Map.merge(@update_attrs, %{id: farm1.id, default_farm: false})] ==
+      assert [Map.merge(@update_attrs, %{id: farm1.id, default_farm: false, role: "guest"})] ==
                Company.list_farms(user)
     end
 
@@ -81,8 +81,8 @@ defmodule Peggy.CompanyTest do
       user = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      Company.allow_user_access_farm(user, farm, "disable", admin)
-      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      Company.allow_user_access_farm(user.id, "disable", Company.get_farm_user(farm.id, admin.id))
+      Company.allow_user_access_farm(user.id, "guest", Company.get_farm_user(farm1.id, admin.id))
       assert Company.get_farm(farm.id, user) == nil
       assert Company.get_farm(farm1.id, user) == farm1
     end
@@ -92,8 +92,8 @@ defmodule Peggy.CompanyTest do
       user = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      Company.allow_user_access_farm(user, farm, "disable", admin)
-      Company.allow_user_access_farm(user, farm1, "guest", admin)
+      Company.allow_user_access_farm(user.id, "disable", Company.get_farm_user(farm.id, admin.id))
+      Company.allow_user_access_farm(user.id, "guest", Company.get_farm_user(farm1.id, admin.id))
       assert_raise(Ecto.NoResultsError, fn -> Company.get_farm!(farm.id, user) end)
       assert Company.get_farm!(farm1.id, user) == farm1
     end
@@ -103,8 +103,8 @@ defmodule Peggy.CompanyTest do
       user1 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
       assert {:ok, %Farm{} = farm1} = Company.create_farm(@update_attrs, admin)
-      farm_attrs = Map.merge(@valid_attrs, %{id: farm.id, default_farm: false})
-      farm1_attrs = Map.merge(@update_attrs, %{id: farm1.id, default_farm: false})
+      farm_attrs = Map.merge(@valid_attrs, %{id: farm.id, default_farm: false, role: "admin"})
+      farm1_attrs = Map.merge(@update_attrs, %{id: farm1.id, default_farm: false, role: "admin"})
       assert Company.list_farms(admin) == [farm_attrs, farm1_attrs]
       assert Company.list_farms(user1) == []
     end
@@ -165,22 +165,20 @@ defmodule Peggy.CompanyTest do
       admin = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
 
-      {:error, changeset, _} = Company.allow_user_access_farm(admin, farm, "clerk", admin)
+      {:error, changeset, _} =
+        Company.allow_user_access_farm(
+          admin.id,
+          "clerk",
+          Company.get_farm_user(farm.id, admin.id)
+        )
 
       assert "user already in farm" in errors_on(changeset).user_id
-    end
-
-    test "user_role_in_farm/2 should return :no_access, if not exists" do
-      admin = user_fixture()
-      user1 = user_fixture()
-      assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert Company.user_role_in_farm(user1.id, farm) == :no_access
     end
 
     test "farm creator should be the admin" do
       admin = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      assert Company.user_role_in_farm(admin.id, farm) == "admin"
+      assert Company.get_farm_user(farm.id, admin.id).role == "admin"
     end
 
     test "allow_user_access_farm/4 with role" do
@@ -189,7 +187,11 @@ defmodule Peggy.CompanyTest do
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
 
       assert {:ok, %FarmUser{} = farm_user} =
-               Company.allow_user_access_farm(user1, farm, "manager", admin)
+               Company.allow_user_access_farm(
+                 user1.id,
+                 "manager",
+                 Company.get_farm_user(farm.id, admin.id)
+               )
 
       farm = Peggy.Repo.preload(farm, [:users, :farm_user])
       assert Enum.sort(farm.users) == Enum.sort([admin, user1])
@@ -201,10 +203,10 @@ defmodule Peggy.CompanyTest do
       user1 = user_fixture()
       user2 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      Company.allow_user_access_farm(user1, farm, "manager", admin)
+      Company.allow_user_access_farm(user1.id, "manager", Company.get_farm_user(farm.id, admin.id))
 
-      assert {:error, %Ecto.Changeset{}, "Only Admin allow to invite"} =
-               Company.allow_user_access_farm(user2, farm, "clerk", user1)
+      assert {:error, %Ecto.Changeset{}, "Not Authorise"} =
+               Company.allow_user_access_farm(user2.id, "clerk", Company.get_farm_user(farm.id, user1.id))
     end
 
     test "only admin can change user role" do
@@ -214,21 +216,37 @@ defmodule Peggy.CompanyTest do
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
 
       assert {:ok, %FarmUser{} = farm_user} =
-               Company.allow_user_access_farm(user1, farm, "manager", admin)
+               Company.allow_user_access_farm(
+                 user1.id,
+                 "manager",
+                 Company.get_farm_user(farm.id, admin.id)
+               )
 
       assert {:ok, %FarmUser{} = farm_user1} =
-               Company.allow_user_access_farm(user2, farm, "manager", admin)
+               Company.allow_user_access_farm(
+                 user2.id,
+                 "manager",
+                 Company.get_farm_user(farm.id, admin.id)
+               )
 
       assert farm_user.role == "manager"
       assert farm_user1.role == "manager"
 
       assert {:ok, %FarmUser{} = farm_user} =
-               Company.change_user_role_in_farm(user1.id, farm, "clerk", admin.id)
+               Company.change_user_role_in_farm(
+                 user1.id,
+                 "clerk",
+                 Company.get_farm_user(farm.id, admin.id)
+               )
 
       assert farm_user.role == "clerk"
 
       assert {:error, %Ecto.Changeset{}, "Not Authorise"} =
-               Company.change_user_role_in_farm(user2.id, farm, "clerk", user1.id)
+               Company.change_user_role_in_farm(
+                 user2.id,
+                 "clerk",
+                 Company.get_farm_user(farm.id, user1.id)
+               )
     end
 
     test "user cannot change own role" do
@@ -236,9 +254,13 @@ defmodule Peggy.CompanyTest do
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
 
       assert {:error, %Ecto.Changeset{}, "Cannot change own role"} =
-               Company.change_user_role_in_farm(admin.id, farm, "clerk", admin.id)
+               Company.change_user_role_in_farm(
+                 admin.id,
+                 "clerk",
+                 Company.get_farm_user(farm.id, admin.id)
+               )
 
-      assert Company.user_role_in_farm(admin.id, farm) == "admin"
+      assert Company.get_farm_user(farm.id, admin.id).role == "admin"
     end
 
     test "update_farm/3 with valid data updates the farm, if user is admin" do

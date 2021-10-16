@@ -151,11 +151,15 @@ defmodule PeggyWeb.UserAuth do
   defp signed_in_path(conn, user) do
     user_return_to = get_session(conn, :user_return_to)
 
+    default_farm_id = Util.attempt(Peggy.Company.get_default_farm(user), :id)
+
+    current_farm_id = Util.attempt(get_session(conn, :current_farm_user), :farm_id)
+
     if user_return_to != nil do
       user_return_to
     else
-      farm = get_session(conn, :current_farm) || Peggy.Company.get_default_farm(user)
-      if(farm, do: "/farms/#{farm.id}/navigation", else: "/farms")
+      farm_id = current_farm_id || default_farm_id
+      if(farm_id, do: "/farms/#{farm_id}/navigation", else: "/farms")
     end
   end
 end

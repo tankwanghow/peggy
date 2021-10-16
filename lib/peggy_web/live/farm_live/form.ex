@@ -7,7 +7,7 @@ defmodule PeggyWeb.FarmLive.Form do
   def mount(params, session, socket) do
     PeggyWeb.LiveHelpers.set_locale(session)
     socket = assign_current_user(socket, session)
-    socket = assign(socket, :current_farm, session["current_farm"])
+    socket = assign(socket, :current_farm_user, session["current_farm_user"])
 
     case socket.assigns.live_action do
       :new -> mount_new(socket)
@@ -55,7 +55,7 @@ defmodule PeggyWeb.FarmLive.Form do
   @impl true
   def handle_event("delete", _params, socket) do
     deleted_redirect_to =
-      if(socket.assigns.current_farm == socket.assigns.farm,
+      if(Util.attempt(socket.assigns.current_farm_user, :farm_id) == socket.assigns.farm.id,
         do: "/clear_set_active_farm",
         else: "/farms"
       )
@@ -81,7 +81,7 @@ defmodule PeggyWeb.FarmLive.Form do
 
   defp save_farm(socket, :edit, farm_params) do
     update_redirect_to =
-      if(socket.assigns.current_farm == socket.assigns.farm,
+      if(Util.attempt(socket.assigns.current_farm_user, :farm_id) == socket.assigns.farm.id,
         do: "/update_active_farm?id=#{socket.assigns.farm.id}",
         else: "/farms"
       )

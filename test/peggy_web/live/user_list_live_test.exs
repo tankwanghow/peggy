@@ -19,8 +19,8 @@ defmodule PeggyWeb.UserListLiveTest do
 
       farm = Peggy.CompanyFixtures.farm_fixture(%{}, user)
 
-      Company.allow_user_access_farm(user1, farm, "guest", user)
-      Company.allow_user_access_farm(user2, farm, "guest", user)
+      Company.allow_user_access_farm(user1.id, "guest", Company.get_farm_user(farm.id, user.id))
+      Company.allow_user_access_farm(user2.id, "guest", Company.get_farm_user(farm.id, user.id))
 
       %{conn: conn, user: user, farm: farm, user1: user1, user2: user2}
     end
@@ -46,7 +46,6 @@ defmodule PeggyWeb.UserListLiveTest do
       {:ok, vhtml} = Floki.parse_document(vhtml)
 
       assert Floki.find(fhtml, "form#user-list") == Floki.find(vhtml, "form#user-list")
-
     end
 
     test "admin can see the user list", %{
@@ -114,7 +113,7 @@ defmodule PeggyWeb.UserListLiveTest do
       user1: user1,
       user2: user2
     } do
-      Company.change_user_role_in_farm(user1.id, farm, "admin", user.id)
+      Company.change_user_role_in_farm(user1.id, "admin", Company.get_farm_user(farm.id, user.id))
 
       conn = log_in_user(conn, user1)
 
@@ -153,13 +152,17 @@ defmodule PeggyWeb.UserListLiveTest do
       user1: user1,
       user2: user2
     } do
-      Company.change_user_role_in_farm(user1.id, farm, "admin", user.id)
+      Company.change_user_role_in_farm(user1.id, "admin", Company.get_farm_user(farm.id, user.id))
 
       conn = log_in_user(conn, user1)
 
       {:ok, view, _html} = live(conn, Routes.user_index_path(conn, :index, farm.id))
 
-      Company.change_user_role_in_farm(user1.id, farm, "manager", user.id)
+      Company.change_user_role_in_farm(
+        user1.id,
+        "manager",
+        Company.get_farm_user(farm.id, user.id)
+      )
 
       html =
         view

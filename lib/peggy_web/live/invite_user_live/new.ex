@@ -19,12 +19,11 @@ defmodule PeggyWeb.InviteUserLive.New do
     email = params["email"]
     password = random_string(8)
     user = find_or_create_user(email, password)
-
+    
     case Company.allow_user_access_farm(
-           user,
-           socket.assigns.current_farm,
+           user.id,
            params["role"],
-           socket.assigns.current_user
+           socket.assigns.current_farm_user
          ) do
       {:ok, _farm_user} ->
         flag = send_invitation_email(user, password, socket)
@@ -53,8 +52,8 @@ defmodule PeggyWeb.InviteUserLive.New do
       UserAccounts.deliver_user_invitation_instructions(
         socket.assigns.current_user,
         user,
-        socket.assigns.current_farm,
-        Routes.navigation_url(socket, :index, socket.assigns.current_farm.id)
+        socket.assigns.current_farm_user.farm,
+        Routes.navigation_url(socket, :index, socket.assigns.current_farm_user.farm_id)
       )
 
       gettext("existing user - ")
@@ -62,7 +61,7 @@ defmodule PeggyWeb.InviteUserLive.New do
       UserAccounts.deliver_user_invitation_instructions(
         socket.assigns.current_user,
         user,
-        socket.assigns.current_farm,
+        socket.assigns.current_farm_user.farm,
         password,
         &Routes.user_confirmation_url(socket, :confirm, &1)
       )
@@ -75,7 +74,7 @@ defmodule PeggyWeb.InviteUserLive.New do
     UserAccounts.resend_user_invitation_instructions(
         socket.assigns.current_user,
         user,
-        socket.assigns.current_farm,
+        socket.assigns.current_farm_user.farm,
         Routes.user_session_url(socket, :new)
       )
   end

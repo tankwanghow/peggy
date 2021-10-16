@@ -23,9 +23,8 @@ defmodule PeggyWeb.UserLive.Index do
 
       case Company.change_user_role_in_farm(
              user_id,
-             socket.assigns.current_farm,
              p["role"],
-             socket.assigns.current_user.id
+             socket.assigns.current_farm_user
            ) do
         {:ok, _farm_user} ->
           {:noreply,
@@ -54,7 +53,7 @@ defmodule PeggyWeb.UserLive.Index do
     socket
     |> assign(
       :users,
-      Company.farm_users(socket.assigns.current_farm, socket.assigns.current_user.id)
+      Company.farm_users(socket.assigns.current_farm_user.farm_id, socket.assigns.current_user.id)
     )
   end
 

@@ -10,7 +10,7 @@ defmodule PeggyWeb.LiveHelpers do
   def assign_current_user_farm(socket, session) do
     socket
     |> assign_current_user(session)
-    |> assign_current_farm(session)
+    |> assign_current_farm_user(session)
   end
 
   def assign_current_user(socket, session) do
@@ -19,10 +19,10 @@ defmodule PeggyWeb.LiveHelpers do
     end)
   end
 
-  def assign_current_farm(socket, session) do
-    case session["current_farm"] do
+  def assign_current_farm_user(socket, session) do
+    case session["current_farm_user"] do
       nil -> push_redirect(socket, to: "/farms")
-      farm -> assign(socket, :current_farm, farm)
+      farm_user -> assign(socket, :current_farm_user, farm_user)
     end
   end
 end

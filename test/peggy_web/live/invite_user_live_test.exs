@@ -32,7 +32,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
 
     test "only admin can invite user", %{conn: conn, user: user, farm: farm} do
       otheruser = Peggy.UserAccountsFixtures.user_fixture()
-      Company.allow_user_access_farm(otheruser, farm, "clerk", user)
+      Company.allow_user_access_farm(otheruser.id, "clerk", Company.get_farm_user(farm.id, user.id))
       conn = log_in_user(conn, otheruser)
       {:ok, view, _html} = live(conn, Routes.invite_user_new_path(conn, :new, farm.id))
 
@@ -41,7 +41,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
         |> form("#invite-form", %{invite_user: %{email: user.email, role: "clerk"}})
         |> render_submit()
 
-      assert html =~ "Only Admin allow to invite"
+      assert html =~ "Not Authorise"
     end
 
     test "send email to invited unregister user", %{conn: conn, farm: farm} do
@@ -54,7 +54,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
 
       assert html =~ "Invitation email has been sent to new user - a@a.a"
       refute (user = Peggy.UserAccounts.get_user_by_email("a@a.a")) == nil
-      assert Peggy.Company.user_role_in_farm(user.id, farm) == "clerk"
+      assert Company.get_farm_user(farm.id, user.id).role == "clerk"
     end
 
     test "send email to invited registered user", %{conn: conn, farm: farm} do
@@ -71,7 +71,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
         |> render_submit()
 
       assert html =~ "Invitation email has been sent to existing user - #{otheruser.email}"
-      assert Peggy.Company.user_role_in_farm(otheruser.id, farm) == "clerk"
+      assert Company.get_farm_user(farm.id, otheruser.id).role == "clerk"
     end
 
     test "resend Invitation to user already allow to access farm", %{
@@ -80,7 +80,7 @@ defmodule PeggyWeb.InviteUserLiveTest do
       farm: farm
     } do
       otheruser = Peggy.UserAccountsFixtures.user_fixture()
-      Company.allow_user_access_farm(otheruser, farm, "clerk", user)
+      Company.allow_user_access_farm(otheruser.id, "clerk", Peggy.Company.get_farm_user(farm.id, user.id))
       {:ok, view, _html} = live(conn, Routes.invite_user_new_path(conn, :new, farm.id))
 
       html =

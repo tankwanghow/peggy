@@ -6,8 +6,8 @@ defmodule PeggyWeb.SetActiveFarmController do
 
   def new(conn, _params) do
     conn
-    |> assign(:current_farm, nil)
-    |> put_session(:current_farm, nil)
+    |> assign(:current_farm_user, nil)
+    |> put_session(:current_farm_user, nil)
     |> put_session(:page_title, gettext("Please select an active farm."))
     |> live_render(PeggyWeb.FarmLive.Index)
   end
@@ -22,15 +22,15 @@ defmodule PeggyWeb.SetActiveFarmController do
   def create(conn, %{"id" => id}) do
     conn = set_active_farm(conn, id)
     conn
-    |> put_flash(:warning, "#{conn.assigns.current_farm.name} " <> gettext("is active now."))
+    |> put_flash(:warning, "#{conn.assigns.current_farm_user.farm.name} " <> gettext("is active now."))
     |> redirect(to: "/farms/#{id}/navigation")
   end
 
-  defp set_active_farm(conn, id) do
-    farm = Company.get_farm(id, conn.assigns.current_user)
+  defp set_active_farm(conn, farm_id) do
+    farm_user = Company.get_farm_user(farm_id, conn.assigns.current_user.id)
 
     conn
-    |> assign(:current_farm, farm)
-    |> put_session(:current_farm, farm)
+    |> assign(:current_farm_user, farm_user)
+    |> put_session(:current_farm_user, farm_user)
   end
 end

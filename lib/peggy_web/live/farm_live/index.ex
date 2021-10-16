@@ -6,7 +6,7 @@ defmodule PeggyWeb.FarmLive.Index do
   def mount(_params, session, socket) do
     PeggyWeb.LiveHelpers.set_locale(session)
     socket = assign_current_user(socket, session)
-    socket = assign(socket, :current_farm, session["current_farm"])
+    socket = assign(socket, :current_farm_user, session["current_farm_user"])
 
     farms = Company.list_farms(socket.assigns.current_user)
 
@@ -14,7 +14,7 @@ defmodule PeggyWeb.FarmLive.Index do
       if(Enum.count(farms) == 0,
         do: gettext("You have to Create a Farm to procced."),
         else:
-          if(socket.assigns.current_farm == nil,
+          if(socket.assigns.current_farm_user == nil,
             do: gettext("Please select an active farm."),
             else: gettext("Farms Listing")
           )

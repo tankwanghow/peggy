@@ -66,10 +66,16 @@ defmodule PeggyWeb.FarmLiveTest do
 
     test "deleting farm, not admin user", %{conn: conn, user: user, farm: farm} do
       user1 = Peggy.UserAccountsFixtures.user_fixture()
-      Company.allow_user_access_farm(user1, farm, "guest", user)
+
+      Company.allow_user_access_farm(
+        user1.id,
+        "guest",
+        Peggy.Company.get_farm_user(farm.id, user.id)
+      )
+
       conn = log_in_user(conn, user1)
 
-      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
+      {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm.id))
 
       html = view |> element("#delete-farm") |> render_click()
 
@@ -92,7 +98,13 @@ defmodule PeggyWeb.FarmLiveTest do
       farm: farm
     } do
       user1 = Peggy.UserAccountsFixtures.user_fixture()
-      Company.allow_user_access_farm(user1, farm, "guest", user)
+
+      Company.allow_user_access_farm(
+        user1.id,
+        "guest",
+        Peggy.Company.get_farm_user(farm.id, user.id)
+      )
+
       conn = log_in_user(conn, user1)
       {:ok, view, _html} = live(conn, Routes.farm_form_path(conn, :edit, farm))
 

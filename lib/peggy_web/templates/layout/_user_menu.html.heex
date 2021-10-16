@@ -4,7 +4,7 @@
   <%= link "中文", to: "?locale=zh", class: "navbar-item has-text-info" %>
 <% end %>
 <%= if @current_user do %>
-  <%= if Plug.Conn.get_session(@conn, "current_farm") == nil do %>
+  <%= if Plug.Conn.get_session(@conn, "current_farm_user") == nil do %>
     <%= link gettext("Farms"), to: "/farms", class: "navbar-item" %>
   <% end %>
   <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item" %>

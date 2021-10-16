@@ -4,9 +4,8 @@ defmodule PeggyWeb.NavigationControllerTest do
   setup :register_and_log_in_user
 
   describe "Nagivation Live has active farm" do
-    setup :user_set_active_farm
-
-    test "Look and Feels", %{conn: conn, farm: farm} do
+    test "Look and Feels", %{conn: conn, user: user} do
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, user)
       conn = get(conn, Routes.navigation_path(conn, :index, farm.id))
       response = html_response(conn, 200)
       assert response =~ "id=\"navigation-title\""
@@ -14,15 +13,17 @@ defmodule PeggyWeb.NavigationControllerTest do
       refute response =~ "id=\"home-button\""
     end
 
-    test "Admin Look and Feels", %{conn: conn, farm: farm} do
+    test "Admin Look and Feels", %{conn: conn, user: user} do
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, user)
       conn = get(conn, Routes.navigation_path(conn, :index, farm.id))
       response = html_response(conn, 200)
       assert response =~ "Invite User"
     end
 
-    test "Non-Admin Look and Feels", %{conn: conn, user: user, farm: farm} do
+    test "Non-Admin Look and Feels", %{conn: conn, user: user} do
+      farm = Peggy.CompanyFixtures.farm_fixture(%{}, user)
       otheruser = Peggy.UserAccountsFixtures.user_fixture()
-      Peggy.Company.allow_user_access_farm(otheruser, farm, "guest", user)
+      Peggy.Company.allow_user_access_farm(otheruser.id, "guest", Peggy.Company.get_farm_user(farm.id, user.id))
       conn = get(log_in_user(conn, otheruser), Routes.navigation_path(conn, :index, farm.id))
       response = html_response(conn, 200)
       refute response =~ "Invite User"

@@ -1,6 +1,6 @@
 defmodule Peggy.Company do
   import Ecto.Query, warn: false
-  import PeggyWeb.Gettext
+  import Peggy.Authorization
 
   alias Ecto.Multi
   alias Peggy.Repo
@@ -266,7 +266,8 @@ defmodule Peggy.Company do
     Repo.all(
       from f in Farm,
         join: fu in FarmUser,
-        on: fu.user_id == ^user.id and
+        on:
+          fu.user_id == ^user.id and
             f.id == fu.farm_id and
             fu.role != "disable",
         order_by: f.name,
@@ -280,7 +281,8 @@ defmodule Peggy.Company do
           state: f.state,
           weight_unit: f.weight_unit,
           zipcode: f.zipcode,
-          default_farm: fu.default_farm
+          default_farm: fu.default_farm,
+          role: fu.role
         }
     )
   end
@@ -289,7 +291,8 @@ defmodule Peggy.Company do
     Repo.get!(
       from(f in Farm,
         join: fu in FarmUser,
-        on: fu.user_id == ^user.id and
+        on:
+          fu.user_id == ^user.id and
             f.id == fu.farm_id and
             fu.role != "disable",
         select: f,
@@ -303,13 +306,28 @@ defmodule Peggy.Company do
     Repo.get(
       from(f in Farm,
         join: fu in FarmUser,
-        on: fu.user_id == ^user.id and
+        on:
+          fu.user_id == ^user.id and
             f.id == fu.farm_id and
             fu.role != "disable",
         select: f,
         order_by: f.name
       ),
       id
+    )
+  end
+
+  def get_farm_user(farm_id, user_id) do
+    Repo.one(
+      from(f in Farm,
+        join: fu in FarmUser,
+        on:
+          fu.user_id == ^user_id and
+            f.id == fu.farm_id and
+            fu.farm_id == ^farm_id and
+            fu.role != "disable",
+        select: %{role: fu.role, farm_id: f.id, user_id: fu.user_id, farm: %{name: f.name}}
+      )
     )
   end
 
@@ -327,25 +345,12 @@ defmodule Peggy.Company do
   end
 
   def delete_farm(%Farm{} = farm, user) do
-    if is_user_admin?(user.id, farm) do
-      Repo.delete(farm)
-    else
-      {:error, farm, gettext("Not Authorise")}
-    end
-  end
+    case can?(user.id, :delete_farm, farm.id) do
+      {:allow, _} ->
+        Repo.delete(farm)
 
-  def user_role_in_farm(user_id, farm) do
-    role =
-      Repo.one(
-        from fu in FarmUser,
-          where: fu.user_id == ^user_id and fu.farm_id == ^farm.id,
-          select: fu.role
-      )
-
-    if role == "disable" || role == nil do
-      :no_access
-    else
-      role
+      {:forbid, msg} ->
+        {:error, farm, msg}
     end
   end
 
@@ -376,46 +381,50 @@ defmodule Peggy.Company do
     )
   end
 
-  def allow_user_access_farm(user, farm, role, admin) when user == admin do
-    {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
-     gettext("Cannot invite yourself")}
-  end
+  def allow_user_access_farm(user_id, role, current_farm_user) do
+    case can?(current_farm_user, :allow_farm_access_to, user_id) do
+      {:allow, _} ->
+        %FarmUser{}
+        |> FarmUser.changeset(%{user_id: user_id, farm_id: current_farm_user.farm_id, role: role})
+        |> Repo.insert()
 
-  def allow_user_access_farm(user, farm, role, admin) do
-    if is_user_admin?(admin.id, farm) do
-      %FarmUser{}
-      |> FarmUser.changeset(%{user_id: user.id, farm_id: farm.id, role: role})
-      |> Repo.insert()
-    else
-      {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user.id, farm_id: farm.id, role: role}),
-       gettext("Only Admin allow to invite")}
+      {:forbid, msg} ->
+        {:error,
+         FarmUser.changeset(%FarmUser{}, %{
+           user_id: user_id,
+           farm_id: current_farm_user.farm_id,
+           role: role
+         }), msg}
     end
   end
 
-  def change_user_role_in_farm(user_id, farm, role, admin_id) when user_id == admin_id do
-    {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user_id, farm_id: farm.id, role: role}),
-     gettext("Cannot change own role")}
-  end
+  def change_user_role_in_farm(user_id, role, current_farm_user) do
+    case can?(current_farm_user, :change_role_of, user_id) do
+      {:allow, _} ->
+        fu = Repo.get_by(FarmUser, farm_id: current_farm_user.farm_id, user_id: user_id)
 
-  def change_user_role_in_farm(user_id, farm, role, admin_id) do
-    if is_user_admin?(admin_id, farm) do
-      fu = Repo.get_by(FarmUser, farm_id: farm.id, user_id: user_id)
+        FarmUser.changeset(fu, %{role: role})
+        |> Repo.update()
 
-      FarmUser.changeset(fu, %{role: role})
-      |> Repo.update()
-    else
-      {:error, FarmUser.changeset(%FarmUser{}, %{user_id: user_id, farm_id: farm.id, role: role}),
-       gettext("Not Authorise")}
+      {:forbid, msg} ->
+        {:error,
+         FarmUser.changeset(%FarmUser{}, %{
+           user_id: user_id,
+           farm_id: current_farm_user.farm_id,
+           role: role
+         }), msg}
     end
   end
 
   def update_farm(%Farm{} = farm, attrs, user) do
-    if is_user_admin?(user.id, farm) do
-      farm
-      |> Farm.changeset(attrs, user)
-      |> Repo.update()
-    else
-      {:error, farm, gettext("Not Authorise")}
+    case can?(user.id, :update_farm, farm.id) do
+      {:allow, _} ->
+        farm
+        |> Farm.changeset(attrs, user)
+        |> Repo.update()
+
+      {:forbid, msg} ->
+        {:error, farm, msg}
     end
   end
 
@@ -423,16 +432,12 @@ defmodule Peggy.Company do
     Farm.changeset(farm, attrs, user)
   end
 
-  defp is_user_admin?(user_id, farm) do
-    user_role_in_farm(user_id, farm) == "admin"
-  end
-
-  def farm_users(farm, admin_id) do
-    if is_user_admin?(admin_id, farm) do
+  def farm_users(farm_id, admin_id) do
+    if is_user_admin?(admin_id, farm_id) do
       Repo.all(
         from u in User,
           join: fu in FarmUser,
-          on: fu.farm_id == ^farm.id and u.id == fu.user_id,
+          on: fu.farm_id == ^farm_id and u.id == fu.user_id,
           order_by: u.email,
           select: %{
             email: u.email,

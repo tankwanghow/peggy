@@ -70,10 +70,11 @@ defmodule PeggyWeb.ConnCase do
   def user_set_active_farm(%{conn: conn}) do
     %{conn: conn, user: user} = register_and_log_in_user(%{conn: conn})
     farm = Peggy.CompanyFixtures.farm_fixture(%{}, user)
+    farm_user = Peggy.Company.get_farm_user(farm.id, user.id)
 
     conn = conn
     |> Phoenix.ConnTest.init_test_session(%{})
-    |> Plug.Conn.put_session(:current_farm, farm)
+    |> Plug.Conn.put_session(:current_farm_user, farm_user)
 
     %{conn: conn, user: user, farm: farm}
   end
