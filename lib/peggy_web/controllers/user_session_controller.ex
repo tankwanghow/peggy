@@ -26,4 +26,13 @@ defmodule PeggyWeb.UserSessionController do
     |> put_flash(:success, gettext("Logged out successfully."))
     |> UserAuth.log_out_user()
   end
+
+  def force_logout(conn, _params) do
+    conn
+    |> put_flash(
+      :info,
+      gettext("SECURITY UPDATE. Please login again.")
+    )
+    |> UserAuth.log_out_user()
+  end
 end

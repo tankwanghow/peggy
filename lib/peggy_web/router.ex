@@ -92,7 +92,7 @@ defmodule PeggyWeb.Router do
   scope "/farms/:farm_id", PeggyWeb do
     pipe_through [:browser, :require_authenticated_user, :require_active_farm]
 
-    get "/navigation", NavigationController, :index
+    live "/navigation", NavigationLive.Index, :index
     live "/invite_users/new", InviteUserLive.New, :new
     live "/users", UserLive.Index, :index
   end
@@ -100,6 +100,7 @@ defmodule PeggyWeb.Router do
   scope "/", PeggyWeb do
     pipe_through [:browser]
 
+    get "/users/force_logout", UserSessionController, :force_logout
     delete "/users/log_out", UserSessionController, :delete
     get "/users/confirm", UserConfirmationController, :new
     post "/users/confirm", UserConfirmationController, :create

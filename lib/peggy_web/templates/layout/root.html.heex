@@ -15,8 +15,7 @@
       <nav class="navbar is-black" role="navigation" aria-label="main navigation">
         <div class="navbar-brand">
           <%= if Plug.Conn.get_session(@conn, :current_farm_user) do %>
-            <%= link Plug.Conn.get_session(@conn, :current_farm_user).farm.name,
-                to: Routes.navigation_path(@conn, :index, Plug.Conn.get_session(@conn, :current_farm_user).farm_id), id: "navbar-company-name", class: "navbar-item brand-text is-size-4-desktop" %>
+            <div class="navbar-item brand-text is-size-4-desktop" id="farm-name-title"><%= Plug.Conn.get_session(@conn, :current_farm_user).farm.name %></div>
           <% else %>
             <%= link gettext("Peggy"), to: "/", class: "navbar-item brand-text is-size-4-desktop", id: "app-name" %>
           <% end %>

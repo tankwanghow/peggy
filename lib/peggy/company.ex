@@ -403,8 +403,16 @@ defmodule Peggy.Company do
       {:allow, _} ->
         fu = Repo.get_by(FarmUser, farm_id: current_farm_user.farm_id, user_id: user_id)
 
-        FarmUser.changeset(fu, %{role: role})
+        fu = FarmUser.changeset(fu, %{role: role})
         |> Repo.update()
+
+        Phoenix.PubSub.broadcast(
+          Peggy.PubSub,
+          "user_role_updated",
+          {:log_out_user, %{farm_id: current_farm_user.farm_id, user_id: user_id}}
+        )
+
+        fu
 
       {:forbid, msg} ->
         {:error,

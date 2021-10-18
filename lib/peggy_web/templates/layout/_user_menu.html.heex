@@ -7,7 +7,12 @@
   <%= if Plug.Conn.get_session(@conn, "current_farm_user") == nil do %>
     <%= link gettext("Farms"), to: "/farms", class: "navbar-item" %>
   <% end %>
-  <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit), class: "navbar-item" %>
+  <div class="navbar-item">
+    <%= link @current_user.email, to: Routes.user_settings_path(@conn, :edit) %>
+    <%= if Plug.Conn.get_session(@conn, "current_farm_user") != nil do %>
+      <%= live_render @conn, PeggyWeb.UserRoleLive %>
+    <% end %>
+  </div>
   <%= link gettext("Log out"), to: Routes.user_session_path(@conn, :delete), method: :delete, class: "navbar-item has-text-danger" %>
 <% else %>
   <%= link gettext("Register"), to: Routes.user_registration_path(@conn, :new), class: "navbar-item" %>

@@ -59,6 +59,15 @@ defmodule PeggyWeb do
     end
   end
 
+  def live_view_without_layout do
+    quote do
+      use Phoenix.LiveView,
+        layout: nil
+
+      unquote(view_helpers())
+    end
+  end
+
   def router do
     quote do
       use Phoenix.Router

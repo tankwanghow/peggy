@@ -19,7 +19,7 @@ defmodule PeggyWeb.InviteUserLive.New do
     email = params["email"]
     password = random_string(8)
     user = find_or_create_user(email, password)
-    
+
     case Company.allow_user_access_farm(
            user.id,
            params["role"],
@@ -53,7 +53,7 @@ defmodule PeggyWeb.InviteUserLive.New do
         socket.assigns.current_user,
         user,
         socket.assigns.current_farm_user.farm,
-        Routes.navigation_url(socket, :index, socket.assigns.current_farm_user.farm_id)
+        Routes.navigation_index_url(socket, :index, socket.assigns.current_farm_user.farm_id)
       )
 
       gettext("existing user - ")
