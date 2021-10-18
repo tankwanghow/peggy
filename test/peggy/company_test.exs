@@ -203,13 +203,23 @@ defmodule Peggy.CompanyTest do
       user1 = user_fixture()
       user2 = user_fixture()
       assert {:ok, %Farm{} = farm} = Company.create_farm(@valid_attrs, admin)
-      Company.allow_user_access_farm(user1.id, "manager", Company.get_farm_user(farm.id, admin.id))
+
+      Company.allow_user_access_farm(
+        user1.id,
+        "manager",
+        Company.get_farm_user(farm.id, admin.id)
+      )
 
       assert {:error, %Ecto.Changeset{}, "Not Authorise"} =
-               Company.allow_user_access_farm(user2.id, "clerk", Company.get_farm_user(farm.id, user1.id))
+               Company.allow_user_access_farm(
+                 user2.id,
+                 "clerk",
+                 Company.get_farm_user(farm.id, user1.id)
+               )
     end
 
     test "only admin can change user role" do
+      Phoenix.PubSub.subscribe(Peggy.PubSub, "user_role_updated")
       admin = user_fixture()
       user1 = user_fixture()
       user2 = user_fixture()
@@ -221,6 +231,8 @@ defmodule Peggy.CompanyTest do
                  "manager",
                  Company.get_farm_user(farm.id, admin.id)
                )
+
+      k = %{farm_id: farm.id, user_id: user1.id}
 
       assert {:ok, %FarmUser{} = farm_user1} =
                Company.allow_user_access_farm(
@@ -239,6 +251,8 @@ defmodule Peggy.CompanyTest do
                  Company.get_farm_user(farm.id, admin.id)
                )
 
+      assert_receive {:log_out_user, ^k}
+
       assert farm_user.role == "clerk"
 
       assert {:error, %Ecto.Changeset{}, "Not Authorise"} =
@@ -247,6 +261,8 @@ defmodule Peggy.CompanyTest do
                  "clerk",
                  Company.get_farm_user(farm.id, user1.id)
                )
+
+      refute_receive {:log_out_user, ^k}
     end
 
     test "user cannot change own role" do

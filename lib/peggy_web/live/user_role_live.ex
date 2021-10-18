@@ -25,7 +25,7 @@ defmodule PeggyWeb.UserRoleLive do
   @impl true
   def render(assigns) do
     ~H"""
-    (<%= Util.attempt(@current_farm_user, :role) %>)
+    <span id="current-role">(<%= Util.attempt(@current_farm_user, :role) %>)</span>
     """
   end
 end
