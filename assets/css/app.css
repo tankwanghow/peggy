@@ -47,7 +47,7 @@ body {
   top: 10%;
   position: fixed;
   z-index: 10001;
-  opacity: 0.85;
+  /* opacity: 0.9; */
   animation: fadeIn linear 0.5s;
 }
 
