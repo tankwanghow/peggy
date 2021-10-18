@@ -39,7 +39,7 @@ defmodule PeggyWeb.WelcomeControllerTest do
       assert response =~ "href=\"/users/settings\""
       refute response =~ "href=\"/farms\""
       assert response =~ "href=\"/users/log_out\""
-      assert response =~ farm.name <> "</a>"
+      assert response =~ farm.name
       assert response =~ "id=\"home-button\""
     end
   end
