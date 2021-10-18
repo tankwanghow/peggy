@@ -126,5 +126,12 @@ defmodule PeggyWeb.UserSessionControllerTest do
       refute get_session(conn, :user_token)
       assert get_flash(conn, :success) =~ "Logged out successfully"
     end
+
+    test "force_logout", %{conn: conn, user: user} do
+      conn = conn |> log_in_user(user) |> get(Routes.user_session_path(conn, :force_logout))
+      assert redirected_to(conn) == "/"
+      refute get_session(conn, :user_token)
+      assert get_flash(conn, :info) =~ "SECURITY UPDATE. Please login again."
+    end
   end
 end

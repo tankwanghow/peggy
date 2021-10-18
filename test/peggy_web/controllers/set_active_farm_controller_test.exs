@@ -20,7 +20,7 @@ defmodule PeggyWeb.SetActiveFarmControllerTest do
       CompanyFixtures.farm_fixture(%{name: "other farm"}, user)
       conn = post(conn, Routes.set_active_farm_path(conn, :create, %{id: farm.id}))
       assert get_flash(conn, :warning) =~ "#{farm.name} is active now."
-      assert redirected_to(conn) == Routes.navigation_path(conn, :index, farm.id)
+      assert redirected_to(conn) == Routes.navigation_index_path(conn, :index, farm.id)
     end
   end
 
