@@ -3,12 +3,10 @@ defmodule PeggyWeb.FarmLive.Form do
   alias Peggy.Company
   alias Peggy.Company.Farm
 
-  @impl true
-  def mount(params, session, socket) do
-    PeggyWeb.LiveHelpers.set_locale(session)
-    socket = assign_current_user(socket, session)
-    socket = assign(socket, :current_farm_user, session["current_farm_user"])
+  on_mount PeggyWeb.OnMountFunc
 
+  @impl true
+  def mount(params, _session, socket) do
     case socket.assigns.live_action do
       :new -> mount_new(socket)
       :edit -> mount_edit(params, socket)

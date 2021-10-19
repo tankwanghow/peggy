@@ -2,10 +2,11 @@ defmodule PeggyWeb.UserRoleLive do
   use PeggyWeb, :live_view_without_layout
   alias Phoenix.PubSub
 
+  on_mount PeggyWeb.OnMountFunc
+
   @impl true
-  def mount(_params, session, socket) do
+  def mount(_params, _session, socket) do
     if connected?(socket), do: PubSub.subscribe(Peggy.PubSub, "user_role_updated")
-    socket = assign_current_user_farm(socket, session)
 
     {:ok, socket}
   end

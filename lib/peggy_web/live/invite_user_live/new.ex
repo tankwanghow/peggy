@@ -3,11 +3,10 @@ defmodule PeggyWeb.InviteUserLive.New do
   alias Peggy.UserAccounts
   alias Peggy.Company
 
-  @impl true
-  def mount(_params, session, socket) do
-    PeggyWeb.LiveHelpers.set_locale(session)
-    socket = assign_current_user_farm(socket, session)
+  on_mount PeggyWeb.OnMountFunc
 
+  @impl true
+  def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:page_title, gettext("Invite User"))
@@ -40,10 +39,14 @@ defmodule PeggyWeb.InviteUserLive.New do
 
       {:error, %Ecto.Changeset{errors: [user_id: _]}} ->
         resend_invitation_email(user, socket)
+
         {:noreply,
          socket
          |> assign(:email, email)
-         |> put_flash(:warning, gettext("Resended Invitation, because ") <> email <> gettext(" already invited."))}
+         |> put_flash(
+           :warning,
+           gettext("Resended Invitation, because ") <> email <> gettext(" already invited.")
+         )}
     end
   end
 
@@ -72,11 +75,11 @@ defmodule PeggyWeb.InviteUserLive.New do
 
   defp resend_invitation_email(user, socket) do
     UserAccounts.resend_user_invitation_instructions(
-        socket.assigns.current_user,
-        user,
-        socket.assigns.current_farm_user.farm,
-        Routes.user_session_url(socket, :new)
-      )
+      socket.assigns.current_user,
+      user,
+      socket.assigns.current_farm_user.farm,
+      Routes.user_session_url(socket, :new)
+    )
   end
 
   defp find_or_create_user(email, password) do

@@ -2,11 +2,10 @@ defmodule PeggyWeb.UserLive.Index do
   use PeggyWeb, :live_view
   alias Peggy.Company
 
-  @impl true
-  def mount(_params, session, socket) do
-    PeggyWeb.LiveHelpers.set_locale(session)
-    socket = assign_current_user_farm(socket, session)
+  on_mount PeggyWeb.OnMountFunc
 
+  @impl true
+  def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:page_title, gettext("User List"))
