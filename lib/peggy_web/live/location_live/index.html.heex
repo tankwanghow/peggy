@@ -1,0 +1,54 @@
+<section>
+  <div class="container has-text-centered">
+    <p class="title mb-1"><%= @page_title %></p>
+    <.form let={f} for={@changeset} id="location" phx-change="validate" phx-submit="save" autocomplete="off">
+      <%= hidden_input(f, :id) %>
+      <%= hidden_input(f, :farm_id) %>
+      <div class="columns is-variable is-1 is-mobile m-1 p-1">
+        <div class="column py-0 is-4-mobile is-3-desktop">
+          <%= peggy_text f, :code, gettext("location code"), phx_hook: "ScrollToHere" %>
+        </div>
+        <div class="column py-0 is-3-mobile is-2-desktop">
+          <%= peggy_number f, :capacity, gettext("capacity") %>
+        </div>
+        <div class="column py-0 has-text-left is-4-mobile is-2-desktop">
+          <%= peggy_select f, :status, Farm.Location.status, style: "width: 100%;" %>
+        </div>
+        <div class="column py-0 is-hidden-mobile is-4-desktop">
+          <%= peggy_text f, :note, gettext("note") %>
+        </div>
+      </div>
+      <div class="has-text-right">
+      <%= if @changeset.action == :update do %>
+        <%= submit gettext("Update Location"), phx_disable_with: gettext("Updating..."), class: "button is-warning" %>
+        <%= link gettext("Clear/New"), to: "#", phx_click: "clear_new", class: "button is-success" %>
+      <% else %>
+        <%= submit gettext("Insert Location"), phx_disable_with: gettext("Saving..."), class: "button is-primary" %>
+      <% end %>
+      </div>
+    </.form>
+    <div class="columns my-0 is-variable is-1 is-mobile">
+      <div class="column py-0 is-4-mobile is-3-desktop has-text-weight-bold">Code</div>
+      <div class="column py-0 is-3-mobile is-2-desktop has-text-weight-bold">Capacity</div>
+      <div class="column py-0 is-4-mobile is-2-desktop has-text-weight-bold">Status</div>
+      <div class="column py-0 is-hidden-mobile is-4-desktop has-text-weight-bold">Note</div>
+    </div>
+    <%= for l <- @locations do %>
+      <div class="columns is-variable is-1 is-mobile m-1 p-1">
+        <div class="column py-0 is-4-mobile is-3-desktop">
+          <%= text_input(:location_list, :code, phx_value_id: l.id,  class: "input", value: l.code, readonly: true, phx_click: "select_location") %>
+        </div>
+        <div class="column py-0 is-3-mobile is-2-desktop">
+          <%= number_input(:location_list, :capacity, phx_value_id: l.id, class: "input", value: l.capacity, readonly: true, phx_click: "select_location") %>
+        </div>
+        <div class="column py-0 has-text-left is-4-mobile is-2-desktop">
+          <%= text_input(:location_list, :status, phx_value_id: l.id, class: "input", value: l.status, readonly: true, phx_click: "select_location") %>
+        </div>
+        <div class="column py-0 is-hidden-mobile is-4-desktop">
+          <%= text_input(:location_list, :note, phx_value_id: l.id, class: "input", value: l.note, readonly: true, phx_click: "select_location") %>
+        </div>
+        <a class="pt-3 is-size-6 is-hoverable has-text-danger fas fa-trash" href="#" phx-value-id={l.id} phx-click="delete_location" data-confirm="Are you sure?"></a>
+      </div>
+    <% end %>
+  </div>
+</section>

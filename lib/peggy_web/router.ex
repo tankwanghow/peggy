@@ -95,6 +95,7 @@ defmodule PeggyWeb.Router do
     live "/navigation", NavigationLive.Index, :index
     live "/invite_users/new", InviteUserLive.New, :new
     live "/users", UserLive.Index, :index
+    live "/locations", LocationLive.Index, :index
   end
 
   scope "/", PeggyWeb do

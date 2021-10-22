@@ -8,6 +8,10 @@ defmodule Peggy.Authorization do
   @forbid {:forbid, gettext("Not Authorise")}
   @forbid_user_disabled {:forbid, gettext("User has been Disabled")}
 
+  def can?(farm_user, :cud_location) do
+    if Enum.find(["guest", "disable"], fn x -> x == farm_user.role end), do: @forbid, else: @allow
+  end
+
   def can?("disable", _action), do: @forbid_user_disabled
   def can?(_role, _action), do: @forbid
 
@@ -72,4 +76,6 @@ defmodule Peggy.Authorization do
   def is_user_admin?(user_id, farm_id) do
     user_role_in_farm(user_id, farm_id) == "admin"
   end
+
+  defp allow_if_role_not_disable(farm_user), do: if farm_user.role != "disable", do: @allow, else: @forbid_user_disabled
 end

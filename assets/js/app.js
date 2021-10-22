@@ -29,6 +29,10 @@ import topbar from "../vendor/topbar"
 let Hooks = {};
 
 Hooks.ScrollToHere = {
+  updated() {
+    this.el.scrollIntoView(false);
+    this.el.focus();
+  },
   mounted() {
     this.el.scrollIntoView(false);
   }

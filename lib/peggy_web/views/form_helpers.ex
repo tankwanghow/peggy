@@ -28,7 +28,7 @@ defmodule PeggyWeb.FormHelpers do
 
   def peggy_select(form, field, values, opts \\ []) do
     content_tag(:div, [select(form, field, values, opts), error_tag(form, field)],
-      class: "select field control"
+      class: "select field control", style: "width: 100%;"
     )
   end
 
