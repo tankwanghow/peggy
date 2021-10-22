@@ -11,10 +11,12 @@
               <p class="button has-background-success"><%= u.role %></p>
             <% else %>
               <%= hidden_input(f, :id, name: "user_#{u.id}[id]", id: "user_#{u.id}_id", value: u.id) %>
-              <div class="has-text-weight-semibold"><%= gettext("Has Role") %>
-                <%= peggy_select f, :role, Company.roles, class: "has-text-centered has-background-link-light",
+              <div class="has-text-weight-semibold">
+                <%= gettext("Has Role") %>
+              <%= peggy_select f, :role, Company.roles, class: "has-text-centered has-background-link-light",
                       name: "user_#{u.id}[role]", id: "user_#{u.id}_role", selected: u.role %>
               </div>
+
             <% end %>
           </div>
         </div>

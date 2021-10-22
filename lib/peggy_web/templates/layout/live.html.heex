@@ -28,5 +28,5 @@
   <%= @inner_content %>
 
 <%= if assigns[:current_farm_user] && assigns[:page_title] != gettext("Navigation Page") do %>
-  <%= live_patch "", to: "/farms/#{assigns[:current_farm_user].farm_id}/navigation", id: "home-button", class: "button is-rounded is-info fas fa-home" %>
+  <%= live_patch "", to: "/farms/#{assigns[:current_farm_user].farm_id}/navigation", id: "home-button", class: "button is-rounded is-info fas fa-home round-button" %>
 <% end %>

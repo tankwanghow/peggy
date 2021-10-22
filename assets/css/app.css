@@ -22,11 +22,12 @@ body {
   position: fixed;
   right: 5px;
   top: 55px;
-  padding-bottom: calc(0.5em - 1px);
-  padding-left: calc(0.75em - 1px);
-  padding-right: calc(0.75em - 1px);
-  padding-top: calc(0.5em - 1px);
   display: grid;
+}
+
+.round-button {
+  padding-left: calc(0.75em - 1px)  !important;
+  padding-right: calc(0.75em - 1px) !important;
 }
 
 #live-flash,
@@ -47,7 +48,6 @@ body {
   top: 10%;
   position: fixed;
   z-index: 10001;
-  /* opacity: 0.9; */
   animation: fadeIn linear 0.5s;
 }
 
