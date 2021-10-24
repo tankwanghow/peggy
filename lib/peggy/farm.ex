@@ -29,7 +29,65 @@ defmodule Peggy.Farm do
             fu.user_id == ^farm_user.user_id and
             f.id == ^farm_user.farm_id and
             fu.role != "disable",
-        order_by: [desc: l.id],
+        order_by: [desc: l.updated_at],
+        select: l
+    )
+  end
+
+  def list_locations(farm_user, page: page, per_page: per_page) do
+    Repo.all(
+      from l in Location,
+        join: f in Farm,
+        on: l.farm_id == f.id,
+        join: fu in FarmUser,
+        on:
+          fu.farm_id == f.id and
+            fu.user_id == ^farm_user.user_id and
+            f.id == ^farm_user.farm_id and
+            fu.role != "disable",
+        order_by: [desc: l.updated_at],
+        offset: ^((page - 1) * per_page),
+        limit: ^per_page,
+        select: l
+    )
+  end
+
+  def list_locations(code, farm_user) do
+    code = "%#{code}%"
+
+    Repo.all(
+      from l in Location,
+        join: f in Farm,
+        on: l.farm_id == f.id,
+        join: fu in FarmUser,
+        on:
+          fu.farm_id == f.id and
+            fu.user_id == ^farm_user.user_id and
+            f.id == ^farm_user.farm_id and
+            fu.role != "disable",
+        where: ilike(l.code, ^code) or ilike(l.status, ^code) or ilike(l.note, ^code),
+        order_by: [desc: l.updated_at],
+        select: l
+    )
+  end
+
+  def list_locations(code, farm_user, page: page, per_page: per_page) do
+    code = "%#{code}%"
+
+    Repo.all(
+      from l in Location,
+        join: f in Farm,
+        on: l.farm_id == f.id,
+        join: fu in FarmUser,
+        on:
+          fu.farm_id == f.id and
+            fu.user_id == ^farm_user.user_id and
+            f.id == ^farm_user.farm_id and
+            fu.role != "disable",
+        where: ilike(l.code, ^code) or ilike(l.status, ^code) or ilike(l.note, ^code),
+        order_by: [desc: l.updated_at],
+        offset: ^((page - 1) * per_page),
+        limit: ^per_page,
         select: l
     )
   end

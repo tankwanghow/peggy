@@ -8,13 +8,22 @@ defmodule PeggyWeb.LocationLive.Index do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:locations, Farm.list_locations(socket.assigns.current_farm_user))
+     |> assign(:counter, 0)
+     |> assign(page: 1, per_page: 10)
      |> assign(:page_title, gettext("Locations List"))
-     |> assign(:changeset, new_changeset(socket))}
+     |> assign_search_terms()
+     |> new_changeset()
+     |> filter_locations(), temporary_assigns: [locations: []]}
   end
 
-  defp new_changeset(socket) do
-    Farm.change_location(%Farm.Location{}, %{farm_id: socket.assigns.current_farm_user.farm_id})
+  @impl true
+  def handle_event("search_location", %{"search" => params}, socket) do
+    {:noreply,
+     socket
+     |> assign(page: 1, per_page: 10)
+     |> assign_search_terms(params["terms"])
+     |> assign(:counter, socket.assigns.counter + 1)
+     |> filter_locations()}
   end
 
   @impl true
@@ -46,7 +55,7 @@ defmodule PeggyWeb.LocationLive.Index do
   def handle_event("clear_new", _params, socket) do
     {:noreply,
      socket
-     |> assign(:changeset, new_changeset(socket))}
+     |> new_changeset()}
   end
 
   @impl true
@@ -56,8 +65,8 @@ defmodule PeggyWeb.LocationLive.Index do
         {
           :noreply,
           socket
-          |> assign(:locations, Farm.list_locations(socket.assigns.current_farm_user))
-          |> assign(:changeset, new_changeset(socket))
+          |> reset_locations()
+          |> new_changeset()
           |> put_flash(:success, gettext("Delete Location Successfully"))
         }
 
@@ -83,14 +92,24 @@ defmodule PeggyWeb.LocationLive.Index do
     end
   end
 
+  @impl true
+  def handle_event("load-more", _, socket) do
+    socket =
+      socket
+      |> update(:page, &(&1 + 1))
+      |> filter_locations()
+
+    {:noreply, socket}
+  end
+
   defp create_location(attrs, socket) do
     case Farm.create_location(attrs, socket.assigns.current_farm_user) do
-      {:ok, _} ->
+      {:ok, _location} ->
         {
           :noreply,
           socket
-          |> assign(:locations, Farm.list_locations(socket.assigns.current_farm_user))
-          |> assign(:changeset, new_changeset(socket))
+          |> reset_locations()
+          |> new_changeset()
           |> put_flash(:success, gettext("Insert Location Successfully"))
         }
 
@@ -111,12 +130,11 @@ defmodule PeggyWeb.LocationLive.Index do
            attrs,
            socket.assigns.current_farm_user
          ) do
-      {:ok, _} ->
+      {:ok, _location} ->
         {
           :noreply,
           socket
-          |> assign(:locations, Farm.list_locations(socket.assigns.current_farm_user))
-          |> assign(:changeset, new_changeset(socket))
+          |> reset_locations
           |> put_flash(:success, gettext("Update Location Successfully"))
         }
 
@@ -135,5 +153,37 @@ defmodule PeggyWeb.LocationLive.Index do
          |> assign(:changeset, changeset)
          |> put_flash(:error, msg)}
     end
+  end
+
+  defp assign_search_terms(socket, terms \\ "") do
+    assign(socket, search: %{terms: terms})
+  end
+
+  defp new_changeset(socket) do
+    assign(socket,
+      changeset:
+        Farm.change_location(%Farm.Location{}, %{
+          farm_id: socket.assigns.current_farm_user.farm_id
+        })
+    )
+  end
+
+  defp filter_locations(socket) do
+    locations = Farm.list_locations(socket.assigns.search.terms, socket.assigns.current_farm_user,
+          page: socket.assigns.page,
+          per_page: socket.assigns.per_page
+        )
+    assign(socket,
+      locations: locations,
+      locations_count: Enum.count(locations)
+    )
+  end
+
+  defp reset_locations(socket) do
+    socket
+    |> assign(:counter, socket.assigns.counter + 1)
+    |> assign(page: 1, per_page: 10)
+    |> assign_search_terms()
+    |> filter_locations()
   end
 end
