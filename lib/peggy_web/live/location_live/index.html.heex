@@ -19,8 +19,8 @@
         <div class="column py-0 is-3-mobile is-2-desktop">
           <%= peggy_number f, :capacity, gettext("capacity") %>
         </div>
-        <div class="column py-0 has-text-left is-4-mobile is-2-desktop">
-          <%= peggy_select f, :status, Farm.Location.status, style: "width: 100%;" %>
+        <div id="location-form-status" class="column py-0 has-text-left is-4-mobile is-2-desktop">
+          <%= peggy_select f, :status, Farm.Location.status %>
         </div>
         <div class="column py-0 is-hidden-mobile is-4-desktop">
           <%= peggy_text f, :note, gettext("note") %>
@@ -71,13 +71,15 @@
     <div id="footer" phx-hook="InfiniteScroll" data-page-number={@page} class="mx-5">
       <%= if @locations_count < @per_page do %>
         <div class="columns is-mobile">
-          <input class="has-text-black has-text-centered has-background-warning input column is-half is-offset-one-quarter"
-          value={gettext("No More...")} disabled />
+          <span class="has-text-black has-text-centered has-background-warning column is-half is-offset-one-quarter">
+            <%= gettext("No More...") %>
+          </span>
         </div>
       <% else %>
-        <div class="columns control is-loading is-mobile">
-          <input class="has-text-black has-text-centered has-background-success input column is-half is-offset-one-quarter"
-                 value={gettext("Loading More...")} disabled />
+        <div class="columns is-mobile">
+          <span class="has-text-black has-text-centered has-background-success column is-half is-offset-one-quarter">
+            <%= gettext("Loading More...") %><span class="loader" style="display: inline-block;"/>
+          </span>
         </div>
       <% end %>
     </div>

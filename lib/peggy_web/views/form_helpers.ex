@@ -7,28 +7,32 @@ defmodule PeggyWeb.FormHelpers do
   import PeggyWeb.Gettext
 
   def peggy_text(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :text] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :text, class: "input"] ++ opts)
   end
 
   def peggy_date(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :date] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :date, class: "input"] ++ opts)
   end
 
   def peggy_number(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :number] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :number, class: "input"] ++ opts)
   end
 
   def peggy_email(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :email] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :email, class: "input"] ++ opts)
   end
 
   def peggy_password(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :password] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :password, class: "input"] ++ opts)
   end
 
   def peggy_select(form, field, values, opts \\ []) do
-    content_tag(:div, [select(form, field, values, opts), error_tag(form, field)],
-      class: "select field control", style: "width: 100%;"
+    content_tag(
+      :div,
+      [
+        select(form, field, values, peggy_field(form, field, "", opts)),
+        error_tag(form, field)
+      ], class: "control field select"
     )
   end
 
@@ -74,46 +78,37 @@ defmodule PeggyWeb.FormHelpers do
   end
 
   defp i_peggy_text(form, field, placeholder, opts) do
-    [col_class, opts] = find_pop_key_value(:col_class, opts)
-    [class, opts] = find_pop_key_value(:class, opts)
-
-    opt = [
-      class: "#{class} input #{input_error_css_class(form, field)}",
-      autocomplete: :off,
-      placeholder: placeholder,
-      phx_feedback_for: input_name(form, field),
-      phx_debounce: "blur"
-    ]
-
-    if col_class != "" do
-      peggy_column(
-        content_tag(
-          :div,
-          [text_input(form, field, opt ++ opts), error_tag(form, field)],
-          class: "field control"
-        ),
-        col_class
-      )
-    else
-      content_tag(
-        :div,
-        [text_input(form, field, opt ++ opts), error_tag(form, field)],
-        class: "field control"
-      )
-    end
+    content_tag(
+      :div,
+      [
+        text_input(form, field, peggy_field(form, field, placeholder, opts)),
+        error_tag(form, field)
+      ]
+    )
   end
 
-  defp find_pop_key_value(key, list) do
+  defp peggy_field(form, field, placeholder, opts \\ []) do
+    [class, options] = find_pop_key_value(:class, opts)
+    [autocomplete, options] = find_pop_key_value(:autocomplete, options)
+    [ph, options] = find_pop_key_value(:placeholder, options)
+    [phx_debounce, options] = find_pop_key_value(:phx_debounce, options)
+
+    [
+      class: "#{input_error_css_class(form, field)} #{class}",
+      autocomplete: autocomplete || :off,
+      placeholder: ph || placeholder,
+      phx_feedback_for: input_name(form, field),
+      phx_debounce: phx_debounce || "blur"
+    ] ++ options
+  end
+
+  defp find_pop_key_value(key, list \\ []) do
     if Enum.any?(list, fn {k, _v} -> k == key end) do
       {key, value} = Enum.find(list, fn {k, _v} -> k == key end)
       list = Enum.reject(list, fn {k, _v} -> k == key end)
       [value, list]
     else
-      ["", list]
+      [nil, list]
     end
-  end
-
-  defp peggy_column(input_tag, column_class) do
-    content_tag(:div, input_tag, class: "column #{column_class}")
   end
 end

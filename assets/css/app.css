@@ -8,6 +8,10 @@
   z-index: 10000;
 }
 
+#location-form-status .control.select, select{
+  width: 100%;
+}
+
 html {
   scroll-behavior: smooth;
   background-color: lightgoldenrodyellow;
