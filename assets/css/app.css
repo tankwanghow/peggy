@@ -52,10 +52,10 @@ body {
   top: 10%;
   position: fixed;
   z-index: 10001;
-  animation: fadeIn linear 0.5s;
+  animation: slidedown linear 0.5s forwards;
 }
 
-@keyframes fadeIn {
+@keyframes slidedown {
   0% {
     top: -30%;
   }
