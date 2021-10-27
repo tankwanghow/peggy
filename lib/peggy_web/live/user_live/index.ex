@@ -52,7 +52,7 @@ defmodule PeggyWeb.UserLive.Index do
     socket
     |> assign(
       :users,
-      Company.farm_users(socket.assigns.current_farm_user.farm_id, socket.assigns.current_user.id)
+      Company.farm_users(socket.assigns.current_farm_user)
     )
   end
 
