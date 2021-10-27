@@ -1,7 +1,6 @@
 defmodule Peggy.Farm.Location do
   use Ecto.Schema
   import Ecto.Changeset
-  import PeggyWeb.Gettext
 
   def status do
     ["active", "fixing", "remove"]

@@ -65,7 +65,7 @@ defmodule Peggy.Farm do
             fu.user_id == ^farm_user.user_id and
             f.id == ^farm_user.farm_id and
             fu.role != "disable",
-        where: ilike(l.code, ^code) or ilike(l.status, ^code) or ilike(l.note, ^code),
+        where: ilike(l.code, ^code) or ilike(l.status, ^code),
         order_by: [desc: l.updated_at],
         select: l
     )
@@ -84,7 +84,7 @@ defmodule Peggy.Farm do
             fu.user_id == ^farm_user.user_id and
             f.id == ^farm_user.farm_id and
             fu.role != "disable",
-        where: ilike(l.code, ^code) or ilike(l.status, ^code) or ilike(l.note, ^code),
+        where: ilike(l.code, ^code) or ilike(l.status, ^code),
         order_by: [desc: l.updated_at],
         offset: ^((page - 1) * per_page),
         limit: ^per_page,
@@ -121,7 +121,7 @@ defmodule Peggy.Farm do
 
   """
   def create_location(attrs \\ %{}, farm_user) do
-    case can?(farm_user, :cud_location) do
+    case can?(farm_user, :crud_location) do
       {:allow, _} ->
         %Location{}
         |> Location.changeset(attrs)
@@ -145,7 +145,7 @@ defmodule Peggy.Farm do
 
   """
   def update_location(%Location{} = location, attrs, farm_user) do
-    case can?(farm_user, :cud_location) do
+    case can?(farm_user, :crud_location) do
       {:allow, _} ->
         location
         |> Location.changeset(attrs)
@@ -169,7 +169,7 @@ defmodule Peggy.Farm do
 
   """
   def delete_location(%Location{} = location, farm_user) do
-    case can?(farm_user, :cud_location) do
+    case can?(farm_user, :crud_location) do
       {:allow, _} ->
         Repo.delete(location)
 

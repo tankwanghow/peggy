@@ -10,7 +10,7 @@ defmodule PeggyWeb.LocationLive.Index do
      socket
      |> assign(:counter, 0)
      |> assign(page: 1, per_page: 10)
-     |> assign(:page_title, gettext("Locations List"))
+     |> assign(:page_title, gettext("Location List"))
      |> assign_search_terms()
      |> new_changeset()
      |> filter_locations(), temporary_assigns: [locations: []]}
