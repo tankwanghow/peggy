@@ -53,8 +53,12 @@ defmodule PeggyWeb.FarmLive.Form do
   @impl true
   def handle_event("delete", _params, socket) do
     deleted_redirect_to =
-      if(Util.attempt(socket.assigns.current_farm_user, :farm_id) == socket.assigns.farm.id,
-        do: "/clear_set_active_farm",
+      if(Util.attempt(socket.assigns, :current_farm_user),
+        do:
+          if(socket.assigns.current_farm_user.farm_id == socket.assigns.farm.id,
+            do: "/clear_set_active_farm",
+            else: "/farms"
+          ),
         else: "/farms"
       )
 
@@ -79,8 +83,12 @@ defmodule PeggyWeb.FarmLive.Form do
 
   defp save_farm(socket, :edit, farm_params) do
     update_redirect_to =
-      if(Util.attempt(socket.assigns.current_farm_user, :farm_id) == socket.assigns.farm.id,
-        do: "/update_active_farm?id=#{socket.assigns.farm.id}",
+      if(Util.attempt(socket.assigns, :current_farm_user),
+        do:
+          if(socket.assigns.current_farm_user.farm_id == socket.assigns.farm.id,
+            do: "/update_active_farm?id=#{socket.assigns.farm.id}",
+            else: "/farms"
+          ),
         else: "/farms"
       )
 

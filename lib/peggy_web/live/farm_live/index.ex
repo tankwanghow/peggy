@@ -8,19 +8,21 @@ defmodule PeggyWeb.FarmLive.Index do
   def mount(_params, _session, socket) do
     farms = Company.list_farms(socket.assigns.current_user)
 
-    title =
-      if(Enum.count(farms) == 0,
-        do: gettext("You have to Create a Farm to procced."),
-        else:
-          if(socket.assigns.current_farm_user == nil,
-            do: gettext("Please select an active farm."),
-            else: gettext("Farms Listing")
-          )
-      )
+    socket =
+      if Enum.count(farms) == 0 do
+        socket |> assign(:page_title, gettext("You have to Create a Farm to procced."))
+      else
+        if Util.attempt(socket.assigns, :current_farm_user) == nil do
+          socket
+          |> assign(:current_farm_user, nil)
+          |> assign(:page_title, gettext("Please select an active farm."))
+        else
+          socket |> assign(:page_title, gettext("Farms Listing"))
+        end
+      end
 
     {:ok,
      socket
-     |> assign(:page_title, title)
      |> assign(:farms, farms)}
   end
 
