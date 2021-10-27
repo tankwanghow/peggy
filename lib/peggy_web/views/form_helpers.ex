@@ -49,7 +49,9 @@ defmodule PeggyWeb.FormHelpers do
     end
   end
 
-  defp ago_words(days) when days > 0 and days <= 14 do
+  defp ago_words(days) when days == 1, do: "yesterday"
+
+  defp ago_words(days) when days > 1 and days <= 14 do
     "#{days}" <> gettext(" days ago")
   end
 
@@ -57,7 +59,7 @@ defmodule PeggyWeb.FormHelpers do
     "#{round(days / 7)}" <> gettext(" weeks ago")
   end
 
-  defp ago_words(days) when days > 60 and days <= 364 do
+  defp ago_words(days) when days > 59 and days <= 364 do
     "#{round(days / 30)}" <> gettext(" months ago")
   end
 
