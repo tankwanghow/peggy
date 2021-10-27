@@ -50,7 +50,7 @@ defmodule Peggy.CompanyTest do
       assert Enum.sort([
                %{email: admin.email, role: "admin", id: admin.id, last_log_in_at: nil},
                %{email: user.email, role: "disable", id: user.id, last_log_in_at: nil}
-             ]) == Company.farm_users(farm.id, admin.id)
+             ]) == Company.farm_users(Company.get_farm_user(farm.id, admin.id))
     end
 
     test "farm_users/2 will not list users in farm" do
@@ -61,7 +61,7 @@ defmodule Peggy.CompanyTest do
       Company.allow_user_access_farm(user.id, "disable", Company.get_farm_user(farm.id, admin.id))
       Company.allow_user_access_farm(user.id, "guest", Company.get_farm_user(farm1.id, admin.id))
 
-      assert [] == Company.farm_users(farm.id, user.id)
+      assert [] == Company.farm_users(Company.get_farm_user(farm.id, user.id))
     end
 
     test "list_farms/1 return no farm if user role disable" do

@@ -37,9 +37,9 @@ defmodule PeggyWeb.NavigationLiveTest do
       %{conn: conn, user: user, farm: farm, user1: user1, user2: user2}
     end
 
-    test "correct user", %{conn: conn, user1: user1, user: user, farm: farm} do
+    test "correct user", %{conn: conn, user1: user1, farm: farm} do
       conn = log_in_user(conn, user1)
-      {:ok, view, html} = live_isolated(conn, PeggyWeb.UserRoleLive, session: %{"current_farm_user" => Company.get_farm_user(farm.id, user1.id)})
+      {:ok, view, _html} = live_isolated(conn, PeggyWeb.UserRoleLive, session: %{"current_farm_user" => Company.get_farm_user(farm.id, user1.id)})
 
       send(view.pid, {:log_out_user, %{ farm_id: farm.id, user_id: user1.id }})
 
@@ -48,7 +48,7 @@ defmodule PeggyWeb.NavigationLiveTest do
 
     test "incorrect user", %{conn: conn, user1: user1, user: user, farm: farm} do
       conn = log_in_user(conn, user1)
-      {:ok, view, html} = live_isolated(conn, PeggyWeb.UserRoleLive, session: %{"current_farm_user" => Company.get_farm_user(farm.id, user1.id)})
+      {:ok, view, _html} = live_isolated(conn, PeggyWeb.UserRoleLive, session: %{"current_farm_user" => Company.get_farm_user(farm.id, user1.id)})
 
       send(view.pid, {:log_out_user, %{ farm_id: farm.id, user_id: user.id }})
 
