@@ -6,34 +6,18 @@ defmodule Peggy.Authorization do
 
   @allow {:allow, gettext("Authorized")}
   @forbid {:forbid, gettext("Not Authorise")}
-  @forbid_user_disabled {:forbid, gettext("User has been Disabled")}
 
-  def can?(farm_user, :cud_location) do
-    if Enum.find(["guest", "disable"], fn x -> x == farm_user.role end), do: @forbid, else: @allow
-  end
+  def can?(farm_user, :crud_location), do: forbid_role(["guest", "disable"], role(farm_user))
+  def can?(farm_user, :see_user_list), do: allow_role("admin", role(farm_user))
 
-  def can?("disable", _action), do: @forbid_user_disabled
   def can?(_role, _action), do: @forbid
 
-  def can?(user_id, :delete_farm, farm_id) do
-    if user_role_in_farm(user_id, farm_id) == "admin" do
-      @allow
-    else
-      @forbid
-    end
-  end
+  def can?(user_id, :delete_farm, farm_id), do: allow_role("admin", user_role_in_farm(user_id, farm_id))
+  def can?(user_id, :update_farm, farm_id), do: allow_role("admin", user_role_in_farm(user_id, farm_id))
 
-  def can?(user_id, :update_farm, farm_id) do
-    if user_role_in_farm(user_id, farm_id) == "admin" do
-      @allow
-    else
-      @forbid
-    end
-  end
-
-  def can?(current_farm_user, :allow_farm_access_to, user_id) do
-    if user_role_in_farm(current_farm_user.user_id, current_farm_user.farm_id) == "admin" do
-      if current_farm_user.user_id == user_id do
+  def can?(farm_user, :allow_farm_access_to, user_id) do
+    if user_role_in_farm(farm_user.user_id, farm_user.farm_id) == "admin" do
+      if farm_user.user_id == user_id do
         {:forbid, gettext("Cannot invite yourself")}
       else
         @allow
@@ -43,9 +27,9 @@ defmodule Peggy.Authorization do
     end
   end
 
-  def can?(current_farm_user, :change_role_of, user_id) do
-    if user_role_in_farm(current_farm_user.user_id, current_farm_user.farm_id) == "admin" do
-      if current_farm_user.user_id == user_id do
+  def can?(farm_user, :change_role_of, user_id) do
+    if user_role_in_farm(farm_user.user_id, farm_user.farm_id) == "admin" do
+      if farm_user.user_id == user_id do
         {:forbid, gettext("Cannot change own role")}
       else
         @allow
@@ -55,7 +39,6 @@ defmodule Peggy.Authorization do
     end
   end
 
-  def can?("disable", _action, _resource), do: @forbid_user_disabled
   def can?(_role, _action, _resource), do: @forbid
 
   def user_role_in_farm(user_id, farm_id) do
@@ -73,9 +56,27 @@ defmodule Peggy.Authorization do
     end
   end
 
-  def is_user_admin?(user_id, farm_id) do
-    user_role_in_farm(user_id, farm_id) == "admin"
+  defp allow_role(role, test_role) when is_binary(role) do
+    if role == test_role, do: @allow, else: @forbid
   end
 
-  defp allow_if_role_not_disable(farm_user), do: if farm_user.role != "disable", do: @allow, else: @forbid_user_disabled
+  defp allow_role(roles, role) when is_list(roles) do
+    if Enum.find(roles, fn r -> r == role end), do: @allow, else: @forbid
+  end
+
+  defp forbid_role(role, test_role) when is_binary(role) do
+    if role != test_role, do: @allow, else: @forbid
+  end
+
+  defp forbid_role(roles, role) when is_list(roles) do
+    if Enum.find(roles, fn r -> r == role end), do: @forbid, else: @allow
+  end
+
+  defp role(farm_user) when farm_user == nil do
+    :no_access
+  end
+
+  defp role(farm_user) do
+    farm_user.role
+  end
 end

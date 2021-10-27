@@ -403,8 +403,9 @@ defmodule Peggy.Company do
       {:allow, _} ->
         fu = Repo.get_by(FarmUser, farm_id: current_farm_user.farm_id, user_id: user_id)
 
-        fu = FarmUser.changeset(fu, %{role: role})
-        |> Repo.update()
+        fu =
+          FarmUser.changeset(fu, %{role: role})
+          |> Repo.update()
 
         Phoenix.PubSub.broadcast(
           Peggy.PubSub,
@@ -440,22 +441,24 @@ defmodule Peggy.Company do
     Farm.changeset(farm, attrs, user)
   end
 
-  def farm_users(farm_id, admin_id) do
-    if is_user_admin?(admin_id, farm_id) do
-      Repo.all(
-        from u in User,
-          join: fu in FarmUser,
-          on: fu.farm_id == ^farm_id and u.id == fu.user_id,
-          order_by: u.email,
-          select: %{
-            email: u.email,
-            role: fu.role,
-            id: u.id,
-            last_log_in_at: u.last_log_in_at
-          }
-      )
-    else
-      []
+  def farm_users(farm_user) do
+    case can?(farm_user, :see_user_list) do
+      {:allow, _} ->
+        Repo.all(
+          from u in User,
+            join: fu in FarmUser,
+            on: fu.farm_id == ^farm_user.farm_id and u.id == fu.user_id,
+            order_by: u.email,
+            select: %{
+              email: u.email,
+              role: fu.role,
+              id: u.id,
+              last_log_in_at: u.last_log_in_at
+            }
+        )
+
+      {:forbid, msg} ->
+        []
     end
   end
 end
