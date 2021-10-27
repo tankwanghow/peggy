@@ -50,24 +50,24 @@ defmodule PeggyWeb.FormHelpers do
   end
 
   defp ago_words(days) when days > 0 and days <= 14 do
-    "#{days} " <> gettext("days ago")
+    "#{days}" <> gettext(" days ago")
   end
 
   defp ago_words(days) when days > 14 and days <= 59 do
-    "#{round(days / 7)} " <> gettext("weeks ago")
+    "#{round(days / 7)}" <> gettext(" weeks ago")
   end
 
   defp ago_words(days) when days > 60 and days <= 364 do
-    "#{round(days / 30)} " <> gettext("months ago")
+    "#{round(days / 30)}" <> gettext(" months ago")
   end
 
   defp ago_words(days) when days > 364 do
     year = round(days / 365)
 
     if year > 1 do
-      "#{year} " <> gettext("years ago")
+      "#{year}" <> gettext(" years ago")
     else
-      "#{year} " <> gettext("year ago")
+      "#{year}" <> gettext(" year ago")
     end
   end
 
@@ -83,26 +83,25 @@ defmodule PeggyWeb.FormHelpers do
       [
         text_input(form, field, peggy_field(form, field, placeholder, opts)),
         error_tag(form, field)
-      ]
+      ], class: "control field"
     )
   end
 
-  defp peggy_field(form, field, placeholder, opts \\ []) do
-    [class, options] = find_pop_key_value(:class, opts)
-    [autocomplete, options] = find_pop_key_value(:autocomplete, options)
-    [ph, options] = find_pop_key_value(:placeholder, options)
-    [phx_debounce, options] = find_pop_key_value(:phx_debounce, options)
+  defp peggy_field(form, field, placeholder, opts) do
+    [class, _options] = find_pop_key_value(:class, opts)
 
-    [
+    default_options = [
       class: "#{input_error_css_class(form, field)} #{class}",
-      autocomplete: autocomplete || :off,
-      placeholder: ph || placeholder,
+      autocomplete: :off,
+      placeholder: placeholder,
       phx_feedback_for: input_name(form, field),
-      phx_debounce: phx_debounce || "blur"
-    ] ++ options
+      phx_debounce: "blur"
+    ]
+
+    Keyword.merge(default_options, opts)
   end
 
-  defp find_pop_key_value(key, list \\ []) do
+  defp find_pop_key_value(key, list) do
     if Enum.any?(list, fn {k, _v} -> k == key end) do
       {key, value} = Enum.find(list, fn {k, _v} -> k == key end)
       list = Enum.reject(list, fn {k, _v} -> k == key end)

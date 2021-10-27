@@ -80,14 +80,14 @@ msgid "Invalid email or password"
 msgstr "电子邮箱或者密码错误"
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.heex:14
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:19
 #: lib/peggy_web/templates/user_confirmation/new.html.heex:11 lib/peggy_web/templates/user_registration/new.html.heex:13
 #: lib/peggy_web/templates/user_reset_password/edit.html.heex:17 lib/peggy_web/templates/user_reset_password/new.html.heex:11
 msgid "Log in"
 msgstr "登录"
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.heex:11
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:16
 msgid "Log out"
 msgstr "登出"
 
@@ -121,7 +121,7 @@ msgstr "密码更新成功。"
 
 #, elixir-format
 #: lib/peggy_web/templates/layout/root.html.heex:8
-#: lib/peggy_web/templates/layout/root.html.heex:21
+#: lib/peggy_web/templates/layout/root.html.heex:20
 msgid "Peggy"
 msgstr "猪可量"
 
@@ -131,7 +131,7 @@ msgid "Please Register to proceed."
 msgstr "密码更新成功。"
 
 #, elixir-format
-#: lib/peggy_web/templates/layout/_user_menu.html.heex:13
+#: lib/peggy_web/templates/layout/_user_menu.html.heex:18
 #: lib/peggy_web/templates/user_confirmation/new.html.heex:10 lib/peggy_web/templates/user_registration/new.html.heex:3
 #: lib/peggy_web/templates/user_registration/new.html.heex:9 lib/peggy_web/templates/user_reset_password/edit.html.heex:16
 #: lib/peggy_web/templates/user_reset_password/new.html.heex:10 lib/peggy_web/templates/user_session/new.html.heex:16
@@ -186,22 +186,22 @@ msgid "You must log in to access this page."
 msgstr "您必须登录才能访问此页面。"
 
 #, elixir-format
-#: lib/peggy/user_accounts/user.ex:86
+#: lib/peggy/user_accounts/user.ex:87
 msgid "did not change"
 msgstr "没有改变"
 
 #, elixir-format
-#: lib/peggy/user_accounts/user.ex:39 lib/peggy/user_accounts/user.ex:106
+#: lib/peggy/user_accounts/user.ex:40 lib/peggy/user_accounts/user.ex:107
 msgid "does not match password"
 msgstr "密码不符"
 
 #, elixir-format
-#: lib/peggy/user_accounts/user.ex:150
+#: lib/peggy/user_accounts/user.ex:156
 msgid "is not valid"
 msgstr "无效"
 
 #, elixir-format
-#: lib/peggy/user_accounts/user.ex:46
+#: lib/peggy/user_accounts/user.ex:47
 msgid "must have the @ sign and no spaces"
 msgstr "必须有@ 符号且不能有空格"
 
@@ -242,57 +242,57 @@ msgid "Peggy Welcome Page"
 msgstr "猪可量欢迎页面"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:5
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
 msgid "Address Line 1"
 msgstr "地址行1"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:10
 msgid "Address Line 2"
 msgstr "地址行2"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:8
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:13
 msgid "City"
 msgstr "城市"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:13
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:24
 msgid "Country"
 msgstr "国家"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:2
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
 msgid "Farm Name"
 msgstr "农场名称"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:21
+#: lib/peggy_web/live/farm_live/form.ex:19
 msgid "Please Create a Farm."
 msgstr "请创建一个农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:16
 msgid "Postal Code"
 msgstr "邮政编码"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:12
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:21
 msgid "State"
 msgstr "州属"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
 msgid "Weight Unit"
 msgstr "重量单位"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:31
+#: lib/peggy_web/live/farm_live/form.ex:29
 msgid "Editing Farm."
 msgstr "更新农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.ex:19
+#: lib/peggy_web/live/farm_live/index.ex:17
 msgid "Farms Listing"
 msgstr "农场清单"
 
@@ -303,6 +303,7 @@ msgstr "保存农场"
 
 #, elixir-format
 #: lib/peggy_web/live/farm_live/form.html.heex:6
+#: lib/peggy_web/live/location_live/index.html.heex:26
 msgid "Saving..."
 msgstr "保存中..."
 
@@ -322,57 +323,56 @@ msgid "Create a New Farm"
 msgstr "创建一个新农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:77
+#: lib/peggy_web/live/farm_live/form.ex:75
 msgid "Failed to Delete Farm"
 msgstr "无法删除场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:67
+#: lib/peggy_web/live/farm_live/form.ex:65
 msgid "Farm Deleted successfully"
 msgstr "已成功删除场"
 
 #, elixir-format
-#: lib/peggy_web/templates/navigation/index.html.heex:9
+#: lib/peggy_web/live/navigation_live/index.html.heex:9
 msgid "Farm List"
 msgstr "农场清单"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:118
+#: lib/peggy_web/live/farm_live/form.ex:116
 msgid "Farm created successfully"
 msgstr "农场创建成功。"
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:18
-#: lib/peggy_web/live/farm_live/form.ex:94
+#: lib/peggy_web/live/farm_live/form.ex:92
 msgid "Farm updated successfully"
 msgstr "农场更新成功。"
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:11
-#: lib/peggy_web/live/farm_live/index.ex:18
+#: lib/peggy_web/live/farm_live/index.ex:16
 msgid "Please select an active farm."
 msgstr "请选择一个活动的农场。"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:18
-#: lib/peggy_web/live/farm_live/index.html.heex:25
+#: lib/peggy_web/live/farm_live/index.html.heex:21
 msgid "Set Active"
 msgstr "启用"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.ex:15
+#: lib/peggy_web/live/farm_live/index.ex:13
 msgid "You have to Create a Farm to procced."
 msgstr "您必须创建一个农场才能继续。"
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:25
-#: lib/peggy_web/plug/active_farm.ex:24
+#: lib/peggy_web/plug/active_farm.ex:25
 msgid "is active now."
 msgstr "现在活跃。"
 
 #, elixir-format
-#: lib/peggy_web/controllers/navigation_controller.ex:6
-#: lib/peggy_web/templates/layout/app.html.heex:27 lib/peggy_web/templates/layout/live.html.heex:30
+#: lib/peggy_web/live/navigation_live/index.ex:10
+#: lib/peggy_web/templates/layout/app.html.heex:26 lib/peggy_web/templates/layout/live.html.heex:30
 msgid "Navigation Page"
 msgstr "导航页面"
 
@@ -392,8 +392,8 @@ msgid "Invite"
 msgstr "邀请"
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:13
-#: lib/peggy_web/live/invite_user_live/new.html.heex:6 lib/peggy_web/templates/navigation/index.html.heex:11
+#: lib/peggy_web/live/invite_user_live/new.ex:12
+#: lib/peggy_web/live/invite_user_live/new.html.heex:6 lib/peggy_web/live/navigation_live/index.html.heex:11
 msgid "Invite User"
 msgstr "邀请用户"
 
@@ -418,12 +418,12 @@ msgid "Back"
 msgstr "返回"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:107
+#: lib/peggy_web/live/farm_live/form.ex:105
 msgid "Failed to Update Farm"
 msgstr "无法删除场"
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:36
+#: lib/peggy_web/live/invite_user_live/new.ex:34
 msgid "Invitation email has been sent to "
 msgstr "邀请邮件已发送至 "
 
@@ -434,7 +434,7 @@ msgid "Invitation instructions"
 msgstr "确认说明"
 
 #, elixir-format
-#: lib/peggy_web/plug/active_farm.ex:17
+#: lib/peggy_web/plug/active_farm.ex:16
 msgid "Not authorise to access farm in the URL."
 msgstr "未授权访问URL中的农场。"
 
@@ -464,12 +464,12 @@ msgid "==============================\n\nHi %{email},\n\n%{admin} has invited yo
 msgstr "==============================\n\n您好%{email}，您可以通过访问以下URL来确认您的帐户：\n\n%{url}\n\n如果您没有在我们这里创建帐户，请忽略此电子邮件。\n\n==============================\n"
 
 #, elixir-format
-#: lib/peggy/company.ex:333 lib/peggy/company.ex:408 lib/peggy/company.ex:418
+#: lib/peggy/authorization.ex:8
 msgid "Not Authorise"
 msgstr "不授权"
 
 #, elixir-format
-#: lib/peggy/company.ex:397
+#: lib/peggy/authorization.ex:49
 msgid "Cannot change own role"
 msgstr "不能改变自己的角色"
 
@@ -479,27 +479,22 @@ msgid "user already in farm"
 msgstr "用户已经在农场"
 
 #, elixir-format
-#: lib/peggy/company.ex:381
+#: lib/peggy/authorization.ex:37
 msgid "Cannot invite yourself"
 msgstr "不能邀请自己"
 
 #, elixir-format
-#: lib/peggy/company.ex:391
-msgid "Only Admin allow to invite"
-msgstr "只有管​​理员允许邀请"
-
-#, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:60
+#: lib/peggy_web/live/invite_user_live/new.ex:62
 msgid "existing user - "
 msgstr "现有用户 - "
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:70
+#: lib/peggy_web/live/invite_user_live/new.ex:72
 msgid "new user - "
 msgstr "新用户 - "
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:47
+#: lib/peggy_web/live/invite_user_live/new.ex:48
 msgid " already invited."
 msgstr "已经被邀请"
 
@@ -519,12 +514,12 @@ msgid "New Password"
 msgstr "新密码"
 
 #, elixir-format
-#: lib/peggy_web/live/invite_user_live/new.ex:47
+#: lib/peggy_web/live/invite_user_live/new.ex:48
 msgid "Resended Invitation, because "
 msgstr "重新发送邀请，原因"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.html.heex:21
+#: lib/peggy_web/live/farm_live/index.html.heex:24
 msgid "Currently Active"
 msgstr "现在活动农场"
 
@@ -534,22 +529,171 @@ msgid "Is Default Farm"
 msgstr "默认农场"
 
 #, elixir-format
-#: lib/peggy_web/live/user_live/index.ex:12
-#: lib/peggy_web/templates/navigation/index.html.heex:12
+#: lib/peggy_web/live/navigation_live/index.html.heex:12
+#: lib/peggy_web/live/user_live/index.ex:11
 msgid "User List"
 msgstr "用户列表"
 
 #, elixir-format
-#: lib/peggy_web/live/user_live/index.ex:44
+#: lib/peggy_web/live/user_live/index.ex:43
 msgid "Failed to change user to "
 msgstr "无法将用户角色更改为"
 
-#, elixir-format, fuzzy
+#, elixir-format
 #: lib/peggy_web/templates/user_session/new.html.heex:10
 msgid "Keep me logged in for 5 days"
 msgstr "让我保持登录状态5天"
 
 #, elixir-format
-#: lib/peggy_web/live/user_live/index.ex:35
+#: lib/peggy_web/live/farm_live/index.html.heex:17
+msgid " in this farm."
+msgstr "在这农场"
+
+#, elixir-format
+#: lib/peggy/authorization.ex:7
+msgid "Authorized"
+msgstr "授权"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.ex:70
+msgid "Delete Location Successfully"
+msgstr "成功删除位置"
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.html.heex:15
+msgid "Has Role"
+msgstr "有角色"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:26
+msgid "Insert"
+msgstr "添加"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.ex:113
+msgid "Insert Location Successfully"
+msgstr "成功添加位置"
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.html.heex:9
+msgid "Last login "
+msgstr "上次登录"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:84
+msgid "Loading More..."
+msgstr "加载更多..."
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.ex:13
+#: lib/peggy_web/live/navigation_live/index.html.heex:14
+msgid "Location List"
+msgstr "位置列表"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:24
+msgid "New"
+msgstr "新的"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:78
+msgid "No More..."
+msgstr "没有了..."
+
+#, elixir-format
+#: lib/peggy_web/controllers/user_session_controller.ex:34
+msgid "SECURITY UPDATE. Please login again."
+msgstr "安全更新。请重新登录。"
+
+#, elixir-format
+#: lib/peggy_web/live/user_live/index.ex:34
 msgid "Successfully updated user role to "
 msgstr "已成功将用户角色更新为"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:23
+msgid "Update"
+msgstr "更新"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.ex:138
+msgid "Update Location Successfully"
+msgstr "成功更新位置"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:23
+msgid "Updating..."
+msgstr "保存中..."
+
+#, elixir-format
+#: lib/peggy/authorization.ex:9
+msgid "User has been Disabled"
+msgstr "用户已被禁用"
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/index.html.heex:17
+msgid "Your are "
+msgstr "你是"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:13
+#: lib/peggy_web/live/location_live/index.html.heex:41
+msgid "capacity"
+msgstr "容量"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:10
+#: lib/peggy_web/live/location_live/index.html.heex:40
+msgid "code"
+msgstr "代码"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:33
+msgid "code or status..."
+msgstr "代码或状态..."
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:48
+msgid "never"
+msgstr "没有"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:19
+#: lib/peggy_web/live/location_live/index.html.heex:43
+msgid "note"
+msgstr "笔记"
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:46
+msgid "today"
+msgstr "今天"
+
+#, elixir-format
+#: lib/peggy_web/live/location_live/index.html.heex:42
+msgid "status"
+msgstr "状态"
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:53
+msgid " days ago"
+msgstr "天前"
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:61
+msgid " months ago"
+msgstr "个月前"
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:57
+msgid " weeks ago"
+msgstr "周前"
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:70
+msgid " year ago"
+msgstr "年前"
+
+#, elixir-format
+#: lib/peggy_web/views/form_helpers.ex:68
+msgid " years ago"
+msgstr "年前"

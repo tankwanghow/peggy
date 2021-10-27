@@ -30,17 +30,17 @@
     <div class="box px-1 pt-2">
       <.form let={f} for={:search} id="search_form" phx-change="search_location" phx-submit="search_location" autocomplete="off">
         <p class="control has-icons-left mx-3 my-1">
-          <%= text_input f, :terms, value: @search.terms, placeholder: gettext("code, status or note..."), class: "input" %>
+          <%= text_input f, :terms, value: @search.terms, placeholder: gettext("code or status..."), class: "input" %>
           <span class="icon is-left">
             <i class="fas fa-search"></i>
           </span>
         </p>
       </.form>
       <div class="columns my-0 is-variable is-1 is-mobile mr-1">
-        <div class="column py-0 is-4-mobile is-3-desktop has-text-weight-bold">Code</div>
-        <div class="column py-0 is-3-mobile is-2-desktop has-text-weight-bold">Capacity</div>
-        <div class="column py-0 is-4-mobile is-2-desktop has-text-weight-bold">Status</div>
-        <div class="column py-0 is-hidden-mobile is-4-desktop has-text-weight-bold">Note</div>
+        <div class="column py-0 is-4-mobile is-3-desktop has-text-weight-bold"><%= gettext("code") %></div>
+        <div class="column py-0 is-3-mobile is-2-desktop has-text-weight-bold"><%= gettext("capacity") %></div>
+        <div class="column py-0 is-4-mobile is-2-desktop has-text-weight-bold"><%= gettext("status") %></div>
+        <div class="column py-0 is-hidden-mobile is-4-desktop has-text-weight-bold"><%= gettext("note") %></div>
       </div>
       <%= if @locations_count == 0 and @page == 1 do %>
         <div id={"location-list-#{@counter}"} phx-update="append" class="mb-5">
@@ -74,13 +74,13 @@
       <div id="footer" phx-hook="InfiniteScroll" data-page-number={@page} class="mx-5">
         <%= if @locations_count < @per_page do %>
           <div class="columns is-mobile">
-            <span class="has-text-black has-text-centered has-background-warning column is-half is-offset-one-quarter">
+            <span class="has-text-black has-text-centered has-background-info-light column is-half is-offset-one-quarter">
               <%= gettext("No More...") %>
             </span>
           </div>
         <% else %>
           <div class="columns is-mobile">
-            <span class="has-text-black has-text-centered has-background-success column is-half is-offset-one-quarter">
+            <span class="has-text-black has-text-centered has-background-success-light column is-half is-offset-one-quarter">
               <%= gettext("Loading More...") %><span class="loader" style="display: inline-block;"/>
             </span>
           </div>
