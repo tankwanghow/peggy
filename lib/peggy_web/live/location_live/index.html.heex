@@ -28,7 +28,7 @@
       </.form>
     </div>
     <div class="box px-1 pt-2">
-      <.form let={f} for={:search} id="search_form" phx-change="search_location" phx-submit="search_location" autocomplete="off">
+      <.form let={f} for={:search} id="location-search-form" phx-change="search_location" phx-submit="search_location" autocomplete="off">
         <p class="control has-icons-left mx-3 my-1">
           <%= text_input f, :terms, value: @search.terms, placeholder: gettext("code or status..."), class: "input" %>
           <span class="icon is-left">

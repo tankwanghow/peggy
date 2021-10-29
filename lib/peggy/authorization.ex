@@ -7,10 +7,11 @@ defmodule Peggy.Authorization do
   @allow {:allow, gettext("Authorized")}
   @forbid {:forbid, gettext("Not Authorise")}
 
-  def can?(farm_user, :crud_location), do: forbid_role(["guest", "disable"], role(farm_user))
-  def can?(farm_user, :see_user_list), do: allow_role("admin", role(farm_user))
+  def can?(farm_user, :create_location), do: forbid_role(["guest", "disable"], role(farm_user))
+  def can?(farm_user, :update_location), do: forbid_role(["guest", "disable"], role(farm_user))
+  def can?(farm_user, :delete_location), do: forbid_role(["guest", "disable"], role(farm_user))
 
-  def can?(_role, _action), do: @forbid
+  def can?(farm_user, :see_user_list), do: allow_role("admin", role(farm_user))
 
   def can?(user_id, :delete_farm, farm_id), do: allow_role("admin", user_role_in_farm(user_id, farm_id))
   def can?(user_id, :update_farm, farm_id), do: allow_role("admin", user_role_in_farm(user_id, farm_id))
@@ -38,8 +39,6 @@ defmodule Peggy.Authorization do
       @forbid
     end
   end
-
-  def can?(_role, _action, _resource), do: @forbid
 
   def user_role_in_farm(user_id, farm_id) do
     role =

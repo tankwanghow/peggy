@@ -457,7 +457,7 @@ defmodule Peggy.Company do
             }
         )
 
-      {:forbid, msg} ->
+      {:forbid, _msg} ->
         []
     end
   end

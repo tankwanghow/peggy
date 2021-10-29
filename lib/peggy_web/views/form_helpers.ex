@@ -7,23 +7,23 @@ defmodule PeggyWeb.FormHelpers do
   import PeggyWeb.Gettext
 
   def peggy_text(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :text, class: "input"] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :text] ++ opts)
   end
 
   def peggy_date(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :date, class: "input"] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :date] ++ opts)
   end
 
   def peggy_number(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :number, class: "input"] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :number] ++ opts)
   end
 
   def peggy_email(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :email, class: "input"] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :email] ++ opts)
   end
 
   def peggy_password(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :password, class: "input"] ++ opts)
+    i_peggy_text(form, field, placeholder, [type: :password] ++ opts)
   end
 
   def peggy_select(form, field, values, opts \\ []) do
@@ -83,14 +83,14 @@ defmodule PeggyWeb.FormHelpers do
     content_tag(
       :div,
       [
-        text_input(form, field, peggy_field(form, field, placeholder, opts)),
+        text_input(form, field, peggy_field(form, field, placeholder, opts ++ [class: "input"])),
         error_tag(form, field)
       ], class: "control field"
     )
   end
 
   defp peggy_field(form, field, placeholder, opts) do
-    [class, _options] = find_pop_key_value(:class, opts)
+    [class, options] = find_pop_key_value(:class, opts)
 
     default_options = [
       class: "#{input_error_css_class(form, field)} #{class}",
@@ -100,7 +100,7 @@ defmodule PeggyWeb.FormHelpers do
       phx_debounce: "blur"
     ]
 
-    Keyword.merge(default_options, opts)
+    Keyword.merge(default_options, options)
   end
 
   defp find_pop_key_value(key, list) do

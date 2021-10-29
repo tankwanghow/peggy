@@ -53,6 +53,7 @@ body {
   position: fixed;
   z-index: 10001;
   animation: slidedown linear 0.5s forwards;
+  max-width: 90%;
 }
 
 @keyframes slidedown {

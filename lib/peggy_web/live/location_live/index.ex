@@ -70,14 +70,6 @@ defmodule PeggyWeb.LocationLive.Index do
           |> put_flash(:success, gettext("Delete Location Successfully"))
         }
 
-      {:error, changeset} ->
-        {:noreply,
-         socket
-         |> put_flash(
-           :error,
-           changeset.errors |> Enum.map(fn {_, {m, _}} -> m end) |> Enum.join(". ")
-         )}
-
       {:error, _location, msg} ->
         {:noreply, socket |> put_flash(:error, msg)}
     end
@@ -114,7 +106,13 @@ defmodule PeggyWeb.LocationLive.Index do
         }
 
       {:error, changeset} ->
-        {:noreply, socket |> assign(:changeset, changeset)}
+        {:noreply,
+         socket
+         |> assign(:changeset, changeset)
+         |> put_flash(
+           :error,
+           changeset.errors |> Enum.map(fn {k, {m, _}} -> "#{k} #{m}" end) |> Enum.join(". ")
+         )}
 
       {:error, changeset, msg} ->
         {:noreply,
@@ -144,7 +142,7 @@ defmodule PeggyWeb.LocationLive.Index do
          |> assign(:changeset, changeset)
          |> put_flash(
            :error,
-           changeset.errors |> Enum.map(fn {_, {m, _}} -> m end) |> Enum.join(". ")
+           changeset.errors |> Enum.map(fn {k, {m, _}} -> "#{k} #{m}" end) |> Enum.join(". ")
          )}
 
       {:error, changeset, msg} ->
@@ -169,10 +167,12 @@ defmodule PeggyWeb.LocationLive.Index do
   end
 
   defp filter_locations(socket) do
-    locations = Farm.list_locations(socket.assigns.search.terms, socket.assigns.current_farm_user,
-          page: socket.assigns.page,
-          per_page: socket.assigns.per_page
-        )
+    locations =
+      Farm.list_locations(socket.assigns.search.terms, socket.assigns.current_farm_user,
+        page: socket.assigns.page,
+        per_page: socket.assigns.per_page
+      )
+
     assign(socket,
       locations: locations,
       locations_count: Enum.count(locations)

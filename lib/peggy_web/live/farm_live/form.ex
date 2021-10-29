@@ -101,7 +101,9 @@ defmodule PeggyWeb.FarmLive.Form do
          |> push_redirect(to: update_redirect_to)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :changeset, changeset)}
+        {:noreply,
+         assign(socket, :changeset, changeset)
+         |> put_flash(:error, gettext("Failed to Update Farm"))}
 
       {:error, farm, msg} ->
         changeset = Company.change_farm(farm, %{}, socket.assigns.current_user)
@@ -125,7 +127,9 @@ defmodule PeggyWeb.FarmLive.Form do
          |> push_redirect(to: "/farms")}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, changeset: changeset)}
+        {:noreply,
+         assign(socket, changeset: changeset)
+         |> put_flash(:error, gettext("Failed to Create Farm"))}
     end
   end
 end
