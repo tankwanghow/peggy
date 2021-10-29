@@ -26,7 +26,7 @@ config :peggy, PeggyWeb.Endpoint,
 config :peggy, Peggy.Mailer, adapter: Swoosh.Adapters.Test
 
 # Print only warnings and errors during test
-config :logger, level: :warn
+config :logger, level: :warn, truncate: :infinity
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
