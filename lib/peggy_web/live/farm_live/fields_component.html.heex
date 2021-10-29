@@ -3,7 +3,7 @@
     <%= peggy_text @f, :name, gettext("Farm Name"), autofocus: true %>
   </div>
   <div class="column is-4 pb-0">
-    <%= peggy_text @f, :weight_unit, gettext("Weight Unit"), col_class: "is-one-quarter pb-0" %>
+    <%= peggy_text @f, :weight_unit, gettext("Weight Unit") %>
   </div>
 </div>
 <%= peggy_text @f, :address1, gettext("Address Line 1") %>
@@ -18,10 +18,10 @@
 </div>
 <div class="columns">
   <div class="column pb-0">
-    <%= peggy_text @f, :state, gettext("State"), col_class: "pb-0" %>
+    <%= peggy_text @f, :state, gettext("State") %>
   </div>
   <div class="column pb-0">
-    <%= peggy_text @f, :country, gettext("Country"), col_class: "pb-0", list: "countries" %>
+    <%= peggy_text @f, :country, gettext("Country"), list: "countries" %>
   </div>
 </div>
 <%= datalist(Peggy.Company.countries, "countries") %>
