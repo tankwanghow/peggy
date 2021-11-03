@@ -8,6 +8,7 @@ defmodule Peggy.Repo.Migrations.CreateUsersAuthTables do
       add :email, :citext, null: false
       add :hashed_password, :string, null: false
       add :confirmed_at, :naive_datetime
+      add :last_log_in_at, :naive_datetime
       timestamps()
     end
 
