@@ -11,7 +11,7 @@ defmodule PeggyWeb.FormHelpers do
   end
 
   def peggy_date(form, field, placeholder, opts \\ []) do
-    i_peggy_text(form, field, placeholder, [type: :date] ++ opts)
+    i_peggy_text(form, field, placeholder, [onfocus: "(this.type='date')", onblur: "(this.type='text')"] ++ opts)
   end
 
   def peggy_number(form, field, placeholder, opts \\ []) do
@@ -27,17 +27,35 @@ defmodule PeggyWeb.FormHelpers do
   end
 
   def peggy_select(form, field, values, opts \\ []) do
+    {got_msg, _options} = Keyword.pop(opts, :got_msg, false)
     content_tag(
       :div,
       [
         select(form, field, values, peggy_field(form, field, "", opts)),
-        error_tag(form, field)
+        error_tag(form, field),
+        if(got_msg, do: message_tag(form, field), else: [])
       ], class: "control field select"
     )
   end
 
   def datalist(list, id) do
     content_tag(:datalist, options(list), id: id)
+  end
+
+  def datalist_with_ids(list, id, value_key, id_key) do
+    content_tag(:datalist, option_with_ids(list, value_key, id_key), id: id)
+  end
+
+  def options(list) do
+    Enum.map(list, fn el ->
+      content_tag(:option, "", value: el)
+    end)
+  end
+
+  def option_with_ids(list, value_key, id_key) do
+    Enum.map(list, fn el ->
+      content_tag(:option, "", value: Map.get(el, value_key), data_id: Map.get(el, id_key))
+    end)
   end
 
   def ago(date) do
@@ -73,27 +91,25 @@ defmodule PeggyWeb.FormHelpers do
     end
   end
 
-  def options(list) do
-    Enum.map(list, fn el ->
-      content_tag(:option, "", value: el)
-    end)
-  end
-
   defp i_peggy_text(form, field, placeholder, opts) do
+    {class, options} = Keyword.pop(opts, :class, "")
+    {got_msg, _options} = Keyword.pop(options, :got_msg, false)
     content_tag(
       :div,
       [
-        text_input(form, field, peggy_field(form, field, placeholder, opts ++ [class: "input"])),
-        error_tag(form, field)
+        text_input(form, field, peggy_field(form, field, placeholder, Keyword.merge(opts, class: "#{class} input"))),
+        error_tag(form, field),
+        if(got_msg, do: message_tag(form, field), else: [])
       ], class: "control field"
     )
   end
 
   defp peggy_field(form, field, placeholder, opts) do
-    [class, options] = find_pop_key_value(:class, opts)
+    {class, options} = Keyword.pop(opts, :class, "")
+    {got_msg, options} = Keyword.pop(options, :got_msg, false)
 
     default_options = [
-      class: "#{input_error_css_class(form, field)} #{class}",
+      class: "#{input_error_css_class(form, field)} #{class} " <> if(got_msg, do: input_message_css_class(form, field), else: ""),
       autocomplete: :off,
       placeholder: placeholder,
       phx_feedback_for: input_name(form, field),
@@ -101,15 +117,5 @@ defmodule PeggyWeb.FormHelpers do
     ]
 
     Keyword.merge(default_options, options)
-  end
-
-  defp find_pop_key_value(key, list) do
-    if Enum.any?(list, fn {k, _v} -> k == key end) do
-      {key, value} = Enum.find(list, fn {k, _v} -> k == key end)
-      list = Enum.reject(list, fn {k, _v} -> k == key end)
-      [value, list]
-    else
-      [nil, list]
-    end
   end
 end
