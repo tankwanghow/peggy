@@ -4,12 +4,14 @@ defmodule PeggyWeb.LocationLive.Index do
 
   on_mount PeggyWeb.OnMountFunc
 
+  @per_page 20
+
   @impl true
   def mount(_params, _session, socket) do
     {:ok,
      socket
      |> assign(:counter, 0)
-     |> assign(page: 1, per_page: 10)
+     |> assign(page: 1, per_page: @per_page)
      |> assign(:page_title, gettext("Location List"))
      |> assign_search_terms()
      |> new_changeset()
@@ -20,7 +22,7 @@ defmodule PeggyWeb.LocationLive.Index do
   def handle_event("search_location", %{"search" => params}, socket) do
     {:noreply,
      socket
-     |> assign(page: 1, per_page: 10)
+     |> assign(page: 1, per_page: @per_page)
      |> assign_search_terms(params["terms"])
      |> assign(:counter, socket.assigns.counter + 1)
      |> filter_locations()}
@@ -182,8 +184,9 @@ defmodule PeggyWeb.LocationLive.Index do
   defp reset_locations(socket) do
     socket
     |> assign(:counter, socket.assigns.counter + 1)
-    |> assign(page: 1, per_page: 10)
+    |> assign(page: 1, per_page: @per_page)
     |> assign_search_terms()
+    |> new_changeset()
     |> filter_locations()
   end
 end

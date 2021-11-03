@@ -3,14 +3,14 @@ defmodule Peggy.Farm.Location do
   import Ecto.Changeset
 
   def status do
-    ["active", "fixing", "remove"]
+    ["gestation", "farrow", "weaner", "finisher", "grower", "any"]
   end
 
   schema "locations" do
     field :capacity, :integer, default: 1
     field :code, :string
     field :note, :string
-    field :status, :string, default: "active"
+    field :status, :string, default: "any"
     belongs_to :farm, Peggy.Company.Farm
 
     timestamps()
@@ -23,7 +23,6 @@ defmodule Peggy.Farm.Location do
     |> validate_required([:status, :farm_id])
     |> validate_required(:code)
     |> validate_required(:capacity)
-    |> validate_inclusion(:status, status())
     |> validate_inclusion(:capacity, 1..10000)
     |> unsafe_validate_unique([:code, :farm_id], Peggy.Repo)
   end

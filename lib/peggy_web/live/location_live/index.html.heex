@@ -12,7 +12,7 @@
           <div class="column py-0 is-3-mobile is-2-desktop">
             <%= peggy_number f, :capacity, gettext("capacity") %>
           </div>
-          <div id="location-form-status" class="column py-0 has-text-left is-4-mobile is-2-desktop">
+          <div id="location-form-status" class="column py-0 has-text-left is-5-mobile is-3-desktop">
             <%= peggy_select f, :status, Farm.Location.status %>
           </div>
           <div class="column py-0 is-hidden-mobile is-4-desktop">
@@ -22,6 +22,8 @@
         <%= if @changeset.action == :update do %>
           <%= submit gettext("Update"), phx_disable_with: gettext("Updating..."), class: "button is-warning" %>
           <%= link gettext("New"), to: "#", phx_click: "clear_new", class: "button is-success" %>
+          <%= link gettext("Delete"), to: "#", phx_click: "delete_location",
+                   phx_value_id: @changeset.data.id, class: "button is-danger", data_confirm: "Are you sure?" %>
         <% else %>
           <%= submit gettext("Insert"), phx_disable_with: gettext("Saving..."), class: "button is-primary" %>
         <% end %>
@@ -39,7 +41,7 @@
       <div class="columns my-0 is-variable is-1 is-mobile mr-1">
         <div class="column py-0 is-4-mobile is-3-desktop has-text-weight-bold"><%= gettext("code") %></div>
         <div class="column py-0 is-3-mobile is-2-desktop has-text-weight-bold"><%= gettext("capacity") %></div>
-        <div class="column py-0 is-4-mobile is-2-desktop has-text-weight-bold"><%= gettext("status") %></div>
+        <div class="column py-0 is-5-mobile is-3-desktop has-text-weight-bold"><%= gettext("status") %></div>
         <div class="column py-0 is-hidden-mobile is-4-desktop has-text-weight-bold"><%= gettext("note") %></div>
       </div>
       <%= if @locations_count == 0 and @page == 1 do %>
@@ -57,7 +59,7 @@
                 <input type="text" id={"location-capacity-#{l.id}"} phx-value-id={l.id} class="input"
                      value={l.capacity} readonly phx-click="select_location"/>
               </div>
-              <div id={"location-status-column-#{l.id}"} class="column py-0 has-text-left is-4-mobile is-2-desktop">
+              <div id={"location-status-column-#{l.id}"} class="column py-0 has-text-left is-5-mobile is-3-desktop">
                 <input type="text" id={"location-status-#{l.id}"} phx-value-id={l.id} class="input"
                      value={l.status} readonly phx-click="select_location"/>
               </div>
@@ -65,8 +67,6 @@
                 <input type="text" id={"location-note-#{l.id}"} phx-value-id={l.id} class="input"
                      value={l.note} readonly phx-click="select_location"/>
               </div>
-              <a id={"location-delete-#{l.id}"} class="pt-3 is-size-6 is-hoverable has-text-danger fas fa-trash"
-               href="#" phx-value-id={l.id} phx-click="delete_location" data-confirm="Are you sure?"></a>
             </div>
           <% end %>
         </div>
