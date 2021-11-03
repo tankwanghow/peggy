@@ -26,6 +26,31 @@ defmodule PeggyWeb.ErrorHelpers do
     end
   end
 
+  def message_tag(form, field) do
+    Enum.map(Keyword.get_values(form.source.messages, field), fn msg ->
+      {text, style} = msg
+
+      content_tag(:span, translate_message(text),
+        id: Atom.to_string(field) <> "-message-feedback",
+        class: "#{style} help message-feedback",
+        phx_feedback_for: input_name(form, field)
+      )
+    end)
+  end
+
+  def input_message_css_class(form, field) do
+    Enum.map(Keyword.get_values(form.source.messages, field), fn msg ->
+      {_text, style} = msg
+      style
+    end)
+    |> List.flatten()
+    |> Enum.join(" ")
+  end
+
+  def translate_message(text) do
+    Gettext.dgettext(PeggyWeb.Gettext, "errors", text)
+  end
+
   @doc """
   Translates an error message using gettext.
   """
