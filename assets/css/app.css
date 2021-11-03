@@ -8,7 +8,7 @@
   z-index: 10000;
 }
 
-#location-form-status .control.select, select{
+form .control.select, select{
   width: 100%;
 }
 
