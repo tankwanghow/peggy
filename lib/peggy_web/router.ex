@@ -97,7 +97,7 @@ defmodule PeggyWeb.Router do
     live "/users", UserLive.Index, :index
     live "/locations", LocationLive.Index, :index
     live "/sows", SowLive.Index, :index
-    live "/boars", LocationLive.Index, :index
+    live "/boars", BoarLive.Index, :index
   end
 
   scope "/", PeggyWeb do

@@ -1,35 +1,105 @@
-<h1>Listing Boars</h1>
+<section>
+  <div class="container has-text-centered">
+    <p class="title mb-1"><%= @page_title %></p>
+    <div class="box my-1 px-1 py-1">
+      <.form let={f} for={@changeset} id="boar-form" phx-change="validate" phx-submit="save" autocomplete="off">
+        <%= hidden_input(f, :id) %>
+        <%= hidden_input(f, :farm_id) %>
+        <%= hidden_input(f, :location_id) %>
+        <div class="columns is-gapless is-multiline is-variable is-1 is-mobile m-1 p-1">
+          <div class="column py-0 is-5-mobile is-3-desktop">
+            <%= peggy_text f, :name, gettext("name"), phx_hook: "ScrollToHere" %>
+          </div>
+          <div class="column py-0 is-3-mobile is-2-desktop">
+            <%= peggy_text f, :location_code, gettext("location"), list: "locations", got_msg: true %>
+          </div>
+          <div class="column py-0 is-hidden-mobile is-2-desktop">
+            <%= peggy_date f, :dob, gettext("dob") %>
+          </div>
+          <div class="column py-0 is-4-mobile is-3-desktop">
+            <%= peggy_text f, :breed, gettext("breed"), list: "breeds", got_msg: true %>
+          </div>
+          <div class="column py-0 is-hidden-mobile is-2-desktop">
+            <%= peggy_date f, :cull_date, gettext("cull date") %>
+          </div>
+        </div>
+        <%= if @changeset.action == :update do %>
+          <%= submit gettext("Update"), phx_disable_with: gettext("Updating..."), class: "button is-warning" %>
+          <%= link gettext("Card"), to: "#", class: "button is-info" %>
+          <%= link gettext("New"), to: "#", phx_click: "clear_new", class: "button is-success" %>
+          <%= link gettext("Delete"), to: "#", phx_click: "delete_boar",
+                   phx_value_id: @changeset.data.id, class: "button is-danger", data_confirm: "Are you sure?" %>
 
-
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Breed</th>
-      <th>Location</th>
-      <th>Farm</th>
-      <th>Dob</th>
-
-      <th></th>
-    </tr>
-  </thead>
-  <tbody id="boars">
-    <%= for boar <- @boars do %>
-      <tr id={"boar-#{boar.id}"}>
-        <td><%= boar.name %></td>
-        <td><%= boar.breed %></td>
-        <td><%= boar.location_id %></td>
-        <td><%= boar.farm_id %></td>
-        <td><%= boar.dob %></td>
-
-        <td>
-          <span><%= live_redirect "Show", to: Routes.boar_show_path(@socket, :show, boar) %></span>
-          <span><%= live_patch "Edit", to: Routes.boar_index_path(@socket, :edit, boar) %></span>
-          <span><%= link "Delete", to: "#", phx_click: "delete", phx_value_id: boar.id, data: [confirm: "Are you sure?"] %></span>
-        </td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
-
-<span><%= live_patch "New Boar", to: Routes.boar_index_path(@socket, :new) %></span>
+        <% else %>
+          <%= submit gettext("Insert"), phx_disable_with: gettext("Saving..."), class: "button is-primary" %>
+        <% end %>
+      </.form>
+    </div>
+    <div class="box pl-1 pr-3 pt-2">
+      <.form let={f} for={:search} id="boar-search-form" phx-change="search_boar" phx-submit="search_boar" autocomplete="off">
+        <p class="control has-icons-left mx-3 my-1">
+          <%= text_input f, :terms, value: @search.terms, type: :search,
+                         placeholder: gettext("name | location | breed..."),
+                         class: "input is-rounded" %>
+          <span class="icon is-left">
+            <i class="fas fa-search"></i>
+          </span>
+        </p>
+      </.form>
+      <div class="columns is-gapless my-0 is-variable is-1 is-mobile">
+        <div class="column py-0 is-5-mobile is-3-desktop has-text-weight-bold"><%= gettext("name") %></div>
+        <div class="column py-0 is-3-mobile is-2-desktop has-text-weight-bold"><%= gettext("location") %></div>
+        <div class="column py-0 is-hidden-mobile is-2-desktop has-text-weight-bold"><%= gettext("dob") %></div>
+        <div class="column py-0 is-4-mobile is-3-desktop has-text-weight-bold"><%= gettext("breed") %></div>
+        <div class="column py-0 is-hidden-mobile is-2-desktop has-text-weight-bold"><%= gettext("cull date") %></div>
+      </div>
+      <%= if @boars_count == 0 and @page == 1 do %>
+        <div id={"boar-list-#{@counter}"} phx-update="append" class="mb-5">
+        </div>
+      <% else %>
+        <div id={"boar-list-#{@counter}"} phx-update="append" class="mb-5">
+          <%= for l <- @boars do %>
+            <div id={"boar-columns-#{l.id}"} class="columns is-gapless is-variable is-1 is-mobile m-1">
+              <div id={"boar-name-column-#{l.id}"} class="column py-0 is-3-mobile is-3-desktop">
+                <input type="text" id={"boar-name-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.name} readonly phx-click="select_boar"/>
+              </div>
+              <div id={"boar-location-code-column-#{l.id}"} class="column py-0 has-text-left is-4-mobile is-2-desktop">
+                <input type="text" id={"boar-location-code-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.location_code} readonly phx-click="select_boar"/>
+              </div>
+              <div id={"boar-dob-column-#{l.id}"} class="column py-0 is-hidden-mobile is-2-desktop">
+                <input type="text" id={"boar-dob-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.dob} readonly phx-click="select_boar"/>
+              </div>
+              <div id={"boar-breed-column-#{l.id}"} class="column py-0 is-5-mobile is-3-desktop">
+                <input type="text" id={"boar-breed-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.breed} readonly phx-click="select_boar"/>
+              </div>
+              <div id={"boar-cull-date-column-#{l.id}"} class="column py-0 is-hidden-mobile is-2-desktop">
+                <input type="text" id={"boar-cull-date-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.cull_date} readonly phx-click="select_boar"/>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+      <div id="footer" phx-hook="InfiniteScroll" data-page-number={@page} class="mx-5">
+        <%= if @boars_count < @per_page do %>
+          <div class="columns is-mobile">
+            <span class="has-text-black has-text-centered has-background-info-light column is-half is-offset-one-quarter">
+              <%= gettext("No More...") %>
+            </span>
+          </div>
+        <% else %>
+          <div class="columns is-mobile">
+            <span class="has-text-black has-text-centered has-background-success-light column is-half is-offset-one-quarter">
+              <%= gettext("Loading More...") %><span class="loader" style="display: inline-block;"/>
+            </span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</section>
+<%= datalist(Peggy.Breeder.datalist_breeds(@current_farm_user), "breeds") %>

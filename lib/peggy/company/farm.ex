@@ -42,9 +42,25 @@ defmodule Peggy.Company.Farm do
         :zipcode,
         :state,
         :country,
-        :weight_unit
+        :weight_unit,
+        :birth_to_wean,
+        :paired_to_prefarrow,
+        :paired_to_farrow,
+        :wean_to_pair
       ])
-      |> validate_required([:name, :address1, :city, :zipcode, :state, :country, :weight_unit])
+      |> validate_required([
+        :name,
+        :address1,
+        :city,
+        :zipcode,
+        :state,
+        :country,
+        :weight_unit,
+        :birth_to_wean,
+        :paired_to_prefarrow,
+        :paired_to_farrow,
+        :wean_to_pair
+      ])
       |> validate_inclusion(:country, Peggy.Company.countries())
 
     if farm.changes[:name] do

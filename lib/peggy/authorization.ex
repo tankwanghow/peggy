@@ -11,6 +11,10 @@ defmodule Peggy.Authorization do
   def can?(farm_user, :update_sow), do: forbid_role(["guest", "disable"], role(farm_user))
   def can?(farm_user, :delete_sow), do: forbid_role(["guest", "disable"], role(farm_user))
 
+  def can?(farm_user, :create_boar), do: forbid_role(["guest", "disable"], role(farm_user))
+  def can?(farm_user, :update_boar), do: forbid_role(["guest", "disable"], role(farm_user))
+  def can?(farm_user, :delete_boar), do: forbid_role(["guest", "disable"], role(farm_user))
+
   def can?(farm_user, :create_location), do: forbid_role(["guest", "disable"], role(farm_user))
   def can?(farm_user, :update_location), do: forbid_role(["guest", "disable"], role(farm_user))
   def can?(farm_user, :delete_location), do: forbid_role(["guest", "disable"], role(farm_user))

@@ -6,10 +6,11 @@
     <span id="navigation-title"><%= @page_title %></span>
   </span>
 </div>
-<%= live_patch gettext("Farm List"), to: Routes.farm_index_path(@socket, :index), class: "button" %>
+<%= live_patch gettext("Farms"), to: Routes.farm_index_path(@socket, :index), class: "button" %>
 <%= if @current_farm_user.role == "admin" do %>
   <%= live_patch gettext("Invite User"), to: Routes.invite_user_new_path(@socket, :new, @current_farm_user.farm_id), class: "button" %>
-  <%= live_patch gettext("User List"), to: Routes.user_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>
+  <%= live_patch gettext("User"), to: Routes.user_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>
 <% end %>
-<%= live_patch gettext("Location List"), to: Routes.location_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>
-<%= live_patch gettext("Sow List"), to: Routes.sow_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>
+<%= live_patch gettext("Locations"), to: Routes.location_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>
+<%= live_patch gettext("Sows"), to: Routes.sow_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>
+<%= live_patch gettext("Boars"), to: Routes.boar_index_path(@socket, :index, @current_farm_user.farm_id), class: "button" %>

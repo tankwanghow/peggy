@@ -246,7 +246,13 @@ defmodule Peggy.Breeder do
 
   """
   def delete_sow(%Sow{} = sow, farm_user) do
-    Repo.delete(sow)
+    case can?(farm_user, :delete_sow) do
+      {:allow, _} ->
+        Repo.delete(sow)
+
+      {:forbid, msg} ->
+        {:error, sow, msg}
+    end
   end
 
   @doc """
@@ -273,9 +279,34 @@ defmodule Peggy.Breeder do
       [%Boar{}, ...]
 
   """
-  def list_boars do
-    Repo.all(Boar)
+  def list_boars(terms, farm_user, page: page, per_page: per_page) do
+    Repo.all(
+      from b in Boar,
+        join: f in Farm,
+        on: b.farm_id == f.id,
+        join: fu in FarmUser,
+        on:
+          fu.farm_id == f.id and
+            fu.user_id == ^farm_user.user_id and
+            f.id == ^farm_user.farm_id and
+            fu.role != "disable",
+        left_join: l in Location,
+        on: b.location_id == l.id,
+        where: ^build_conditions(terms, [:name, :location_code, :breed]),
+        order_by: [desc: b.updated_at, asc: b.name],
+        offset: ^((page - 1) * per_page),
+        limit: ^per_page,
+        select: %{
+          id: b.id,
+          name: b.name,
+          location_code: l.code,
+          cull_date: b.cull_date,
+          dob: b.dob,
+          breed: b.breed
+        }
+    )
   end
+
 
   @doc """
   Gets a single boar.
@@ -291,7 +322,25 @@ defmodule Peggy.Breeder do
       ** (Ecto.NoResultsError)
 
   """
-  def get_boar!(id), do: Repo.get!(Boar, id)
+  def get_boar!(id) do
+    Repo.get!(
+      from(b in Boar,
+        left_join: l in Location,
+        on: l.id == b.location_id,
+        select: %Boar{
+          id: b.id,
+          name: b.name,
+          location_code: l.code,
+          cull_date: b.cull_date,
+          dob: b.dob,
+          breed: b.breed,
+          location_id: b.location_id,
+          farm_id: b.farm_id
+        }
+      ),
+      id
+    )
+  end
 
   @doc """
   Creates a boar.
@@ -305,10 +354,43 @@ defmodule Peggy.Breeder do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_boar(attrs \\ %{}) do
-    %Boar{}
-    |> Boar.changeset(attrs)
-    |> Repo.insert()
+  def create_boar(attrs \\ %{}, farm_user) do
+    IO.inspect(farm_user)
+    case can?(farm_user, :create_boar) do
+      {:allow, _} ->
+        if attrs["location_code"] == "" do
+          %Boar{}
+          |> Boar.changeset(farm_user, attrs)
+          |> Repo.insert()
+        else
+          loc = get_location_from_code(attrs["location_code"], farm_user)
+
+          if loc == nil do
+            {_, attrs} = Map.pop(attrs, "location_id")
+            {location_code, attrs} = Map.pop(attrs, "location_code")
+
+            Multi.new()
+            |> Multi.insert(
+              :location,
+              Location.changeset(%Location{}, %{
+                code: location_code,
+                farm_id: farm_user.farm_id
+              })
+            )
+            |> Multi.insert(:boar, fn %{location: location} ->
+              Boar.changeset(%Boar{}, farm_user, Map.put_new(attrs, "location_id", location.id))
+            end)
+            |> Peggy.Repo.transaction()
+            |> case do
+              {:ok, %{boar: boar}} -> {:ok, boar}
+              {:error, :boar, changeset, _} -> {:error, changeset}
+            end
+          end
+        end
+
+      {:forbid, msg} ->
+        {:error, Boar.changeset(%Boar{}, farm_user, attrs), msg}
+    end
   end
 
   @doc """
@@ -323,10 +405,40 @@ defmodule Peggy.Breeder do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_boar(%Boar{} = boar, attrs) do
-    boar
-    |> Boar.changeset(attrs)
-    |> Repo.update()
+  def update_boar(%Boar{} = boar, attrs, farm_user) do
+    case can?(farm_user, :update_boar) do
+      {:allow, _} ->
+        loc = get_location_from_code(attrs["location_code"], farm_user)
+
+        if loc == nil do
+          {_, attrs} = Map.pop(attrs, "location_id")
+          {location_code, attrs} = Map.pop(attrs, "location_code")
+
+          Multi.new()
+          |> Multi.insert(
+            :location,
+            Location.changeset(%Location{}, %{
+              code: location_code,
+              farm_id: farm_user.farm_id
+            })
+          )
+          |> Multi.update(:boar, fn %{location: location} ->
+            Boar.changeset(boar, farm_user, Map.put_new(attrs, "location_id", location.id))
+          end)
+          |> Peggy.Repo.transaction()
+          |> case do
+            {:ok, %{boar: boar}} -> {:ok, boar}
+            {:error, :boar, changeset, _} -> {:error, changeset}
+          end
+        else
+          boar
+          |> Boar.changeset(farm_user, Map.replace(attrs, "location_id", loc.id))
+          |> Repo.update()
+        end
+
+      {:forbid, msg} ->
+        {:error, Boar.changeset(%Boar{}, farm_user, attrs), msg}
+    end
   end
 
   @doc """
@@ -341,8 +453,14 @@ defmodule Peggy.Breeder do
       {:error, %Ecto.Changeset{}}
 
   """
-  def delete_boar(%Boar{} = boar) do
-    Repo.delete(boar)
+  def delete_boar(%Boar{} = boar, farm_user) do
+    case can?(farm_user, :delete_boar) do
+      {:allow, _} ->
+        Repo.delete(boar)
+
+      {:forbid, msg} ->
+        {:error, boar, msg}
+    end
   end
 
   @doc """
@@ -354,7 +472,7 @@ defmodule Peggy.Breeder do
       %Ecto.Changeset{data: %Boar{}}
 
   """
-  def change_boar(%Boar{} = boar, attrs \\ %{}) do
-    Boar.changeset(boar, attrs)
+  def change_boar(%Boar{} = boar, farm_user, attrs \\ %{}) do
+    Boar.changeset(boar, farm_user, attrs)
   end
 end

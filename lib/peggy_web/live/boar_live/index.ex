@@ -1,4 +1,4 @@
-defmodule PeggyWeb.SowLive.Index do
+defmodule PeggyWeb.BoarLive.Index do
   use PeggyWeb, :live_view
   alias Peggy.Breeder
 
@@ -11,30 +11,30 @@ defmodule PeggyWeb.SowLive.Index do
      socket
      |> assign(:counter, 0)
      |> assign(page: 1, per_page: @per_page)
-     |> assign(:page_title, gettext("Sow Listing"))
+     |> assign(:page_title, gettext("Boar Listing"))
      |> assign_search_terms()
      |> new_changeset()
-     |> filter_sows(), temporary_assigns: [sows: []]}
+     |> filter_boars(), temporary_assigns: [boars: []]}
   end
 
   @impl true
-  def handle_event("search_sow", %{"search" => params}, socket) do
+  def handle_event("search_boar", %{"search" => params}, socket) do
     {:noreply,
      socket
      |> assign(page: 1, per_page: @per_page)
      |> assign_search_terms(params["terms"])
      |> assign(:counter, socket.assigns.counter + 1)
-     |> filter_sows()}
+     |> filter_boars()}
   end
 
   @impl true
-  def handle_event("validate", %{"sow" => params}, socket) do
+  def handle_event("validate", %{"boar" => params}, socket) do
     changeset =
       if params["id"] != "" do
-        Breeder.change_sow(Breeder.get_sow!(params["id"]), params)
+        Breeder.change_boar(Breeder.get_boar!(params["id"]), params)
         |> Map.put(:action, :update)
       else
-        Breeder.change_sow(%Breeder.Sow{}, socket.assigns.current_farm_user, params)
+        Breeder.change_boar(%Breeder.Boar{}, socket.assigns.current_farm_user, params)
         |> Map.put(:action, :insert)
       end
 
@@ -44,12 +44,12 @@ defmodule PeggyWeb.SowLive.Index do
   end
 
   @impl true
-  def handle_event("select_sow", %{"id" => id}, socket) do
+  def handle_event("select_boar", %{"id" => id}, socket) do
     {:noreply,
      assign(
        socket,
        :changeset,
-       Breeder.change_sow(Breeder.get_sow!(id), socket.assigns.current_farm_user)
+       Breeder.change_boar(Breeder.get_boar!(id), socket.assigns.current_farm_user)
        |> Map.put(:action, :update)
      )}
   end
@@ -62,15 +62,15 @@ defmodule PeggyWeb.SowLive.Index do
   end
 
   @impl true
-  def handle_event("delete_sow", %{"id" => id}, socket) do
-    case Breeder.delete_sow(Breeder.get_sow!(id), socket.assigns.current_farm_user) do
+  def handle_event("delete_boar", %{"id" => id}, socket) do
+    case Breeder.delete_boar(Breeder.get_boar!(id), socket.assigns.current_farm_user) do
       {:ok, _} ->
         {
           :noreply,
           socket
-          |> reset_sows()
+          |> reset_boars()
           |> new_changeset()
-          |> put_flash(:success, gettext("Delete Sow Successfully"))
+          |> put_flash(:success, gettext("Delete Boar Successfully"))
         }
 
       {:error, _location, msg} ->
@@ -79,11 +79,11 @@ defmodule PeggyWeb.SowLive.Index do
   end
 
   @impl true
-  def handle_event("save", %{"sow" => sow}, socket) do
-    if sow["id"] == "" do
-      create_sow(sow, socket)
+  def handle_event("save", %{"boar" => boar}, socket) do
+    if boar["id"] == "" do
+      create_boar(boar, socket)
     else
-      update_sow(sow, socket)
+      update_boar(boar, socket)
     end
   end
 
@@ -92,20 +92,20 @@ defmodule PeggyWeb.SowLive.Index do
     socket =
       socket
       |> update(:page, &(&1 + 1))
-      |> filter_sows()
+      |> filter_boars()
 
     {:noreply, socket}
   end
 
-  defp create_sow(attrs, socket) do
-    case Breeder.create_sow(attrs, socket.assigns.current_farm_user) do
-      {:ok, _sow} ->
+  defp create_boar(attrs, socket) do
+    case Breeder.create_boar(attrs, socket.assigns.current_farm_user) do
+      {:ok, _boar} ->
         {
           :noreply,
           socket
-          |> reset_sows()
+          |> reset_boars()
           |> new_changeset()
-          |> put_flash(:success, gettext("Insert Sow Successfully"))
+          |> put_flash(:success, gettext("Insert Boar Successfully"))
         }
 
       {:error, changeset} ->
@@ -125,18 +125,18 @@ defmodule PeggyWeb.SowLive.Index do
     end
   end
 
-  defp update_sow(attrs, socket) do
-    case Breeder.update_sow(
-           Breeder.get_sow!(attrs["id"]),
+  defp update_boar(attrs, socket) do
+    case Breeder.update_boar(
+           Breeder.get_boar!(attrs["id"]),
            attrs,
            socket.assigns.current_farm_user
          ) do
-      {:ok, _sow} ->
+      {:ok, _boar} ->
         {
           :noreply,
           socket
-          |> reset_sows
-          |> put_flash(:success, gettext("Update Sow Successfully"))
+          |> reset_boars
+          |> put_flash(:success, gettext("Update Boar Successfully"))
         }
 
       {:error, changeset} ->
@@ -163,31 +163,31 @@ defmodule PeggyWeb.SowLive.Index do
   defp new_changeset(socket) do
     assign(socket,
       changeset:
-        Breeder.change_sow(%Breeder.Sow{}, socket.assigns.current_farm_user, %{
+        Breeder.change_boar(%Breeder.Boar{}, socket.assigns.current_farm_user, %{
           farm_id: socket.assigns.current_farm_user.farm_id
         })
     )
   end
 
-  defp filter_sows(socket) do
-    sows =
-      Breeder.list_sows(socket.assigns.search.terms, socket.assigns.current_farm_user,
+  defp filter_boars(socket) do
+    boars =
+      Breeder.list_boars(socket.assigns.search.terms, socket.assigns.current_farm_user,
         page: socket.assigns.page,
         per_page: socket.assigns.per_page
       )
 
     assign(socket,
-      sows: sows,
-      sows_count: Enum.count(sows)
+      boars: boars,
+      boars_count: Enum.count(boars)
     )
   end
 
-  defp reset_sows(socket) do
+  defp reset_boars(socket) do
     socket
     |> assign(:counter, socket.assigns.counter + 1)
     |> assign(page: 1, per_page: @per_page)
     |> assign_search_terms()
     |> new_changeset()
-    |> filter_sows()
+    |> filter_boars()
   end
 end
