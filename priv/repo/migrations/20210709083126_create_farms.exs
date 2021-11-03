@@ -11,7 +11,10 @@ defmodule Peggy.Repo.Migrations.CreateFarms do
       add :state, :string
       add :country, :string
       add :weight_unit, :string
-
+      add :birth_to_wean, :integer, default: 28, null: false
+      add :paired_to_farrow, :integer, default: 114, null: false
+      add :wean_to_pair, :integer, default: 7, null: false
+      add :paired_to_prefarrow, :integer, default: 100, null: false
       timestamps()
     end
 
@@ -26,8 +29,8 @@ defmodule Peggy.Repo.Migrations.CreateFarms do
       timestamps()
     end
     create unique_index(:farm_user, [:farm_id, :user_id])
-    create index(:farm_user, [:farm_id])
-    create index(:farm_user, [:user_id])
+    create index(:farm_user, :farm_id)
+    create index(:farm_user, :user_id)
 
   end
 end
