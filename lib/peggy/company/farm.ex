@@ -12,8 +12,13 @@ defmodule Peggy.Company.Farm do
     field :country, :string
     field :name, :string
     field :state, :string
-    field :weight_unit, :string
     field :zipcode, :string
+
+    field :weight_unit, :string, default: "KG"
+    field :birth_to_wean, :integer, default: 28
+    field :paired_to_farrow, :integer, default: 114
+    field :wean_to_pair, :integer, default: 7
+    field :paired_to_prefarrow, :integer, default: 100
 
     many_to_many :users, Peggy.UserAccounts.User,
       join_through: Peggy.Company.FarmUser,
@@ -29,9 +34,18 @@ defmodule Peggy.Company.Farm do
 
     farm =
       farm
-      |> cast(attrs, [:name, :address1, :address2, :city, :zipcode, :state, :country, :weight_unit])
+      |> cast(attrs, [
+        :name,
+        :address1,
+        :address2,
+        :city,
+        :zipcode,
+        :state,
+        :country,
+        :weight_unit
+      ])
       |> validate_required([:name, :address1, :city, :zipcode, :state, :country, :weight_unit])
-      |> validate_inclusion(:country, Peggy.Company.countries)
+      |> validate_inclusion(:country, Peggy.Company.countries())
 
     if farm.changes[:name] do
       if Ecto.get_meta(nt_farm, :state) == :loaded do

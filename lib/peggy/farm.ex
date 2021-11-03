@@ -18,7 +18,7 @@ defmodule Peggy.Farm do
       [%Location{}, ...]
 
   """
-  def list_locations(farm_user) do
+  def datalist_locations(farm_user) do
     Repo.all(
       from l in Location,
         join: f in Farm,
@@ -29,13 +29,14 @@ defmodule Peggy.Farm do
             fu.user_id == ^farm_user.user_id and
             f.id == ^farm_user.farm_id and
             fu.role != "disable",
-        order_by: [desc: l.updated_at, asc: l.code],
-        select: l
+        order_by: l.code,
+        select: %{code: l.code, id: l.id}
     )
   end
 
-  def list_locations(code, farm_user, page: page, per_page: per_page) do
-    code = "%#{code}%"
+  def list_locations(terms, farm_user, page: page, per_page: per_page) do
+    terms = String.split(terms, " ")
+    terms = Enum.map(terms, fn x -> "%#{x}%" end)
 
     Repo.all(
       from l in Location,
@@ -47,7 +48,14 @@ defmodule Peggy.Farm do
             fu.user_id == ^farm_user.user_id and
             f.id == ^farm_user.farm_id and
             fu.role != "disable",
-        where: ilike(l.code, ^code) or ilike(l.status, ^code),
+        where:
+          fragment(
+            "? ilike ? and ? ilike ?",
+            l.code,
+            ^Enum.at(terms, 0, "%"),
+            l.status,
+            ^Enum.at(terms, 1, "%")
+          ),
         order_by: [desc: l.updated_at, asc: l.code],
         offset: ^((page - 1) * per_page),
         limit: ^per_page,
@@ -70,6 +78,21 @@ defmodule Peggy.Farm do
 
   """
   def get_location!(id), do: Repo.get!(Location, id)
+
+  def get_location_by_code(code, farm_user) do
+    Repo.one(
+      from l in Location,
+        join: f in Farm,
+        on: l.farm_id == f.id,
+        join: fu in FarmUser,
+        on:
+          fu.farm_id == f.id and
+            fu.user_id == ^farm_user.user_id and
+            f.id == ^farm_user.farm_id and
+            fu.role != "disable",
+        where: l.code == ^code
+    )
+  end
 
   @doc """
   Creates a location.

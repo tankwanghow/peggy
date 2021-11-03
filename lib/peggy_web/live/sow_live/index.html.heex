@@ -1,0 +1,121 @@
+<section>
+  <div class="container has-text-centered">
+    <p class="title mb-1"><%= @page_title %></p>
+    <div class="box my-1 px-1 py-1">
+      <.form let={f} for={@changeset} id="sow-form" phx-change="validate" phx-submit="save" autocomplete="off">
+        <%= hidden_input(f, :id) %>
+        <%= hidden_input(f, :farm_id) %>
+        <%= hidden_input(f, :location_id) %>
+        <div class="columns is-gapless is-multiline is-variable is-1 is-mobile m-1 p-1">
+          <div class="column py-0 is-3-mobile is-1-desktop">
+            <%= peggy_text f, :code, gettext("code"), phx_hook: "ScrollToHere" %>
+          </div>
+          <div id="sow-status" class="column py-0 has-text-left is-5-mobile is-2-desktop">
+            <%= peggy_select f, :status, Breeder.Sow.status %>
+          </div>
+          <div class="column py-0 is-4-mobile is-2-desktop">
+            <%= peggy_text f, :location_code, gettext("location"), list: "locations", got_msg: true %>
+          </div>
+          <div class="column py-0 is-hidden-mobile is-1-desktop">
+            <%= peggy_text f, :parity, gettext("parity") %>
+          </div>
+          <div class="column py-0 is-hidden-mobile is-2-desktop">
+            <%= peggy_date f, :dob, gettext("dob") %>
+          </div>
+          <div class="column py-0 is-hidden-mobile is-2-desktop">
+            <%= peggy_text f, :breed, gettext("breed"), list: "breeds", got_msg: true %>
+          </div>
+          <div class="column py-0 is-hidden-mobile is-2-desktop">
+            <%= peggy_date f, :cull_date, gettext("cull date") %>
+          </div>
+        </div>
+        <%= if @changeset.action == :update do %>
+          <%= submit gettext("Update"), phx_disable_with: gettext("Updating..."), class: "button is-warning" %>
+          <%= link gettext("Card"), to: "#", class: "button is-info" %>
+          <%= link gettext("New"), to: "#", phx_click: "clear_new", class: "button is-success" %>
+          <%= link gettext("Delete"), to: "#", phx_click: "delete_sow",
+                   phx_value_id: @changeset.data.id, class: "button is-danger", data_confirm: "Are you sure?" %>
+
+        <% else %>
+          <%= submit gettext("Insert"), phx_disable_with: gettext("Saving..."), class: "button is-primary" %>
+        <% end %>
+      </.form>
+    </div>
+    <div class="box pl-1 pr-3 pt-2">
+      <.form let={f} for={:search} id="sow-search-form" phx-change="search_sow" phx-submit="search_sow" autocomplete="off">
+        <p class="control has-icons-left mx-3 my-1">
+          <%= text_input f, :terms, value: @search.terms, type: :search,
+                         placeholder: gettext("code | status | location | breed..."),
+                         class: "input is-rounded" %>
+          <span class="icon is-left">
+            <i class="fas fa-search"></i>
+          </span>
+        </p>
+      </.form>
+      <div class="columns is-gapless my-0 is-variable is-1 is-mobile">
+        <div class="column py-0 is-3-mobile is-1-desktop has-text-weight-bold"><%= gettext("code") %></div>
+        <div class="column py-0 is-5-mobile is-2-desktop has-text-weight-bold"><%= gettext("status") %></div>
+        <div class="column py-0 is-4-mobile is-2-desktop has-text-weight-bold"><%= gettext("location") %></div>
+        <div class="column py-0 is-hidden-mobile is-1-desktop has-text-weight-bold"><%= gettext("parity") %></div>
+        <div class="column py-0 is-hidden-mobile is-2-desktop has-text-weight-bold"><%= gettext("dob") %></div>
+        <div class="column py-0 is-hidden-mobile is-2-desktop has-text-weight-bold"><%= gettext("breed") %></div>
+        <div class="column py-0 is-hidden-mobile is-2-desktop has-text-weight-bold"><%= gettext("cull date") %></div>
+      </div>
+      <%= if @sows_count == 0 and @page == 1 do %>
+        <div id={"sow-list-#{@counter}"} phx-update="append" class="mb-5">
+        </div>
+      <% else %>
+        <div id={"sow-list-#{@counter}"} phx-update="append" class="mb-5">
+          <%= for l <- @sows do %>
+            <div id={"sow-columns-#{l.id}"} class="columns is-gapless is-variable is-1 is-mobile m-1">
+              <div id={"sow-code-column-#{l.id}"} class="column py-0 is-3-mobile is-1-desktop">
+                <input type="text" id={"sow-code-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.code} readonly phx-click="select_sow"/>
+              </div>
+              <div id={"sow-status-column-#{l.id}"} class="column py-0 is-5-mobile is-2-desktop">
+                <input type="text" id={"sow-status-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.status} readonly phx-click="select_sow"/>
+              </div>
+              <div id={"sow-location-code-column-#{l.id}"} class="column py-0 has-text-left is-4-mobile is-2-desktop">
+                <input type="text" id={"sow-location-code-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.location_code} readonly phx-click="select_sow"/>
+              </div>
+              <div id={"sow-parity-column-#{l.id}"} class="column py-0 is-hidden-mobile is-1-desktop">
+                <input type="text" id={"sow-parity-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.parity} readonly phx-click="select_sow"/>
+              </div>
+              <div id={"sow-dob-column-#{l.id}"} class="column py-0 is-hidden-mobile is-2-desktop">
+                <input type="text" id={"sow-dob-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.dob} readonly phx-click="select_sow"/>
+              </div>
+              <div id={"sow-breed-column-#{l.id}"} class="column py-0 is-hidden-mobile is-2-desktop">
+                <input type="text" id={"sow-breed-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.breed} readonly phx-click="select_sow"/>
+              </div>
+              <div id={"sow-cull-date-column-#{l.id}"} class="column py-0 is-hidden-mobile is-2-desktop">
+                <input type="text" id={"sow-cull-date-#{l.id}"} phx-value-id={l.id} class="input"
+                     value={l.cull_date} readonly phx-click="select_sow"/>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% end %>
+      <div id="footer" phx-hook="InfiniteScroll" data-page-number={@page} class="mx-5">
+        <%= if @sows_count < @per_page do %>
+          <div class="columns is-mobile">
+            <span class="has-text-black has-text-centered has-background-info-light column is-half is-offset-one-quarter">
+              <%= gettext("No More...") %>
+            </span>
+          </div>
+        <% else %>
+          <div class="columns is-mobile">
+            <span class="has-text-black has-text-centered has-background-success-light column is-half is-offset-one-quarter">
+              <%= gettext("Loading More...") %><span class="loader" style="display: inline-block;"/>
+            </span>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</section>
+<%= datalist(Peggy.Breeder.datalist_breeds(@current_farm_user), "breeds") %>
