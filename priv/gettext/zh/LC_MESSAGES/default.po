@@ -242,27 +242,27 @@ msgid "Peggy Welcome Page"
 msgstr "猪可量欢迎页面"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:2
 msgid "Address Line 1"
 msgstr "地址行1"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:10
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
 msgid "Address Line 2"
 msgstr "地址行2"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:13
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
 msgid "City"
 msgstr "城市"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:24
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:17
 msgid "Country"
 msgstr "国家"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:1
 msgid "Farm Name"
 msgstr "农场名称"
 
@@ -272,17 +272,18 @@ msgid "Please Create a Farm."
 msgstr "请创建一个农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:16
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
 msgid "Postal Code"
 msgstr "邮政编码"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:21
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:14
 msgid "State"
 msgstr "州属"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:22
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:23
 msgid "Weight Unit"
 msgstr "重量单位"
 
@@ -292,7 +293,7 @@ msgid "Editing Farm."
 msgstr "更新农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.ex:17
+#: lib/peggy_web/live/farm_live/index.ex:20
 msgid "Farms Listing"
 msgstr "农场清单"
 
@@ -302,13 +303,14 @@ msgid "Save Farm"
 msgstr "保存农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.heex:6
-#: lib/peggy_web/live/location_live/index.html.heex:26
+#: lib/peggy_web/live/boar_live/index.html.heex:34
+#: lib/peggy_web/live/farm_live/form.html.heex:6 lib/peggy_web/live/location_live/index.html.heex:28
+#: lib/peggy_web/live/sow_live/index.html.heex:40
 msgid "Saving..."
 msgstr "保存中..."
 
 #, elixir-format
-#: lib/peggy/company/farm.ex:49 lib/peggy/company/farm.ex:56
+#: lib/peggy/company/farm.ex:79 lib/peggy/company/farm.ex:86
 msgid "has already been taken"
 msgstr "已经被使用"
 
@@ -323,34 +325,29 @@ msgid "Create a New Farm"
 msgstr "创建一个新农场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:75
+#: lib/peggy_web/live/farm_live/form.ex:79
 msgid "Failed to Delete Farm"
 msgstr "无法删除场"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:65
+#: lib/peggy_web/live/farm_live/form.ex:69
 msgid "Farm Deleted successfully"
 msgstr "已成功删除场"
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live/index.html.heex:9
-msgid "Farm List"
-msgstr "农场清单"
-
-#, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:116
+#: lib/peggy_web/live/farm_live/form.ex:126
 msgid "Farm created successfully"
 msgstr "农场创建成功。"
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:18
-#: lib/peggy_web/live/farm_live/form.ex:92
+#: lib/peggy_web/live/farm_live/form.ex:100
 msgid "Farm updated successfully"
 msgstr "农场更新成功。"
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:11
-#: lib/peggy_web/live/farm_live/index.ex:16
+#: lib/peggy_web/live/farm_live/index.ex:18
 msgid "Please select an active farm."
 msgstr "请选择一个活动的农场。"
 
@@ -377,11 +374,14 @@ msgid "Navigation Page"
 msgstr "导航页面"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.heex:8
+#: lib/peggy_web/live/boar_live/index.html.heex:30
+#: lib/peggy_web/live/farm_live/form.html.heex:8 lib/peggy_web/live/location_live/index.html.heex:25
+#: lib/peggy_web/live/sow_live/index.html.heex:36
 msgid "Delete"
 msgstr "删除"
 
 #, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:9
 #: lib/peggy_web/templates/layout/_user_menu.html.heex:8
 msgid "Farms"
 msgstr "农场清单"
@@ -418,7 +418,8 @@ msgid "Back"
 msgstr "返回"
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:105
+#: lib/peggy_web/live/farm_live/form.ex:106
+#: lib/peggy_web/live/farm_live/form.ex:115
 msgid "Failed to Update Farm"
 msgstr "无法删除场"
 
@@ -469,7 +470,7 @@ msgid "Not Authorise"
 msgstr "不授权"
 
 #, elixir-format
-#: lib/peggy/authorization.ex:49
+#: lib/peggy/authorization.ex:42
 msgid "Cannot change own role"
 msgstr "不能改变自己的角色"
 
@@ -479,7 +480,7 @@ msgid "user already in farm"
 msgstr "用户已经在农场"
 
 #, elixir-format
-#: lib/peggy/authorization.ex:37
+#: lib/peggy/authorization.ex:30
 msgid "Cannot invite yourself"
 msgstr "不能邀请自己"
 
@@ -529,7 +530,6 @@ msgid "Is Default Farm"
 msgstr "默认农场"
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live/index.html.heex:12
 #: lib/peggy_web/live/user_live/index.ex:11
 msgid "User List"
 msgstr "用户列表"
@@ -555,7 +555,7 @@ msgid "Authorized"
 msgstr "授权"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.ex:70
+#: lib/peggy_web/live/location_live/index.ex:72
 msgid "Delete Location Successfully"
 msgstr "成功删除位置"
 
@@ -565,12 +565,13 @@ msgid "Has Role"
 msgstr "有角色"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:26
+#: lib/peggy_web/live/boar_live/index.html.heex:34
+#: lib/peggy_web/live/location_live/index.html.heex:28 lib/peggy_web/live/sow_live/index.html.heex:40
 msgid "Insert"
 msgstr "添加"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.ex:113
+#: lib/peggy_web/live/location_live/index.ex:107
 msgid "Insert Location Successfully"
 msgstr "成功添加位置"
 
@@ -580,23 +581,25 @@ msgid "Last login "
 msgstr "上次登录"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:84
+#: lib/peggy_web/live/boar_live/index.html.heex:97
+#: lib/peggy_web/live/location_live/index.html.heex:84 lib/peggy_web/live/sow_live/index.html.heex:113
 msgid "Loading More..."
 msgstr "加载更多..."
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.ex:13
-#: lib/peggy_web/live/navigation_live/index.html.heex:14
+#: lib/peggy_web/live/location_live/index.ex:15
 msgid "Location List"
 msgstr "位置列表"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:24
+#: lib/peggy_web/live/boar_live/index.html.heex:29
+#: lib/peggy_web/live/location_live/index.html.heex:24 lib/peggy_web/live/sow_live/index.html.heex:35
 msgid "New"
 msgstr "新的"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:78
+#: lib/peggy_web/live/boar_live/index.html.heex:91
+#: lib/peggy_web/live/location_live/index.html.heex:78 lib/peggy_web/live/sow_live/index.html.heex:107
 msgid "No More..."
 msgstr "没有了..."
 
@@ -611,7 +614,8 @@ msgid "Successfully updated user role to "
 msgstr "已成功将用户角色更新为"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:23
+#: lib/peggy_web/live/boar_live/index.html.heex:27
+#: lib/peggy_web/live/location_live/index.html.heex:23 lib/peggy_web/live/sow_live/index.html.heex:33
 msgid "Update"
 msgstr "更新"
 
@@ -621,14 +625,10 @@ msgid "Update Location Successfully"
 msgstr "成功更新位置"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:23
+#: lib/peggy_web/live/boar_live/index.html.heex:27
+#: lib/peggy_web/live/location_live/index.html.heex:23 lib/peggy_web/live/sow_live/index.html.heex:33
 msgid "Updating..."
 msgstr "保存中..."
-
-#, elixir-format
-#: lib/peggy/authorization.ex:9
-msgid "User has been Disabled"
-msgstr "用户已被禁用"
 
 #, elixir-format
 #: lib/peggy_web/live/farm_live/index.html.heex:17
@@ -637,63 +637,210 @@ msgstr "你是"
 
 #, elixir-format
 #: lib/peggy_web/live/location_live/index.html.heex:13
-#: lib/peggy_web/live/location_live/index.html.heex:41
+#: lib/peggy_web/live/location_live/index.html.heex:43
 msgid "capacity"
 msgstr "容量"
 
 #, elixir-format
 #: lib/peggy_web/live/location_live/index.html.heex:10
-#: lib/peggy_web/live/location_live/index.html.heex:40
+#: lib/peggy_web/live/location_live/index.html.heex:42 lib/peggy_web/live/sow_live/index.html.heex:11
+#: lib/peggy_web/live/sow_live/index.html.heex:56
 msgid "code"
 msgstr "代码"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:33
+#: lib/peggy_web/live/location_live/index.html.heex:35
 msgid "code or status..."
 msgstr "代码或状态..."
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:48
+#: lib/peggy_web/views/form_helpers.ex:66
 msgid "never"
 msgstr "没有"
 
 #, elixir-format
 #: lib/peggy_web/live/location_live/index.html.heex:19
-#: lib/peggy_web/live/location_live/index.html.heex:43
+#: lib/peggy_web/live/location_live/index.html.heex:45
 msgid "note"
 msgstr "笔记"
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:46
+#: lib/peggy_web/views/form_helpers.ex:64
 msgid "today"
 msgstr "今天"
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:42
+#: lib/peggy_web/live/location_live/index.html.heex:44
+#: lib/peggy_web/live/sow_live/index.html.heex:57
 msgid "status"
 msgstr "状态"
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:53
+#: lib/peggy_web/views/form_helpers.ex:73
 msgid " days ago"
 msgstr "天前"
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:61
+#: lib/peggy_web/views/form_helpers.ex:81
 msgid " months ago"
 msgstr "个月前"
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:57
+#: lib/peggy_web/views/form_helpers.ex:77
 msgid " weeks ago"
 msgstr "周前"
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:70
+#: lib/peggy_web/views/form_helpers.ex:90
 msgid " year ago"
 msgstr "年前"
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:68
+#: lib/peggy_web/views/form_helpers.ex:88
 msgid " years ago"
 msgstr "年前"
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:38
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:39
+msgid "Birth to Wean(days)"
+msgstr "出生至断奶（天）"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/boar_live/index.ex:14
+msgid "Boar Listing"
+msgstr "公猪清单"
+
+#, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:16
+msgid "Boars"
+msgstr "公猪"
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:28
+#: lib/peggy_web/live/sow_live/index.html.heex:34
+msgid "Card"
+msgstr "母猪卡"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/boar_live/index.ex:73
+msgid "Delete Boar Successfully"
+msgstr "成功删除公猪"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/sow_live/index.ex:73
+msgid "Delete Sow Successfully"
+msgstr "成功删除母猪"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/farm_live/form.ex:132
+msgid "Failed to Create Farm"
+msgstr "无法删除场"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/boar_live/index.ex:108
+msgid "Insert Boar Successfully"
+msgstr "成功添加公猪"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/sow_live/index.ex:108
+msgid "Insert Sow Successfully"
+msgstr "成功添加母猪"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/navigation_live/index.html.heex:14
+msgid "Locations"
+msgstr "位置列表"
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:34
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:35
+msgid "Pair to Farrow(days)"
+msgstr "配对至分娩（天）"
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:30
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:31
+msgid "Pair to Prefarrow(days)"
+msgstr "配对至产前（天）"
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.ex:14
+msgid "Sow Listing"
+msgstr "母猪列表"
+
+#, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:15
+msgid "Sows"
+msgstr "母猪"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/boar_live/index.ex:139
+msgid "Update Boar Successfully"
+msgstr "成功更新公猪"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/sow_live/index.ex:139
+msgid "Update Sow Successfully"
+msgstr "成功更新母猪  "
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/navigation_live/index.html.heex:12
+msgid "User"
+msgstr "用户列表"
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:26
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:27
+msgid "Wean to Pair(days)"
+msgstr "断奶至配对（天）"
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:20
+#: lib/peggy_web/live/boar_live/index.html.heex:53 lib/peggy_web/live/sow_live/index.html.heex:26
+#: lib/peggy_web/live/sow_live/index.html.heex:61
+msgid "breed"
+msgstr "品种"
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.html.heex:48
+msgid "code | status | location | breed..."
+msgstr "代码|状态|位置|品种"
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:23
+#: lib/peggy_web/live/boar_live/index.html.heex:54 lib/peggy_web/live/sow_live/index.html.heex:29
+#: lib/peggy_web/live/sow_live/index.html.heex:62
+msgid "cull date"
+msgstr "淘汰日期"
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:17
+#: lib/peggy_web/live/boar_live/index.html.heex:52 lib/peggy_web/live/sow_live/index.html.heex:23
+#: lib/peggy_web/live/sow_live/index.html.heex:60
+msgid "dob"
+msgstr "生日"
+
+#, elixir-format, fuzzy
+#: lib/peggy_web/live/boar_live/index.html.heex:14
+#: lib/peggy_web/live/boar_live/index.html.heex:51 lib/peggy_web/live/sow_live/index.html.heex:17
+#: lib/peggy_web/live/sow_live/index.html.heex:58
+msgid "location"
+msgstr "位置"
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:11
+#: lib/peggy_web/live/boar_live/index.html.heex:50
+msgid "name"
+msgstr "名"
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:42
+msgid "name | location | breed..."
+msgstr "名|位置|品种"
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.html.heex:20
+#: lib/peggy_web/live/sow_live/index.html.heex:59
+msgid "parity"
+msgstr "配对"

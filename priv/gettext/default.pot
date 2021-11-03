@@ -241,27 +241,27 @@ msgid "Peggy Welcome Page"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:2
 msgid "Address Line 1"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:10
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
 msgid "Address Line 2"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:13
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
 msgid "City"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:24
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:17
 msgid "Country"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:3
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:1
 msgid "Farm Name"
 msgstr ""
 
@@ -271,17 +271,18 @@ msgid "Please Create a Farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:16
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:9
 msgid "Postal Code"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:21
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:14
 msgid "State"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/fields_component.html.heex:6
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:22
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:23
 msgid "Weight Unit"
 msgstr ""
 
@@ -291,7 +292,7 @@ msgid "Editing Farm."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/index.ex:17
+#: lib/peggy_web/live/farm_live/index.ex:20
 msgid "Farms Listing"
 msgstr ""
 
@@ -301,13 +302,14 @@ msgid "Save Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.heex:6
-#: lib/peggy_web/live/location_live/index.html.heex:26
+#: lib/peggy_web/live/boar_live/index.html.heex:34
+#: lib/peggy_web/live/farm_live/form.html.heex:6 lib/peggy_web/live/location_live/index.html.heex:28
+#: lib/peggy_web/live/sow_live/index.html.heex:40
 msgid "Saving..."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/company/farm.ex:49 lib/peggy/company/farm.ex:56
+#: lib/peggy/company/farm.ex:79 lib/peggy/company/farm.ex:86
 msgid "has already been taken"
 msgstr ""
 
@@ -322,34 +324,29 @@ msgid "Create a New Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:75
+#: lib/peggy_web/live/farm_live/form.ex:79
 msgid "Failed to Delete Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:65
+#: lib/peggy_web/live/farm_live/form.ex:69
 msgid "Farm Deleted successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live/index.html.heex:9
-msgid "Farm List"
-msgstr ""
-
-#, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:116
+#: lib/peggy_web/live/farm_live/form.ex:126
 msgid "Farm created successfully"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:18
-#: lib/peggy_web/live/farm_live/form.ex:92
+#: lib/peggy_web/live/farm_live/form.ex:100
 msgid "Farm updated successfully"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/controllers/set_active_farm_controller.ex:11
-#: lib/peggy_web/live/farm_live/index.ex:16
+#: lib/peggy_web/live/farm_live/index.ex:18
 msgid "Please select an active farm."
 msgstr ""
 
@@ -376,11 +373,14 @@ msgid "Navigation Page"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.html.heex:8
+#: lib/peggy_web/live/boar_live/index.html.heex:30
+#: lib/peggy_web/live/farm_live/form.html.heex:8 lib/peggy_web/live/location_live/index.html.heex:25
+#: lib/peggy_web/live/sow_live/index.html.heex:36
 msgid "Delete"
 msgstr ""
 
 #, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:9
 #: lib/peggy_web/templates/layout/_user_menu.html.heex:8
 msgid "Farms"
 msgstr ""
@@ -417,7 +417,8 @@ msgid "Back"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/farm_live/form.ex:105
+#: lib/peggy_web/live/farm_live/form.ex:106
+#: lib/peggy_web/live/farm_live/form.ex:115
 msgid "Failed to Update Farm"
 msgstr ""
 
@@ -468,7 +469,7 @@ msgid "Not Authorise"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/authorization.ex:49
+#: lib/peggy/authorization.ex:42
 msgid "Cannot change own role"
 msgstr ""
 
@@ -478,7 +479,7 @@ msgid "user already in farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy/authorization.ex:37
+#: lib/peggy/authorization.ex:30
 msgid "Cannot invite yourself"
 msgstr ""
 
@@ -528,7 +529,6 @@ msgid "Is Default Farm"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/navigation_live/index.html.heex:12
 #: lib/peggy_web/live/user_live/index.ex:11
 msgid "User List"
 msgstr ""
@@ -554,7 +554,7 @@ msgid "Authorized"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.ex:70
+#: lib/peggy_web/live/location_live/index.ex:72
 msgid "Delete Location Successfully"
 msgstr ""
 
@@ -564,12 +564,13 @@ msgid "Has Role"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:26
+#: lib/peggy_web/live/boar_live/index.html.heex:34
+#: lib/peggy_web/live/location_live/index.html.heex:28 lib/peggy_web/live/sow_live/index.html.heex:40
 msgid "Insert"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.ex:113
+#: lib/peggy_web/live/location_live/index.ex:107
 msgid "Insert Location Successfully"
 msgstr ""
 
@@ -579,23 +580,25 @@ msgid "Last login "
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:84
+#: lib/peggy_web/live/boar_live/index.html.heex:97
+#: lib/peggy_web/live/location_live/index.html.heex:84 lib/peggy_web/live/sow_live/index.html.heex:113
 msgid "Loading More..."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.ex:13
-#: lib/peggy_web/live/navigation_live/index.html.heex:14
+#: lib/peggy_web/live/location_live/index.ex:15
 msgid "Location List"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:24
+#: lib/peggy_web/live/boar_live/index.html.heex:29
+#: lib/peggy_web/live/location_live/index.html.heex:24 lib/peggy_web/live/sow_live/index.html.heex:35
 msgid "New"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:78
+#: lib/peggy_web/live/boar_live/index.html.heex:91
+#: lib/peggy_web/live/location_live/index.html.heex:78 lib/peggy_web/live/sow_live/index.html.heex:107
 msgid "No More..."
 msgstr ""
 
@@ -610,7 +613,8 @@ msgid "Successfully updated user role to "
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:23
+#: lib/peggy_web/live/boar_live/index.html.heex:27
+#: lib/peggy_web/live/location_live/index.html.heex:23 lib/peggy_web/live/sow_live/index.html.heex:33
 msgid "Update"
 msgstr ""
 
@@ -620,13 +624,9 @@ msgid "Update Location Successfully"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:23
+#: lib/peggy_web/live/boar_live/index.html.heex:27
+#: lib/peggy_web/live/location_live/index.html.heex:23 lib/peggy_web/live/sow_live/index.html.heex:33
 msgid "Updating..."
-msgstr ""
-
-#, elixir-format
-#: lib/peggy/authorization.ex:9
-msgid "User has been Disabled"
 msgstr ""
 
 #, elixir-format
@@ -636,63 +636,210 @@ msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/location_live/index.html.heex:13
-#: lib/peggy_web/live/location_live/index.html.heex:41
+#: lib/peggy_web/live/location_live/index.html.heex:43
 msgid "capacity"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/location_live/index.html.heex:10
-#: lib/peggy_web/live/location_live/index.html.heex:40
+#: lib/peggy_web/live/location_live/index.html.heex:42 lib/peggy_web/live/sow_live/index.html.heex:11
+#: lib/peggy_web/live/sow_live/index.html.heex:56
 msgid "code"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:33
+#: lib/peggy_web/live/location_live/index.html.heex:35
 msgid "code or status..."
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:48
+#: lib/peggy_web/views/form_helpers.ex:66
 msgid "never"
 msgstr ""
 
 #, elixir-format
 #: lib/peggy_web/live/location_live/index.html.heex:19
-#: lib/peggy_web/live/location_live/index.html.heex:43
+#: lib/peggy_web/live/location_live/index.html.heex:45
 msgid "note"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:46
+#: lib/peggy_web/views/form_helpers.ex:64
 msgid "today"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/live/location_live/index.html.heex:42
+#: lib/peggy_web/live/location_live/index.html.heex:44
+#: lib/peggy_web/live/sow_live/index.html.heex:57
 msgid "status"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:53
+#: lib/peggy_web/views/form_helpers.ex:73
 msgid " days ago"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:61
+#: lib/peggy_web/views/form_helpers.ex:81
 msgid " months ago"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:57
+#: lib/peggy_web/views/form_helpers.ex:77
 msgid " weeks ago"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:70
+#: lib/peggy_web/views/form_helpers.ex:90
 msgid " year ago"
 msgstr ""
 
 #, elixir-format
-#: lib/peggy_web/views/form_helpers.ex:68
+#: lib/peggy_web/views/form_helpers.ex:88
 msgid " years ago"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:38
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:39
+msgid "Birth to Wean"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.ex:14
+msgid "Boar Listing"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:16
+msgid "Boars"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:28
+#: lib/peggy_web/live/sow_live/index.html.heex:34
+msgid "Card"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.ex:73
+msgid "Delete Boar Successfully"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.ex:73
+msgid "Delete Sow Successfully"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/form.ex:132
+msgid "Failed to Create Farm"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.ex:108
+msgid "Insert Boar Successfully"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.ex:108
+msgid "Insert Sow Successfully"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:14
+msgid "Locations"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:34
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:35
+msgid "Pair to Farrow"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:30
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:31
+msgid "Pair to Prefarrow"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.ex:14
+msgid "Sow Listing"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:15
+msgid "Sows"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.ex:139
+msgid "Update Boar Successfully"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.ex:139
+msgid "Update Sow Successfully"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/navigation_live/index.html.heex:12
+msgid "User"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:26
+#: lib/peggy_web/live/farm_live/fields_component.html.heex:27
+msgid "Wean to Pair"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:20
+#: lib/peggy_web/live/boar_live/index.html.heex:53 lib/peggy_web/live/sow_live/index.html.heex:26
+#: lib/peggy_web/live/sow_live/index.html.heex:61
+msgid "breed"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.html.heex:48
+msgid "code | status | location | breed..."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:23
+#: lib/peggy_web/live/boar_live/index.html.heex:54 lib/peggy_web/live/sow_live/index.html.heex:29
+#: lib/peggy_web/live/sow_live/index.html.heex:62
+msgid "cull date"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:17
+#: lib/peggy_web/live/boar_live/index.html.heex:52 lib/peggy_web/live/sow_live/index.html.heex:23
+#: lib/peggy_web/live/sow_live/index.html.heex:60
+msgid "dob"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:14
+#: lib/peggy_web/live/boar_live/index.html.heex:51 lib/peggy_web/live/sow_live/index.html.heex:17
+#: lib/peggy_web/live/sow_live/index.html.heex:58
+msgid "location"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:11
+#: lib/peggy_web/live/boar_live/index.html.heex:50
+msgid "name"
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/boar_live/index.html.heex:42
+msgid "name | location | breed..."
+msgstr ""
+
+#, elixir-format
+#: lib/peggy_web/live/sow_live/index.html.heex:20
+#: lib/peggy_web/live/sow_live/index.html.heex:59
+msgid "parity"
 msgstr ""

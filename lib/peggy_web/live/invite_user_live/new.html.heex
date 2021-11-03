@@ -4,11 +4,13 @@
     <.form let={f} for={:invite_user} id="invite-form" phx_submit="invite">
       <div class="columns is-gapless">
         <div class="column is-1"><%= gettext("Invite User") %></div>
-        <%= peggy_email(f, :email, gettext("Email"), value: @email, autofocus: true, col_class: "is-3", required: true) %>
+        <div class="column is-3">
+          <%= peggy_email(f, :email, gettext("Email"), value: @email, autofocus: true, required: true) %>
+        </div>
         <div class="column is-1"><%= gettext("to join") %></div>
         <div id="invite-to-company" class="column has-text-weight-semibold is-3"><%= @current_farm_user.farm.name %></div>
         <div class="column is-2"><%= gettext("This user will have role") %></div>
-        <%= peggy_select f, :role, Company.roles, required: true %>
+        <%= peggy_select f, :role, Company.roles, required: true, class: "is-2" %>
       </div>
       <%= submit gettext("Invite"), phx_disable_with: gettext("Inviting..."), class: "button is-primary" %>
     </.form>

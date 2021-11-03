@@ -23,20 +23,20 @@
     <%= peggy_text @f, :weight_unit, gettext("Weight Unit") %>
   </div>
   <div class="column py-1">
-    <span class="tag"><%= gettext("Wean to Pair") %></span>
-    <%= peggy_text @f, :wean_to_pair, gettext("Wean to Pair") %>
+    <span class="tag"><%= gettext("Wean to Pair(days)") %></span>
+    <%= peggy_number @f, :wean_to_pair, gettext("Wean to Pair(days)") %>
   </div>
   <div class="column py-1">
-    <span class="tag"><%= gettext("Pair to Prefarrow") %></span>
-    <%= peggy_text @f, :paired_to_prefarrow, gettext("Pair to Prefarrow") %>
+    <span class="tag"><%= gettext("Pair to Prefarrow(days)") %></span>
+    <%= peggy_number @f, :paired_to_prefarrow, gettext("Pair to Prefarrow(days)") %>
   </div>
   <div class="column py-1">
-    <span class="tag"><%= gettext("Pair to Farrow") %></span>
-    <%= peggy_text @f, :paired_to_farrow, gettext("Pair to Farrow") %>
+    <span class="tag"><%= gettext("Pair to Farrow(days)") %></span>
+    <%= peggy_number @f, :paired_to_farrow, gettext("Pair to Farrow(days)") %>
   </div>
   <div class="column py-1">
-    <span class="tag"><%= gettext("Birth to Wean") %></span>
-    <%= peggy_text @f, :birth_to_wean, gettext("Birth to Wean") %>
+    <span class="tag"><%= gettext("Birth to Wean(days)") %></span>
+    <%= peggy_number @f, :birth_to_wean, gettext("Birth to Wean(days)") %>
   </div>
 </div>
 <%= datalist(Peggy.Company.countries, "countries") %>
