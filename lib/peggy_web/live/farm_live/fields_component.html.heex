@@ -1,11 +1,4 @@
-<div class="columns">
-  <div class="column is-8 pb-0">
-    <%= peggy_text @f, :name, gettext("Farm Name"), autofocus: true %>
-  </div>
-  <div class="column is-4 pb-0">
-    <%= peggy_text @f, :weight_unit, gettext("Weight Unit") %>
-  </div>
-</div>
+<%= peggy_text @f, :name, gettext("Farm Name"), autofocus: true %>
 <%= peggy_text @f, :address1, gettext("Address Line 1") %>
 <%= peggy_text @f, :address2, gettext("Address Line 2") %>
 <div class="columns">
@@ -22,6 +15,28 @@
   </div>
   <div class="column pb-0">
     <%= peggy_text @f, :country, gettext("Country"), list: "countries" %>
+  </div>
+</div>
+<div class="columns py-0">
+  <div class="column py-1">
+    <span class="tag"><%= gettext("Weight Unit") %></span>
+    <%= peggy_text @f, :weight_unit, gettext("Weight Unit") %>
+  </div>
+  <div class="column py-1">
+    <span class="tag"><%= gettext("Wean to Pair") %></span>
+    <%= peggy_text @f, :wean_to_pair, gettext("Wean to Pair") %>
+  </div>
+  <div class="column py-1">
+    <span class="tag"><%= gettext("Pair to Prefarrow") %></span>
+    <%= peggy_text @f, :paired_to_prefarrow, gettext("Pair to Prefarrow") %>
+  </div>
+  <div class="column py-1">
+    <span class="tag"><%= gettext("Pair to Farrow") %></span>
+    <%= peggy_text @f, :paired_to_farrow, gettext("Pair to Farrow") %>
+  </div>
+  <div class="column py-1">
+    <span class="tag"><%= gettext("Birth to Wean") %></span>
+    <%= peggy_text @f, :birth_to_wean, gettext("Birth to Wean") %>
   </div>
 </div>
 <%= datalist(Peggy.Company.countries, "countries") %>
