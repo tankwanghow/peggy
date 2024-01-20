@@ -1,0 +1,5 @@
+<main class={if(assigns[:current_user], do: "mt-14 mb-10", else: "")}>
+  <.flash_group flash={@flash} />
+  
+  <%= @inner_content %>
+</main>
