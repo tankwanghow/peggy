@@ -232,7 +232,7 @@ defmodule Peggy.Sys do
   end
 
   def delete_user_from_farm(com, user, admin) do
-    case can?(admin, :delete_user_from_farm, com) do
+    case can?(admin, :delete_user_from_farm, com) and admin != user do
       true ->
         uc = get_farm_user(com.id, user.id)
 

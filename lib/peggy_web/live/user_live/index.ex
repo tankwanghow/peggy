@@ -55,6 +55,7 @@ defmodule PeggyWeb.UserLive.Index do
             </div>
 
             <.delete_confirm_modal
+              :if={@current_user.id != u.id}
               id={"delete-object_#{u.id}"}
               msg1={gettext("Remove User from Farm.") <> " #{u.email}"}
               msg2={gettext("Cannot be recover.")}

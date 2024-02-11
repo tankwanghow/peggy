@@ -10,12 +10,12 @@
   </head>
   <body class="bg-pink-50">
     <%= if @current_user do %>
-      <div class="flex fixed top-0 z-10 w-full items-center justify-center text-white gap-4 bg-gray-800 p-2 shadow">
+      <div class="flex fixed top-0 z-10 w-full items-center justify-center text-white gap-4 bg-gray-800 px-2 py-1 shadow">
         <div :if={is_nil(assigns[:current_farm])} class="w-[78%] text-xl font-bold cursor-default">
           <%= gettext("Peggy") %>
         </div>
 
-        <div :if={assigns[:current_farm]} class="w-[78%] text-yellow-300 overflow-clip font-semibold">
+        <div :if={assigns[:current_farm]} class="w-[78%] text-yellow-300 overflow-clip font-bold">
           <%= @current_farm.name %>
         </div>
 
@@ -23,13 +23,13 @@
           :if={assigns[:current_farm]}
           id="peggy_main"
           navigate={~p"/farms/#{@current_farm.id}/main"}
-          class="w-[13%] rounded"
+          class="rounded"
         >
           <%= gettext("Main") %>
         </.link>
 
-        <ul class="w-[9%]">
-          <li class="group relative" tabindex="-1">
+        <ul>
+          <li class="pr-4 pt-2 group relative" tabindex="-1">
             <button class="rounded border-white">
               <Heroicons.bars_4 class="w-5 h-5" />
             </button>
