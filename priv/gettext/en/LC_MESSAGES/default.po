@@ -1,0 +1,517 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/peggy_web/live/farm_live/index.ex:156
+#, elixir-autogen, elixir-format
+msgid "%{farm} is now your default farm."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:65
+#, elixir-autogen, elixir-format
+msgid "(%{used} / %{cap} seats used)"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:34
+#, elixir-autogen, elixir-format
+msgid "Accept"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:42
+#, elixir-autogen, elixir-format
+msgid "Accept invitation"
+msgstr ""
+
+#: lib/peggy_web/components/core_components.ex:368
+#, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:30
+#, elixir-autogen, elixir-format
+msgid "Already have an account?"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:14
+#, elixir-autogen, elixir-format
+msgid "Animal registry"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:114
+#: lib/peggy_web/components/layouts.ex:126
+#, elixir-autogen, elixir-format
+msgid "Attempting to reconnect"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:46
+#, elixir-autogen, elixir-format
+msgid "Barn-floor phone app"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:22
+#, elixir-autogen, elixir-format
+msgid "Breeding calendar"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:144
+#: lib/peggy_web/live/invitation_live/show.ex:77
+#, elixir-autogen, elixir-format
+msgid "Could not accept invitation."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:160
+#, elixir-autogen, elixir-format
+msgid "Could not set default."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:74
+#, elixir-autogen, elixir-format
+msgid "Create a farm"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:102
+#, elixir-autogen, elixir-format
+msgid "Create farm"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:67
+#, elixir-autogen, elixir-format
+msgid "Create your farm"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:102
+#, elixir-autogen, elixir-format
+msgid "Creating..."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/dashboard.ex:24
+#, elixir-autogen, elixir-format
+msgid "Dashboard placeholder — Phase 8 will populate today's tasks, mortality, sows due, vax due."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:53
+#, elixir-autogen, elixir-format
+msgid "Default"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:35
+#, elixir-autogen, elixir-format
+msgid "Different email required"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:69
+#, elixir-autogen, elixir-format
+msgid "Email"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:66
+#, elixir-autogen, elixir-format
+msgid "Enter"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:16
+#, elixir-autogen, elixir-format
+msgid "Farm profile"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:137
+#, elixir-autogen, elixir-format
+msgid "Farm saved."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:13
+#, elixir-autogen, elixir-format
+msgid "Farm settings - %{name}"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:38
+#, elixir-autogen, elixir-format
+msgid "Feed & growth"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:31
+#, elixir-autogen, elixir-format
+msgid "Free"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:30
+#, elixir-autogen, elixir-format
+msgid "Health & withdrawal"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:24
+#, elixir-autogen, elixir-format
+msgid "Heat, service, gestation, farrowing and weaning — with farrowing forecasts and sow performance surfaced automatically."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:100
+#: lib/peggy_web/live/farm_live/settings.ex:25
+#, elixir-autogen, elixir-format
+msgid "Imperial"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:13
+#, elixir-autogen, elixir-format
+msgid "Invitation not valid"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:178
+#, elixir-autogen, elixir-format
+msgid "Invitation revoked."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:158
+#, elixir-autogen, elixir-format
+msgid "Invitation sent."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:63
+#, elixir-autogen, elixir-format
+msgid "Invite a member"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:40
+#, elixir-autogen, elixir-format
+msgid "Join %{farm}"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:68
+#: lib/peggy_web/live/invitation_live/show.ex:31
+#, elixir-autogen, elixir-format
+msgid "Log in"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:21
+#, elixir-autogen, elixir-format
+msgid "Log in or register with"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:18
+#, elixir-autogen, elixir-format
+msgid "Log in to accept"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:63
+#, elixir-autogen, elixir-format
+msgid "Log out"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:37
+#, elixir-autogen, elixir-format
+msgid "Log out and try again."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:74
+#, elixir-autogen, elixir-format
+msgid "Manager"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:199
+#, elixir-autogen, elixir-format
+msgid "Member removed."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:39
+#, elixir-autogen, elixir-format
+msgid "Members"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:100
+#: lib/peggy_web/live/farm_live/settings.ex:25
+#, elixir-autogen, elixir-format
+msgid "Metric"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:56
+#, elixir-autogen, elixir-format
+msgid "My farms"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:82
+#: lib/peggy_web/live/farm_live/settings.ex:18
+#, elixir-autogen, elixir-format
+msgid "Name"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:70
+#, elixir-autogen, elixir-format
+msgid "No farms yet."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:95
+#, elixir-autogen, elixir-format
+msgid "None."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:106
+#: lib/peggy_web/live/farm_live/settings.ex:186
+#, elixir-autogen, elixir-format
+msgid "Not authorized."
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:48
+#, elixir-autogen, elixir-format
+msgid "Offline-first PWA with QR/RFID scanning, large touch targets, and a write queue that syncs when you're back on Wi-Fi."
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:7
+#, elixir-autogen, elixir-format
+msgid "Peggy is a farm management system for swine operations — breeding, health, feed, growth and sales in one place. Built for the desktop office and the barn floor."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:18
+#: lib/peggy_web/live/farm_live/settings.ex:79
+#, elixir-autogen, elixir-format
+msgid "Pending invitations"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:14
+#, elixir-autogen, elixir-format
+msgid "Pick a farm to enter, or create a new one."
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:56
+#, elixir-autogen, elixir-format
+msgid "Pigs weaned / sow / year, farrowing rate, pre-wean mortality — and a traceability report per animal or batch."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:30
+#, elixir-autogen, elixir-format
+msgid "Plan"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:31
+#, elixir-autogen, elixir-format
+msgid "Pro"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:40
+#, elixir-autogen, elixir-format
+msgid "Ration library, daily feedings, weight records — with ADG and FCR computed per batch."
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:62
+#, elixir-autogen, elixir-format
+msgid "Ready to ear-tag your first pig?"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:27
+#, elixir-autogen, elixir-format
+msgid "Register"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:55
+#, elixir-autogen, elixir-format
+msgid "Remove"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:53
+#, elixir-autogen, elixir-format
+msgid "Remove this member?"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:54
+#, elixir-autogen, elixir-format
+msgid "Reports & KPIs"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:92
+#, elixir-autogen, elixir-format
+msgid "Revoke"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:73
+#, elixir-autogen, elixir-format
+msgid "Role"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:41
+#, elixir-autogen, elixir-format
+msgid "Role:"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/dashboard.ex:11
+#: lib/peggy_web/live/farm_live/index.ex:27
+#, elixir-autogen, elixir-format
+msgid "Role: %{role}"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:4
+#, elixir-autogen, elixir-format
+msgid "Run your pig farm, not your spreadsheet."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:34
+#, elixir-autogen, elixir-format
+msgid "Save changes"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:34
+#, elixir-autogen, elixir-format
+msgid "Saving..."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:33
+#, elixir-autogen, elixir-format
+msgid "Seat limit"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:165
+#, elixir-autogen, elixir-format
+msgid "Seat limit (%{cap}) reached. Raise it in farm settings or remove a member."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:76
+#, elixir-autogen, elixir-format
+msgid "Send invitation"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:76
+#, elixir-autogen, elixir-format
+msgid "Sending..."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:63
+#, elixir-autogen, elixir-format
+msgid "Set as default"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:59
+#: lib/peggy_web/live/farm_live/dashboard.ex:18
+#, elixir-autogen, elixir-format
+msgid "Settings"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:72
+#, elixir-autogen, elixir-format
+msgid "Sign up"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:86
+#: lib/peggy_web/live/farm_live/settings.ex:19
+#, elixir-autogen, elixir-format
+msgid "Slug"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:121
+#, elixir-autogen, elixir-format
+msgid "Something went wrong!"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:64
+#, elixir-autogen, elixir-format
+msgid "Start free. Invite your team. Bring your farm online in an afternoon."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:140
+#: lib/peggy_web/live/invitation_live/show.ex:74
+#, elixir-autogen, elixir-format
+msgid "That farm is full — ask an owner to free up a seat."
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:37
+#, elixir-autogen, elixir-format
+msgid "This invitation is for"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:15
+#, elixir-autogen, elixir-format
+msgid "This invitation link is invalid, expired, or already accepted."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:93
+#: lib/peggy_web/live/farm_live/settings.ex:20
+#, elixir-autogen, elixir-format
+msgid "Timezone"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:16
+#, elixir-autogen, elixir-format
+msgid "Track individuals and batches across pens, barns, and houses with a full movement history and genealogy."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:99
+#: lib/peggy_web/live/farm_live/settings.ex:24
+#, elixir-autogen, elixir-format
+msgid "Units"
+msgstr ""
+
+#: lib/peggy_web/controllers/page_html/home.html.heex:32
+#, elixir-autogen, elixir-format
+msgid "Vaccination schedules, treatment logs and automatic drug-withdrawal enforcement before any sale or slaughter."
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:74
+#, elixir-autogen, elixir-format
+msgid "Veterinarian"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:109
+#, elixir-autogen, elixir-format
+msgid "We can't find the internet"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:134
+#: lib/peggy_web/live/invitation_live/show.ex:69
+#, elixir-autogen, elixir-format
+msgid "Welcome to %{farm}!"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:74
+#, elixir-autogen, elixir-format
+msgid "Worker"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/settings.ex:195
+#, elixir-autogen, elixir-format
+msgid "You cannot remove yourself."
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:20
+#, elixir-autogen, elixir-format
+msgid "You've been invited to join"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:51
+#, elixir-autogen, elixir-format
+msgid "Your default farm"
+msgstr ""
+
+#: lib/peggy_web/live/farm_live/index.ex:13
+#, elixir-autogen, elixir-format
+msgid "Your farms"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:32
+#, elixir-autogen, elixir-format
+msgid "and return here."
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:21
+#, elixir-autogen, elixir-format
+msgid "as"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:37
+#, elixir-autogen, elixir-format
+msgid "but you are logged in as"
+msgstr ""
+
+#: lib/peggy_web/components/core_components.ex:74
+#, elixir-autogen, elixir-format
+msgid "close"
+msgstr ""
+
+#: lib/peggy_web/live/invitation_live/show.ex:21
+#, elixir-autogen, elixir-format
+msgid "then open this link again."
+msgstr ""

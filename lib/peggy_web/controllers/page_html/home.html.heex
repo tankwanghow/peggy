@@ -1,0 +1,70 @@
+<Layouts.app flash={@flash} current_scope={@current_scope}>
+  <section class="py-16 text-center">
+    <h1 class="text-4xl sm:text-5xl font-bold tracking-tight">
+      {gettext("Run your pig farm, not your spreadsheet.")}
+    </h1>
+    <p class="mt-5 text-lg text-base-content/70 max-w-2xl mx-auto">
+      {gettext("Peggy is a farm management system for swine operations — breeding, health, feed, growth and sales in one place. Built for the desktop office and the barn floor.")}
+    </p>
+  </section>
+
+  <section class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-8">
+    <div class="card bg-base-200 p-5">
+      <.icon name="hero-identification" class="size-6 text-primary" />
+      <h3 class="mt-3 font-semibold">{gettext("Animal registry")}</h3>
+      <p class="text-sm text-base-content/70 mt-1">
+        {gettext("Track individuals and batches across pens, barns, and houses with a full movement history and genealogy.")}
+      </p>
+    </div>
+
+    <div class="card bg-base-200 p-5">
+      <.icon name="hero-calendar-days" class="size-6 text-primary" />
+      <h3 class="mt-3 font-semibold">{gettext("Breeding calendar")}</h3>
+      <p class="text-sm text-base-content/70 mt-1">
+        {gettext("Heat, service, gestation, farrowing and weaning — with farrowing forecasts and sow performance surfaced automatically.")}
+      </p>
+    </div>
+
+    <div class="card bg-base-200 p-5">
+      <.icon name="hero-heart" class="size-6 text-primary" />
+      <h3 class="mt-3 font-semibold">{gettext("Health & withdrawal")}</h3>
+      <p class="text-sm text-base-content/70 mt-1">
+        {gettext("Vaccination schedules, treatment logs and automatic drug-withdrawal enforcement before any sale or slaughter.")}
+      </p>
+    </div>
+
+    <div class="card bg-base-200 p-5">
+      <.icon name="hero-scale" class="size-6 text-primary" />
+      <h3 class="mt-3 font-semibold">{gettext("Feed & growth")}</h3>
+      <p class="text-sm text-base-content/70 mt-1">
+        {gettext("Ration library, daily feedings, weight records — with ADG and FCR computed per batch.")}
+      </p>
+    </div>
+
+    <div class="card bg-base-200 p-5">
+      <.icon name="hero-device-phone-mobile" class="size-6 text-primary" />
+      <h3 class="mt-3 font-semibold">{gettext("Barn-floor phone app")}</h3>
+      <p class="text-sm text-base-content/70 mt-1">
+        {gettext("Offline-first PWA with QR/RFID scanning, large touch targets, and a write queue that syncs when you're back on Wi-Fi.")}
+      </p>
+    </div>
+
+    <div class="card bg-base-200 p-5">
+      <.icon name="hero-chart-bar" class="size-6 text-primary" />
+      <h3 class="mt-3 font-semibold">{gettext("Reports & KPIs")}</h3>
+      <p class="text-sm text-base-content/70 mt-1">
+        {gettext("Pigs weaned / sow / year, farrowing rate, pre-wean mortality — and a traceability report per animal or batch.")}
+      </p>
+    </div>
+  </section>
+
+  <section class="mt-16 py-10 text-center border-t border-base-300">
+    <h2 class="text-2xl font-semibold">{gettext("Ready to ear-tag your first pig?")}</h2>
+    <p class="mt-2 text-base-content/70">
+      {gettext("Start free. Invite your team. Bring your farm online in an afternoon.")}
+    </p>
+    <.link navigate={~p"/users/register"} class="btn btn-primary mt-6">
+      {gettext("Create your farm")}
+    </.link>
+  </section>
+</Layouts.app>
