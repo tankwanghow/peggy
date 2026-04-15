@@ -56,7 +56,9 @@ defmodule PeggyWeb.Layouts do
               <.link navigate={~p"/farms"} class="btn btn-ghost btn-sm">{gettext("My farms")}</.link>
             </li>
             <li>
-              <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm">{gettext("Settings")}</.link>
+              <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm">
+                {gettext("Settings")}
+              </.link>
             </li>
             <li>
               <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm">
@@ -65,7 +67,9 @@ defmodule PeggyWeb.Layouts do
             </li>
           <% else %>
             <li>
-              <.link navigate={~p"/users/log-in"} class="btn btn-ghost btn-sm">{gettext("Log in")}</.link>
+              <.link navigate={~p"/users/log-in"} class="btn btn-ghost btn-sm">
+                {gettext("Log in")}
+              </.link>
             </li>
             <li>
               <.link navigate={~p"/users/register"} class="btn btn-primary btn-sm">

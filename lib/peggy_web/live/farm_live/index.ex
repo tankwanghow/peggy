@@ -24,7 +24,9 @@ defmodule PeggyWeb.FarmLive.Index do
             >
               <div>
                 <div class="font-medium">{inv.farm.name}</div>
-                <div class="text-sm text-base-content/60">{gettext("Role: %{role}", role: inv.role)}</div>
+                <div class="text-sm text-base-content/60">
+                  {gettext("Role: %{role}", role: inv.role)}
+                </div>
               </div>
               <button
                 phx-click="accept_invitation"
@@ -67,13 +69,17 @@ defmodule PeggyWeb.FarmLive.Index do
               </.link>
             </div>
           </li>
-          <li :if={@memberships == []} class="py-6 text-base-content/60">{gettext("No farms yet.")}</li>
+          <li :if={@memberships == []} class="py-6 text-base-content/60">
+            {gettext("No farms yet.")}
+          </li>
         </ul>
 
         <section :if={@archived_farms != []} class="mt-10">
           <h2 class="text-lg font-semibold">{gettext("Archived farms")}</h2>
           <p class="text-sm text-base-content/60 mt-1">
-            {gettext("Archived farms are hidden from members and will be permanently purged 30 days after archival.")}
+            {gettext(
+              "Archived farms are hidden from members and will be permanently purged 30 days after archival."
+            )}
           </p>
           <ul id="archived-farms" class="mt-3 divide-y divide-base-300">
             <li
@@ -128,7 +134,9 @@ defmodule PeggyWeb.FarmLive.Index do
               label={gettext("Units")}
               options={[{gettext("Metric"), "metric"}, {gettext("Imperial"), "imperial"}]}
             />
-            <.button phx-disable-with={gettext("Creating...")} class="btn btn-primary">{gettext("Create farm")}</.button>
+            <.button phx-disable-with={gettext("Creating...")} class="btn btn-primary">
+              {gettext("Create farm")}
+            </.button>
           </.form>
         </div>
       </div>
@@ -194,7 +202,9 @@ defmodule PeggyWeb.FarmLive.Index do
 
   def handle_event("set_default", %{"farm-id" => farm_id}, socket) do
     user = socket.assigns.current_scope.user
-    {farm, _} = Enum.find(socket.assigns.memberships, fn {f, _} -> f.id == String.to_integer(farm_id) end)
+
+    {farm, _} =
+      Enum.find(socket.assigns.memberships, fn {f, _} -> f.id == String.to_integer(farm_id) end)
 
     case Farms.set_default_farm(user, farm) do
       :ok ->

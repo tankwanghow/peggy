@@ -14,7 +14,13 @@ defmodule PeggyWeb.FarmLive.Settings do
 
         <section class="mt-8">
           <h2 class="text-lg font-semibold">{gettext("Farm profile")}</h2>
-          <.form for={@farm_form} id="farm-form" phx-submit="save_farm" phx-change="validate_farm" class="mt-3 space-y-3">
+          <.form
+            for={@farm_form}
+            id="farm-form"
+            phx-submit="save_farm"
+            phx-change="validate_farm"
+            class="mt-3 space-y-3"
+          >
             <.input field={@farm_form[:name]} type="text" label={gettext("Name")} required />
             <.input field={@farm_form[:slug]} type="text" label={gettext("Slug")} required />
             <.input field={@farm_form[:timezone]} type="text" label={gettext("Timezone")} required />
@@ -31,7 +37,9 @@ defmodule PeggyWeb.FarmLive.Settings do
               options={[{gettext("Free"), "free"}, {gettext("Pro"), "pro"}]}
             />
             <.input field={@farm_form[:seat_limit]} type="number" label={gettext("Seat limit")} />
-            <.button class="btn btn-primary" phx-disable-with={gettext("Saving...")}>{gettext("Save changes")}</.button>
+            <.button class="btn btn-primary" phx-disable-with={gettext("Saving...")}>
+              {gettext("Save changes")}
+            </.button>
           </.form>
         </section>
 
@@ -62,7 +70,10 @@ defmodule PeggyWeb.FarmLive.Settings do
           <h2 class="text-lg font-semibold">
             {gettext("Invite a member")}
             <span class="ml-2 text-sm text-base-content/60 font-normal">
-              {gettext("(%{used} / %{cap} seats used)", used: @seats_used, cap: @current_scope.farm.seat_limit)}
+              {gettext("(%{used} / %{cap} seats used)",
+                used: @seats_used,
+                cap: @current_scope.farm.seat_limit
+              )}
             </span>
           </h2>
           <.form for={@invite_form} id="invite-form" phx-submit="invite" class="mt-3 space-y-3">
@@ -71,9 +82,15 @@ defmodule PeggyWeb.FarmLive.Settings do
               field={@invite_form[:role]}
               type="select"
               label={gettext("Role")}
-              options={[{gettext("Manager"), "manager"}, {gettext("Worker"), "worker"}, {gettext("Veterinarian"), "vet"}]}
+              options={[
+                {gettext("Manager"), "manager"},
+                {gettext("Worker"), "worker"},
+                {gettext("Veterinarian"), "vet"}
+              ]}
             />
-            <.button class="btn btn-primary" phx-disable-with={gettext("Sending...")}>{gettext("Send invitation")}</.button>
+            <.button class="btn btn-primary" phx-disable-with={gettext("Sending...")}>
+              {gettext("Send invitation")}
+            </.button>
           </.form>
 
           <h3 class="mt-6 font-semibold">{gettext("Pending invitations")}</h3>
@@ -96,10 +113,15 @@ defmodule PeggyWeb.FarmLive.Settings do
           </ul>
         </section>
 
-        <section :if={Policy.can?(@current_scope, :delete_farm)} class="mt-12 border-t border-error/30 pt-6">
+        <section
+          :if={Policy.can?(@current_scope, :delete_farm)}
+          class="mt-12 border-t border-error/30 pt-6"
+        >
           <h2 class="text-lg font-semibold text-error">{gettext("Danger zone")}</h2>
           <p class="mt-2 text-sm text-base-content/70">
-            {gettext("Archiving hides this farm from all members immediately. You have 30 days to restore it from your farms list before it is permanently purged.")}
+            {gettext(
+              "Archiving hides this farm from all members immediately. You have 30 days to restore it from your farms list before it is permanently purged."
+            )}
           </p>
           <.form
             for={%{}}
@@ -112,7 +134,9 @@ defmodule PeggyWeb.FarmLive.Settings do
               name="archive[slug_confirm]"
               value=""
               type="text"
-              label={gettext("Type the farm slug (%{slug}) to confirm", slug: @current_scope.farm.slug)}
+              label={
+                gettext("Type the farm slug (%{slug}) to confirm", slug: @current_scope.farm.slug)
+              }
               required
               autocomplete="off"
             />
@@ -192,7 +216,9 @@ defmodule PeggyWeb.FarmLive.Settings do
          put_flash(
            socket,
            :error,
-           gettext("Seat limit (%{cap}) reached. Raise it in farm settings or remove a member.", cap: farm.seat_limit)
+           gettext("Seat limit (%{cap}) reached. Raise it in farm settings or remove a member.",
+             cap: farm.seat_limit
+           )
          )}
 
       {:error, %Ecto.Changeset{} = changeset} ->
@@ -248,7 +274,12 @@ defmodule PeggyWeb.FarmLive.Settings do
           {:ok, _farm} ->
             {:noreply,
              socket
-             |> put_flash(:info, gettext("%{farm} archived. Restore within 30 days from your farms list.", farm: farm.name))
+             |> put_flash(
+               :info,
+               gettext("%{farm} archived. Restore within 30 days from your farms list.",
+                 farm: farm.name
+               )
+             )
              |> push_navigate(to: ~p"/farms")}
 
           {:error, _} ->

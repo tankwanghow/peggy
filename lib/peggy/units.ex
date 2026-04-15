@@ -19,6 +19,9 @@ defmodule Peggy.Units do
 
   @spec format_temperature(number() | nil, system()) :: String.t()
   def format_temperature(nil, _), do: ""
-  def format_temperature(c, "imperial") when is_number(c), do: "#{Float.round(c * 9 / 5 + 32, 1)} °F"
+
+  def format_temperature(c, "imperial") when is_number(c),
+    do: "#{Float.round(c * 9 / 5 + 32, 1)} °F"
+
   def format_temperature(c, _metric) when is_number(c), do: "#{Float.round(c * 1.0, 1)} °C"
 end

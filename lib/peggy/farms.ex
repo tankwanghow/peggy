@@ -9,9 +9,12 @@ defmodule Peggy.Farms do
 
   import Ecto.Query
   alias Ecto.Multi
-  alias Peggy.Repo
-  alias Peggy.Accounts.User
+  alias Peggy.{Repo, Audit}
+  alias Peggy.Accounts.{Scope, User}
   alias Peggy.Farms.{Farm, Membership, Invitation}
+
+  defp scope_for(%User{} = user, %Farm{} = farm),
+    do: %Scope{user: user, farm: farm}
 
   ## Farms
 
@@ -88,6 +91,15 @@ defmodule Peggy.Farms do
         accepted_at: now
       })
     end)
+    |> Multi.run(:audit, fn _repo, %{farm: farm, membership: m} ->
+      Audit.log_now!(scope_for(user, farm), "farm.created",
+        entity_type: :farm,
+        entity_id: farm.id,
+        changes: %{name: farm.name, slug: farm.slug, owner_membership_id: m.id}
+      )
+
+      {:ok, :logged}
+    end)
     |> Repo.transaction()
     |> case do
       {:ok, %{farm: farm}} -> {:ok, farm}
@@ -119,6 +131,15 @@ defmodule Peggy.Farms do
       :revoke_invitations,
       from(i in Invitation, where: i.farm_id == ^farm.id and is_nil(i.accepted_at))
     )
+    |> Multi.run(:audit, fn _repo, _ ->
+      Audit.log_now!(scope_for(actor, farm), "farm.archived",
+        entity_type: :farm,
+        entity_id: farm.id,
+        changes: %{deleted_at: now}
+      )
+
+      {:ok, :logged}
+    end)
     |> Repo.transaction()
     |> case do
       {:ok, %{farm: farm}} -> {:ok, farm}
@@ -280,8 +301,7 @@ defmodule Peggy.Farms do
     pending =
       Repo.aggregate(
         from(i in Invitation,
-          where:
-            i.farm_id == ^farm_id and is_nil(i.accepted_at) and i.expires_at > ^now
+          where: i.farm_id == ^farm_id and is_nil(i.accepted_at) and i.expires_at > ^now
         ),
         :count
       )

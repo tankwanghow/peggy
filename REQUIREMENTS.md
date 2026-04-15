@@ -21,7 +21,7 @@ Initial Requirements
 - Individual pigs (ear tag / RFID) and batch-level tracking
 - Lifecycle stages: piglet, weaner, grower, finisher, sow, boar, cull
 - Parentage (sire/dam), genealogy view
-- Pen/barn/house hierarchy with capacity limits
+- House → pen hierarchy with capacity limits
 - Movement log (pen-to-pen, farm-to-farm, sale, slaughter, death)
 
 ## 4. Breeding & Reproduction

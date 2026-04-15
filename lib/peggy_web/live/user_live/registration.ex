@@ -49,10 +49,11 @@ defmodule PeggyWeb.UserLive.Registration do
   end
 
   def mount(params, _session, socket) do
-    attrs = case params do
-      %{"email" => email} when is_binary(email) -> %{"email" => email}
-      _ -> %{}
-    end
+    attrs =
+      case params do
+        %{"email" => email} when is_binary(email) -> %{"email" => email}
+        _ -> %{}
+      end
 
     changeset = Accounts.change_user_email(%User{}, attrs, validate_unique: false)
 

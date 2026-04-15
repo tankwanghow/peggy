@@ -18,7 +18,9 @@ defmodule PeggyWeb.InvitationLive.Show do
             <.header>{gettext("Log in to accept")}</.header>
             <p class="mt-4">
               {gettext("You've been invited to join")} <b>{@invitation.farm.name}</b>
-              {gettext("as")} <b>{@invitation.role}</b>. {gettext("Log in or register with")} <b>{@invitation.email}</b>, {gettext("then open this link again.")}
+              {gettext("as")} <b>{@invitation.role}</b>. {gettext("Log in or register with")} <b>{@invitation.email}</b>, {gettext(
+                "then open this link again."
+              )}
             </p>
             <.link
               navigate={~p"/users/register?email=#{@invitation.email}"}
@@ -28,18 +30,24 @@ defmodule PeggyWeb.InvitationLive.Show do
             </.link>
             <p class="mt-3 text-sm text-base-content/60">
               {gettext("Already have an account?")}
-              <.link navigate={~p"/users/log-in"} class="link link-primary">{gettext("Log in")}</.link>
+              <.link navigate={~p"/users/log-in"} class="link link-primary">
+                {gettext("Log in")}
+              </.link>
               {gettext("and return here.")}
             </p>
           <% :email_mismatch -> %>
             <.header>{gettext("Different email required")}</.header>
             <p class="mt-4">
-              {gettext("This invitation is for")} <b>{@invitation.email}</b>, {gettext("but you are logged in as")} <b>{@current_scope.user.email}</b>. {gettext("Log out and try again.")}
+              {gettext("This invitation is for")} <b>{@invitation.email}</b>, {gettext(
+                "but you are logged in as"
+              )} <b>{@current_scope.user.email}</b>. {gettext("Log out and try again.")}
             </p>
           <% :ready -> %>
             <.header>{gettext("Join %{farm}", farm: @invitation.farm.name)}</.header>
             <p class="mt-4">{gettext("Role:")} <b>{@invitation.role}</b></p>
-            <button phx-click="accept" class="btn btn-primary mt-6">{gettext("Accept invitation")}</button>
+            <button phx-click="accept" class="btn btn-primary mt-6">
+              {gettext("Accept invitation")}
+            </button>
         <% end %>
       </div>
     </Layouts.app>

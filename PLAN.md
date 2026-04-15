@@ -69,9 +69,10 @@ Two users in two farms; neither can see the other's data; invitation flow works 
 Foundation that every later domain depends on.
 
 ### Schemas
-- `locations.houses` — farm_id, name, code
-- `locations.barns` — house_id, name, code
-- `locations.pens` — barn_id, name, code, capacity, purpose (`:breeding`|`:gestation`|`:farrowing`|`:nursery`|`:grower`|`:finisher`|`:quarantine`|`:hospital`), status (`:active`|`:quarantine`|`:cleaning`|`:retired`)
+- `locations.houses` — farm_id, name, code (unique per farm), purpose (`:breeding`|`:gestation`|`:farrowing`|`:nursery`|`:grower`|`:finisher`|`:quarantine`|`:hospital`)
+- `locations.pens` — farm_id, house_id, name, code (unique per house), capacity, status (`:active`|`:quarantine`|`:cleaning`|`:retired`)
+
+Hierarchy is flat: **house → pen**. Barn tier was dropped during Phase 2 as unnecessary for the target farms. `purpose` lives on the house (all pens in a house share it); pens track only physical capacity and operational status.
 - `audit.audit_logs` — farm_id, actor_user_id, action (string), entity_type, entity_id, changes (jsonb diff), inserted_at (immutable — no `updated_at`, no UPDATE privilege in migration)
 
 ### Contexts
@@ -79,7 +80,7 @@ Foundation that every later domain depends on.
 - `Peggy.Audit.log!/4` — called inside every mutating transaction via `Ecto.Multi`
 
 ### UI
-- `/farms/:slug/locations` — tree view (houses → barns → pens) with inline edit
+- `/farms/:slug/locations` — tree view (houses → pens) with inline edit
 - `/farms/:slug/audit` — filterable table (owner/manager), streamed
 
 ### Done when

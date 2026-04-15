@@ -67,6 +67,9 @@ defmodule PeggyWeb.Router do
       ] do
       live "/farms/:farm_slug", FarmLive.Dashboard, :show
       live "/farms/:farm_slug/settings", FarmLive.Settings, :edit
+      live "/farms/:farm_slug/locations", FarmLive.Locations, :index
+      live "/farms/:farm_slug/locations/houses/:id", FarmLive.HouseDetail, :show
+      live "/farms/:farm_slug/audit", FarmLive.Audit, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password
