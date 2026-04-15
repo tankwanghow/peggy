@@ -40,8 +40,8 @@ defmodule PeggyWeb.Layouts do
         <.link navigate={~p"/"} class="flex items-center gap-2 font-bold text-lg">
           <span class="text-2xl">🐷</span>
           <span>Peggy</span>
-          <span :if={@current_scope && @current_scope.farm} class="text-base-content/60 font-normal">
-            - ({@current_scope.farm.slug})
+          <span :if={@current_scope && @current_scope.farm} class="text-base-content/60 font-normal font-mono">
+            ({@current_scope.farm.slug})
           </span>
         </.link>
       </div>
@@ -81,6 +81,8 @@ defmodule PeggyWeb.Layouts do
       </div>
     </header>
 
+    <.farm_nav :if={@current_scope && @current_scope.farm} current_scope={@current_scope} />
+
     <main class="px-4 py-10 sm:px-6 lg:px-8">
       <div class="mx-auto max-w-5xl space-y-4">
         {render_slot(@inner_block)}
@@ -88,6 +90,55 @@ defmodule PeggyWeb.Layouts do
     </main>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :current_scope, :map, required: true
+
+  defp farm_nav(assigns) do
+    ~H"""
+    <nav class="border-b border-base-300 bg-base-200/50 px-4 sm:px-6 lg:px-8">
+      <div class="mx-auto max-w-5xl flex items-center gap-1 overflow-x-auto text-sm">
+        <.farm_nav_link
+          href={~p"/farms/#{@current_scope.farm.slug}"}
+          icon="hero-home-micro"
+          label={gettext("Dashboard")}
+        />
+        <.farm_nav_link
+          href={~p"/farms/#{@current_scope.farm.slug}/locations"}
+          icon="hero-map-pin-micro"
+          label={gettext("Locations")}
+        />
+        <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :view_audit)}
+          href={~p"/farms/#{@current_scope.farm.slug}/audit"}
+          icon="hero-clipboard-document-list-micro"
+          label={gettext("Audit")}
+        />
+        <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :manage_farm_settings)}
+          href={~p"/farms/#{@current_scope.farm.slug}/settings"}
+          icon="hero-cog-6-tooth-micro"
+          label={gettext("Settings")}
+        />
+      </div>
+    </nav>
+    """
+  end
+
+  attr :href, :string, required: true
+  attr :icon, :string, required: true
+  attr :label, :string, required: true
+
+  defp farm_nav_link(assigns) do
+    ~H"""
+    <.link
+      navigate={@href}
+      class="flex items-center gap-1.5 px-3 py-2.5 rounded-md text-base-content/70 hover:text-base-content hover:bg-base-300/50 transition-colors whitespace-nowrap"
+    >
+      <.icon name={@icon} class="size-4" />
+      {@label}
+    </.link>
     """
   end
 

@@ -9,28 +9,6 @@ defmodule PeggyWeb.FarmLive.Dashboard do
         <.header>
           {@current_scope.farm.name}
           <:subtitle>{gettext("Role: %{role}", role: @current_scope.role)}</:subtitle>
-          <:actions>
-            <.link
-              navigate={~p"/farms/#{@current_scope.farm.slug}/locations"}
-              class="btn btn-ghost"
-            >
-              {gettext("Locations")}
-            </.link>
-            <.link
-              :if={Peggy.Policy.can?(@current_scope, :view_audit)}
-              navigate={~p"/farms/#{@current_scope.farm.slug}/audit"}
-              class="btn btn-ghost"
-            >
-              {gettext("Audit")}
-            </.link>
-            <.link
-              :if={Peggy.Policy.can?(@current_scope, :manage_farm_settings)}
-              navigate={~p"/farms/#{@current_scope.farm.slug}/settings"}
-              class="btn btn-ghost"
-            >
-              {gettext("Settings")}
-            </.link>
-          </:actions>
         </.header>
 
         <p class="mt-8 text-base-content/70">

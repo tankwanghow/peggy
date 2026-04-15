@@ -22,7 +22,13 @@ defmodule PeggyWeb.FarmLive.Settings do
             class="mt-3 space-y-3"
           >
             <.input field={@farm_form[:name]} type="text" label={gettext("Name")} required />
-            <.input field={@farm_form[:slug]} type="text" label={gettext("Slug")} required />
+            <.input
+              field={@farm_form[:slug]}
+              type="text"
+              label={gettext("Slug")}
+              class="w-full input font-mono"
+              required
+            />
             <.input field={@farm_form[:timezone]} type="text" label={gettext("Timezone")} required />
             <.input
               field={@farm_form[:unit_system]}
@@ -137,6 +143,7 @@ defmodule PeggyWeb.FarmLive.Settings do
               label={
                 gettext("Type the farm slug (%{slug}) to confirm", slug: @current_scope.farm.slug)
               }
+              class="w-full input font-mono"
               required
               autocomplete="off"
             />

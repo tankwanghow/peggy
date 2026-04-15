@@ -45,7 +45,7 @@ defmodule Peggy.Locations do
     Multi.new()
     |> Multi.insert(:house, cs)
     |> audit_after(scope, "house.created", :house, fn h ->
-      %{name: h.name, code: h.code, purpose: h.purpose}
+      %{code: h.code, purpose: h.purpose}
     end)
     |> Repo.transaction()
     |> unwrap(:house)
@@ -67,7 +67,7 @@ defmodule Peggy.Locations do
     |> Audit.log!(scope, "house.deleted",
       entity_type: :house,
       entity_id: house.id,
-      changes: %{name: house.name, code: house.code}
+      changes: %{code: house.code}
     )
     |> Repo.transaction()
     |> unwrap(:house)

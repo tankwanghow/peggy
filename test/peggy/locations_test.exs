@@ -16,7 +16,7 @@ defmodule Peggy.LocationsTest do
 
   describe "houses and pens CRUD" do
     test "creates a tree and lists it", %{scope: scope} do
-      house = house_fixture(scope, name: "North", code: "N")
+      house = house_fixture(scope, code: "N")
       _pen = pen_fixture(scope, house, code: "p1", capacity: 10)
 
       [h] = Locations.list_houses(scope)
@@ -50,7 +50,7 @@ defmodule Peggy.LocationsTest do
 
     test "validates house purpose", %{scope: scope} do
       assert {:error, cs} =
-               Locations.create_house(scope, %{name: "H", code: "h", purpose: "invalid"})
+               Locations.create_house(scope, %{code: "h", purpose: "invalid"})
 
       assert %{purpose: _} = errors_on(cs)
     end
@@ -70,9 +70,9 @@ defmodule Peggy.LocationsTest do
 
   describe "audit" do
     test "mutations write audit log rows", %{scope: scope} do
-      h = house_fixture(scope, name: "N", code: "n")
+      h = house_fixture(scope, code: "n")
       p = pen_fixture(scope, h)
-      {:ok, _} = Locations.update_house(scope, h, %{name: "Renamed"})
+      {:ok, _} = Locations.update_house(scope, h, %{code: "n-renamed"})
       {:ok, _} = Locations.delete_pen(scope, p)
 
       rows = Audit.list(scope)

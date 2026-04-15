@@ -11,15 +11,15 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-6xl">
         <.header>
-          {@house.name}
+          <span class="font-mono">{@house.code}</span>
           <:subtitle>
             <.link
               navigate={~p"/farms/#{@current_scope.farm.slug}/locations"}
-              class="hover:underline"
+              class="text-primary underline hover:text-primary/80"
             >
               ← {gettext("All locations")}
             </.link>
-            · {@house.code} · {@house.purpose} · {@pen_count} {gettext("pens")}
+            <span class="ml-1">· {@house.purpose} · {@pen_count} {gettext("pens")}</span>
           </:subtitle>
         </.header>
 
@@ -38,7 +38,12 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
               phx-change="validate_generate"
               class="mt-3 grid grid-cols-2 md:grid-cols-6 gap-3"
             >
-              <.input field={@gen_form[:prefix]} type="text" label={gettext("Prefix")} />
+              <.input
+                field={@gen_form[:prefix]}
+                type="text"
+                label={gettext("Prefix")}
+                class="w-full input font-mono"
+              />
               <.input field={@gen_form[:from]} type="number" label={gettext("From")} min="0" />
               <.input field={@gen_form[:to]} type="number" label={gettext("To")} min="0" />
               <.input
@@ -101,7 +106,7 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
             </thead>
             <tbody id="pens" phx-update="stream">
               <tr :for={{dom_id, p} <- @streams.pens} id={dom_id}>
-                <td :if={@can_manage}>
+                <td :if={@can_manage} class="!py-0.5">
                   <input
                     type="checkbox"
                     class="checkbox checkbox-sm"
@@ -111,7 +116,7 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
                   />
                 </td>
                 <%= if @can_manage do %>
-                  <td colspan="3" class="p-0">
+                  <td colspan="3" class="!py-0.5">
                     <.form
                       for={to_form(%{}, as: :pen)}
                       id={"pen-form-#{p.id}"}
@@ -120,13 +125,13 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
                       phx-value-id={p.id}
                       class="contents"
                     >
-                      <div class="grid grid-cols-3 gap-2 p-1">
+                      <div class="grid grid-cols-3 gap-1.5">
                         <input
                           type="text"
                           name="pen[code]"
                           value={p.code}
                           phx-debounce="blur"
-                          class="input input-xs input-bordered"
+                          class="input input-bordered font-mono"
                           required
                         />
                         <input
@@ -135,9 +140,9 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
                           value={p.capacity}
                           phx-debounce="blur"
                           min="0"
-                          class="input input-xs input-bordered"
+                          class="input input-bordered"
                         />
-                        <select name="pen[status]" class="select select-xs select-bordered">
+                        <select name="pen[status]" class="select select-bordered">
                           <option
                             :for={s <- Pen.statuses()}
                             value={s}
@@ -150,11 +155,11 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
                     </.form>
                   </td>
                 <% else %>
-                  <td>{p.code}</td>
-                  <td>{p.capacity}</td>
-                  <td>{p.status}</td>
+                  <td class="!py-0.5 font-mono">{p.code}</td>
+                  <td class="!py-0.5">{p.capacity}</td>
+                  <td class="!py-0.5">{p.status}</td>
                 <% end %>
-                <td :if={@can_manage}>
+                <td :if={@can_manage} class="!py-0.5">
                   <button
                     phx-click="delete_pen"
                     phx-value-id={p.id}
@@ -178,7 +183,12 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
             phx-change="validate_new"
             class="grid grid-cols-2 md:grid-cols-4 gap-2"
           >
-            <.input field={@new_form[:code]} type="text" placeholder={gettext("Code")} />
+            <.input
+              field={@new_form[:code]}
+              type="text"
+              placeholder={gettext("Code")}
+              class="w-full input font-mono"
+            />
             <.input
               field={@new_form[:capacity]}
               type="number"
@@ -212,7 +222,10 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
      |> assign(:selected, MapSet.new())
      |> assign(:gen_open, false)
      |> assign(:gen_form, to_form(default_gen_params(), as: :gen))
-     |> assign(:new_form, to_form(Locations.change_pen(%Pen{status: "active", capacity: 0}), as: :pen))
+     |> assign(
+       :new_form,
+       to_form(Locations.change_pen(%Pen{status: "active", capacity: 0}), as: :pen)
+     )
      |> stream(:pens, pens)}
   end
 
@@ -376,7 +389,14 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
   end
 
   defp default_gen_params,
-    do: %{"prefix" => "", "from" => "1", "to" => "20", "pad" => "3", "capacity" => "20", "status" => "active"}
+    do: %{
+      "prefix" => "",
+      "from" => "1",
+      "to" => "20",
+      "pad" => "3",
+      "capacity" => "20",
+      "status" => "active"
+    }
 
   defp build_rows(%{"from" => from, "to" => to} = p) do
     with {f, _} <- Integer.parse(to_string(from || "")),
@@ -425,7 +445,10 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
         codes = Enum.map(rows, & &1["code"])
         first = List.first(codes)
         last = List.last(codes)
-        if length(codes) <= 2, do: Enum.join(codes, ", "), else: "#{first} … #{last} (#{length(codes)})"
+
+        if length(codes) <= 2,
+          do: Enum.join(codes, ", "),
+          else: "#{first} … #{last} (#{length(codes)})"
 
       _ ->
         "—"
@@ -437,5 +460,4 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
     |> Enum.map(fn {k, {msg, _}} -> "#{k} #{msg}" end)
     |> Enum.join("; ")
   end
-
 end

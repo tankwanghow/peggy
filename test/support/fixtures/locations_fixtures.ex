@@ -12,7 +12,6 @@ defmodule Peggy.LocationsFixtures do
   def house_fixture(scope, attrs \\ %{}) do
     attrs =
       Enum.into(attrs, %{
-        name: "House A",
         code: "H#{System.unique_integer([:positive])}",
         purpose: "grower"
       })

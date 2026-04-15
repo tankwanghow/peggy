@@ -119,6 +119,7 @@ defmodule PeggyWeb.FarmLive.Index do
               field={@form[:slug]}
               type="text"
               label={gettext("Slug")}
+              class="w-full input font-mono"
               required
               placeholder="lowercase-with-hyphens"
             />

@@ -5,7 +5,6 @@ defmodule Peggy.Locations.House do
   @purposes ~w(breeding gestation farrowing nursery grower finisher quarantine hospital)
 
   schema "houses" do
-    field :name, :string
     field :code, :string
     field :purpose, :string
     belongs_to :farm, Peggy.Farms.Farm
@@ -17,9 +16,8 @@ defmodule Peggy.Locations.House do
 
   def changeset(house, attrs) do
     house
-    |> cast(attrs, [:name, :code, :purpose, :farm_id])
-    |> validate_required([:name, :code, :purpose, :farm_id])
-    |> validate_length(:name, min: 1, max: 120)
+    |> cast(attrs, [:code, :purpose, :farm_id])
+    |> validate_required([:code, :purpose, :farm_id])
     |> validate_length(:code, min: 1, max: 40)
     |> validate_inclusion(:purpose, @purposes)
     |> unique_constraint([:farm_id, :code])

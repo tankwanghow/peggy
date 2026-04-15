@@ -35,11 +35,11 @@ defmodule PeggyWeb.FarmLive.Audit do
         <table class="mt-6 w-full text-sm">
           <thead class="text-left text-base-content/60">
             <tr>
-              <th class="py-2">{gettext("When")}</th>
-              <th>{gettext("Actor")}</th>
-              <th>{gettext("Action")}</th>
-              <th>{gettext("Entity")}</th>
-              <th>{gettext("Changes")}</th>
+              <th class="py-2 pr-4">{gettext("When")}</th>
+              <th class="py-2 pr-4">{gettext("Actor")}</th>
+              <th class="py-2 pr-4">{gettext("Action")}</th>
+              <th class="py-2 pr-4">{gettext("Entity")}</th>
+              <th class="py-2">{gettext("Changes")}</th>
             </tr>
           </thead>
           <tbody id="audit-rows" phx-update="stream">
@@ -48,13 +48,24 @@ defmodule PeggyWeb.FarmLive.Audit do
               id={dom_id}
               class="border-t border-base-200 align-top"
             >
-              <td class="py-2 whitespace-nowrap">
+              <td class="py-2 pr-4 whitespace-nowrap">
                 {Calendar.strftime(row.inserted_at, "%Y-%m-%d %H:%M:%S")}
               </td>
-              <td>{row.actor_user && row.actor_user.email}</td>
-              <td class="font-mono">{row.action}</td>
-              <td>{row.entity_type}#{row.entity_id}</td>
-              <td class="font-mono text-xs">{inspect(row.changes)}</td>
+              <td class="py-2 pr-4 truncate max-w-48">
+                {row.actor_user && row.actor_user.email}
+              </td>
+              <td class="py-2 pr-4 font-mono">{row.action}</td>
+              <td class="py-2 pr-4 whitespace-nowrap">
+                {row.entity_type}#{row.entity_id}
+              </td>
+              <td class="py-2 font-mono text-xs">
+                <dl class="space-y-0.5">
+                  <div :for={{field, value} <- row.changes} class="flex gap-1">
+                    <dt class="text-base-content/60 shrink-0">{field}:</dt>
+                    <dd>{format_value(value)}</dd>
+                  </div>
+                </dl>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -92,4 +103,10 @@ defmodule PeggyWeb.FarmLive.Audit do
   defp list(scope, entity_type, action) do
     Audit.list(scope, entity_type: entity_type, action: action, limit: 500)
   end
+
+  defp format_value(list) when is_list(list) do
+    Enum.join(list, ", ")
+  end
+
+  defp format_value(value), do: "#{value}"
 end

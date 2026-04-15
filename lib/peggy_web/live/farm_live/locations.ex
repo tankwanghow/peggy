@@ -21,18 +21,18 @@ defmodule PeggyWeb.FarmLive.Locations do
           </:actions>
         </.header>
 
-        <ul id="houses" class="mt-6 space-y-4">
+        <ul id="houses" class="mt-6 space-y-1">
           <li :for={h <- @houses} id={"house-#{h.id}"} class="rounded border border-base-300 p-3">
             <div class="flex justify-between items-center">
               <div>
                 <.link
                   navigate={~p"/farms/#{@current_scope.farm.slug}/locations/houses/#{h.id}"}
-                  class="font-semibold hover:underline"
+                  class="font-semibold font-mono hover:underline"
                 >
-                  {h.name}
+                  {h.code}
                 </.link>
                 <span class="ml-2 text-sm text-base-content/60">
-                  {h.code} · {h.purpose} · {length(h.pens)} {gettext("pens")}
+                  {h.purpose} · {length(h.pens)} {gettext("pens")}
                 </span>
               </div>
               <div :if={@can_manage} class="flex gap-2">
@@ -78,8 +78,13 @@ defmodule PeggyWeb.FarmLive.Locations do
               phx-change="validate"
               class="space-y-3"
             >
-              <.input field={@form[:name]} type="text" label={gettext("Name")} required />
-              <.input field={@form[:code]} type="text" label={gettext("Code")} required />
+              <.input
+                field={@form[:code]}
+                type="text"
+                label={gettext("Code")}
+                class="w-full input font-mono"
+                required
+              />
 
               <.input
                 field={@form[:purpose]}
