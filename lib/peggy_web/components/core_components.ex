@@ -295,6 +295,59 @@ defmodule PeggyWeb.CoreComponents do
     """
   end
 
+  @doc """
+  Renders an autocomplete input backed by the vendored autoComplete.js library
+  (see `assets/vendor/autoComplete.js` and the `AutoComplete` JS hook).
+
+  Fully client-side: typing filters `items` (a list of `%{id: _, label: _}`
+  maps); picking a result writes the chosen id into a sibling hidden input
+  named `name` and dispatches an input event so the enclosing form's
+  `phx-change` fires. No per-field LiveView events are required.
+
+  Pass `selected_label` to preseed the visible input when editing an
+  existing record.
+
+  ## Examples
+
+      <.autocomplete
+        id="pen-picker"
+        label="Current pen"
+        name="animal[current_pen_id]"
+        value={@form[:current_pen_id].value}
+        items={@ac.pen_items}
+        selected_label={@ac.pen_label}
+      />
+  """
+  attr :id, :string, required: true
+  attr :label, :string, required: true
+  attr :name, :string, required: true
+  attr :value, :any, default: nil
+  attr :items, :list, default: []
+  attr :selected_label, :string, default: nil
+  attr :class, :string, default: nil
+  attr :placeholder, :string, default: nil
+
+  def autocomplete(assigns) do
+    ~H"""
+    <div class="fieldset mb-2 relative" id={@id} phx-update="ignore">
+      <label>
+        <span class="label mb-1">{@label}</span>
+        <input type="hidden" id={"#{@id}-value"} name={@name} value={@value || ""} />
+        <input
+          type="text"
+          id={"#{@id}-input"}
+          value={@selected_label || ""}
+          placeholder={@placeholder || @label}
+          autocomplete="off"
+          class={@class || "w-full input"}
+          phx-hook="AutoComplete"
+          data-ac-items={Jason.encode!(@items)}
+        />
+      </label>
+    </div>
+    """
+  end
+
   # Helper used by inputs to generate form errors
   defp error(assigns) do
     ~H"""

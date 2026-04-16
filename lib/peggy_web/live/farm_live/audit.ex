@@ -21,7 +21,7 @@ defmodule PeggyWeb.FarmLive.Audit do
             type="select"
             label={gettext("Entity")}
             options={[
-              {gettext("All"), ""} | Enum.map(~w(farm house pen), &{String.capitalize(&1), &1})
+              {gettext("All"), ""} | Enum.map(~w(farm house pen animal), &{String.capitalize(&1), &1})
             ]}
           />
           <.input

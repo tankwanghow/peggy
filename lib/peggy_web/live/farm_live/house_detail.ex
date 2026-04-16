@@ -10,17 +10,19 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-6xl">
+        <div class="text-sm text-base-content/60 mb-1">
+          <.link
+            navigate={~p"/farms/#{@current_scope.farm.slug}/locations"}
+            class="text-primary underline hover:text-primary/80"
+          >
+            ← {gettext("All locations")}
+          </.link>
+        </div>
         <.header>
           <span class="font-mono">{@house.code}</span>
-          <:subtitle>
-            <.link
-              navigate={~p"/farms/#{@current_scope.farm.slug}/locations"}
-              class="text-primary underline hover:text-primary/80"
-            >
-              ← {gettext("All locations")}
-            </.link>
-            <span class="ml-1">· {@house.purpose} · {@pen_count} {gettext("pens")}</span>
-          </:subtitle>
+          <span class="ml-2 text-base-content/60 text-base font-normal">
+            {@house.purpose} · {@pen_count} {gettext("pens")}
+          </span>
         </.header>
 
         <section

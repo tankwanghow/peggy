@@ -30,6 +30,7 @@ defmodule Peggy.Policy do
   defp allowed?(:manager, :change_member_role), do: true
   defp allowed?(:manager, :remove_member), do: true
   defp allowed?(:manager, :manage_locations), do: true
+  defp allowed?(:manager, :manage_animals), do: true
   defp allowed?(:manager, :view_audit), do: true
   defp allowed?(:manager, :delete_farm), do: false
   defp allowed?(:manager, action), do: allowed?(:worker, action)
@@ -37,12 +38,15 @@ defmodule Peggy.Policy do
   # Worker: day-to-day data entry.
   defp allowed?(:worker, :view_farm), do: true
   defp allowed?(:worker, :view_locations), do: true
+  defp allowed?(:worker, :view_animals), do: true
+  defp allowed?(:worker, :record_movement), do: true
   defp allowed?(:worker, :record_data), do: true
   defp allowed?(:worker, _), do: false
 
   # Vet: read + write treatments/vaccinations only.
   defp allowed?(:vet, :view_farm), do: true
   defp allowed?(:vet, :view_locations), do: true
+  defp allowed?(:vet, :view_animals), do: true
   defp allowed?(:vet, :record_health), do: true
   defp allowed?(:vet, _), do: false
 

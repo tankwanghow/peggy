@@ -10,6 +10,7 @@ defmodule Peggy.Locations.Pen do
     field :status, :string, default: "active"
     belongs_to :farm, Peggy.Farms.Farm
     belongs_to :house, Peggy.Locations.House
+    has_many :animals, Peggy.Animals.Animal, foreign_key: :current_pen_id
     timestamps(type: :utc_datetime)
   end
 

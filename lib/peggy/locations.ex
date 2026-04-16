@@ -33,6 +33,17 @@ defmodule Peggy.Locations do
     Repo.all(from p in Pen, where: p.house_id == ^hid, order_by: p.code)
   end
 
+  def list_all_pens(%Scope{farm: farm}) do
+    Repo.all(
+      from p in Pen,
+        join: h in House,
+        on: h.id == p.house_id,
+        where: p.farm_id == ^farm.id and p.status == "active",
+        order_by: [h.code, p.code],
+        preload: [house: h]
+    )
+  end
+
   def change_house(%House{} = h, attrs \\ %{}), do: House.changeset(h, attrs)
   def change_pen(%Pen{} = p, attrs \\ %{}), do: Pen.changeset(p, attrs)
 

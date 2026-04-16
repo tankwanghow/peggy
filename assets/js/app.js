@@ -24,12 +24,111 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/peggy"
 import topbar from "../vendor/topbar"
+import autoComplete from "../vendor/autoComplete"
+
+// Hook wrapping tarekraafat/autoComplete.js. Operates fully client-side:
+// selection writes the chosen id into a sibling hidden input and dispatches
+// an input event so `phx-change` on the form picks it up naturally —
+// no per-field LiveView events required.
+//
+// Expected DOM:
+//   <div class="fieldset ..."> ← outer, `position: relative`
+//     <label>
+//       <input type="hidden" id="{id}-value" name="..." value="..." />
+//       <input id="{id}-input" phx-hook="AutoComplete"
+//              data-ac-items='[{"id":1,"label":"..."}]' />
+//     </label>
+//   </div>
+const AutoComplete = {
+  mounted() {
+    const items = JSON.parse(this.el.dataset.acItems || "[]")
+    const hiddenId = this.el.id.replace(/-input$/, "-value")
+    const hidden = document.getElementById(hiddenId)
+    const hook = this
+    // Results <ul> is attached to the fieldset div so it sits outside the
+    // <label> (clicks on the label re-focus the input, which would fight
+    // the library's selection logic) and so `absolute top-full` resolves
+    // against the relative fieldset container.
+    // Note: the library's `select$1` expects a string selector or a
+    // function returning an element — passing a DOM node directly crashes.
+    const containerFn = () => this.el.closest(".fieldset")
+
+    // When the user starts typing, treat any prior selection as
+    // invalidated until they pick a new one.
+    this.onInput = () => {
+      if (hidden && hidden.value) {
+        hidden.value = ""
+        hidden.dispatchEvent(new Event("input", {bubbles: true}))
+      }
+    }
+    this.el.addEventListener("input", this.onInput)
+
+    // Server-driven reset: allows LiveViews to clear a specific picker
+    // (by wrapper id) after a successful batch action, so users can
+    // record multiple entries in sequence without stale state.
+    this.handleEvent("ac:reset", ({id}) => {
+      const wrapperId = hook.el.id.replace(/-input$/, "")
+      if (id !== wrapperId) return
+      hook.el.value = ""
+      if (hidden) {
+        hidden.value = ""
+        hidden.dispatchEvent(new Event("input", {bubbles: true}))
+      }
+    })
+
+    this.ac = new autoComplete({
+      selector: () => this.el,
+      wrapper: false,
+      data: {src: items, keys: ["label"], cache: true},
+      threshold: 0,
+      debounce: 50,
+      searchEngine: "strict",
+      resultsList: {
+        destination: containerFn,
+        position: "beforeend",
+        maxResults: 20,
+        tabSelect: true,
+        class:
+          "ac-results absolute top-full left-0 z-50 mt-1 w-full max-h-48 overflow-y-auto rounded border border-base-300 bg-base-100 shadow-lg text-sm",
+        noResults: true
+      },
+      resultItem: {
+        class: "ac-result px-3 py-1.5 cursor-pointer hover:bg-base-200",
+        highlight: true,
+        selected: "bg-base-200"
+      },
+      events: {
+        input: {
+          // Show the full list as soon as the field gets focus — users
+          // shouldn't have to type to discover what's available.
+          focus: () => hook.ac.start(),
+          selection: (event) => {
+            const sel = event.detail.selection.value
+            hook.el.value = sel.label
+            if (hidden) {
+              hidden.value = sel.id
+              // Let the form's phx-change handler run.
+              hidden.dispatchEvent(new Event("input", {bubbles: true}))
+            }
+          }
+        }
+      }
+    })
+  },
+  destroyed() {
+    if (this.onInput) this.el.removeEventListener("input", this.onInput)
+    if (this.ac) {
+      this.ac.unInit()
+      this.ac = null
+    }
+  }
+}
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, AutoComplete},
 })
 
 // Show progress bar on live navigation and form submits

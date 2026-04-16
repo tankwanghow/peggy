@@ -40,7 +40,10 @@ defmodule PeggyWeb.Layouts do
         <.link navigate={~p"/"} class="flex items-center gap-2 font-bold text-lg">
           <span class="text-2xl">🐷</span>
           <span>Peggy</span>
-          <span :if={@current_scope && @current_scope.farm} class="text-base-content/60 font-normal font-mono">
+          <span
+            :if={@current_scope && @current_scope.farm}
+            class="text-base-content/60 font-normal font-mono"
+          >
             ({@current_scope.farm.slug})
           </span>
         </.link>
@@ -108,6 +111,12 @@ defmodule PeggyWeb.Layouts do
           href={~p"/farms/#{@current_scope.farm.slug}/locations"}
           icon="hero-map-pin-micro"
           label={gettext("Locations")}
+        />
+        <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :view_animals)}
+          href={~p"/farms/#{@current_scope.farm.slug}/animals"}
+          icon="hero-identification-micro"
+          label={gettext("Animals")}
         />
         <.farm_nav_link
           :if={Peggy.Policy.can?(@current_scope, :view_audit)}
