@@ -32,6 +32,18 @@ defmodule Peggy.Animals.Animal do
   def sexes, do: @sexes
   def statuses, do: @statuses
 
+  @doc """
+  Stage options offered by the UI for a given tracking type.
+
+  Individuals are typically breeding stock (sow, boar) or culls;
+  batches move through the piglet → weaner → grower → finisher
+  lifecycle. Schema-level validation still accepts any stage in
+  `@stages` — this helper only narrows the dropdown.
+  """
+  def stages_for("individual"), do: ~w(sow boar cull)
+  def stages_for("batch"), do: ~w(piglet weaner grower finisher)
+  def stages_for(_), do: @stages
+
   def changeset(animal, attrs) do
     animal
     |> cast(attrs, [

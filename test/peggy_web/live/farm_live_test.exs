@@ -93,4 +93,249 @@ defmodule PeggyWeb.FarmLiveTest do
       assert has_element?(lv, "#invitations", "new@example.com")
     end
   end
+
+  describe "/farms/:slug/animals/bulk-move" do
+    import Peggy.LocationsFixtures
+    import Peggy.AnimalsFixtures
+
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+      house = house_fixture(scope, code: "H1")
+      pen_a = pen_fixture(scope, house, code: "A", capacity: 50)
+      pen_b = pen_fixture(scope, house, code: "B", capacity: 50)
+
+      sow1 =
+        animal_fixture(scope, ear_tag: "SOW1", stage: "sow", current_pen_id: pen_a.id)
+
+      sow2 =
+        animal_fixture(scope, ear_tag: "SOW2", stage: "sow", current_pen_id: pen_a.id)
+
+      %{
+        conn: log_in_user(conn, owner),
+        farm: farm,
+        scope: scope,
+        pen_a: pen_a,
+        pen_b: pen_b,
+        sow1: sow1,
+        sow2: sow2
+      }
+    end
+
+    test "renders the grid with starter rows", %{conn: conn, farm: farm} do
+      {:ok, _lv, html} = live(conn, ~p"/farms/#{farm.slug}/animals/bulk-move")
+
+      assert html =~ "Bulk Move Sire/Dam"
+      # Three starter rows
+      assert html =~ ~s(name="rows[)
+    end
+
+    test "adds and removes rows", %{conn: conn, farm: farm} do
+      {:ok, lv, _html} = live(conn, ~p"/farms/#{farm.slug}/animals/bulk-move")
+
+      before = lv |> render() |> String.split(~s(name="rows[)) |> length()
+      lv |> element("button", "Add row") |> render_click()
+      after_click = lv |> render() |> String.split(~s(name="rows[)) |> length()
+      assert after_click > before
+    end
+
+    test "commits rows and redirects to animals index",
+         %{conn: conn, scope: scope, farm: farm, pen_b: b, sow1: sow1, sow2: sow2} do
+      {:ok, lv, _html} = live(conn, ~p"/farms/#{farm.slug}/animals/bulk-move")
+
+      tmp_ids =
+        Regex.scan(~r/name="rows\[([^\]]+)\]\[animal_id\]/, render(lv))
+        |> Enum.map(fn [_, id] -> id end)
+        |> Enum.uniq()
+
+      [id1, id2 | _] = tmp_ids
+
+      params = %{
+        "rows" => %{
+          id1 => %{
+            "animal_id" => Integer.to_string(sow1.id),
+            "to_pen_id" => Integer.to_string(b.id)
+          },
+          id2 => %{
+            "animal_id" => Integer.to_string(sow2.id),
+            "to_pen_id" => Integer.to_string(b.id)
+          }
+        }
+      }
+
+      render_change(lv, "update", params)
+
+      assert {:error, {:live_redirect, %{to: to}}} = render_submit(lv, "commit", %{})
+      assert to == "/farms/#{farm.slug}/animals"
+
+      assert Peggy.Animals.get_animal!(scope, sow1.id).current_pen_id == b.id
+      assert Peggy.Animals.get_animal!(scope, sow2.id).current_pen_id == b.id
+    end
+
+    test "shows row error when destination equals current pen",
+         %{conn: conn, farm: farm, pen_a: a, sow1: sow1} do
+      {:ok, lv, _html} = live(conn, ~p"/farms/#{farm.slug}/animals/bulk-move")
+
+      tmp_ids =
+        Regex.scan(~r/name="rows\[([^\]]+)\]\[animal_id\]/, render(lv))
+        |> Enum.map(fn [_, id] -> id end)
+        |> Enum.uniq()
+
+      [id1 | _] = tmp_ids
+
+      params = %{
+        "rows" => %{
+          id1 => %{
+            "animal_id" => Integer.to_string(sow1.id),
+            "to_pen_id" => Integer.to_string(a.id)
+          }
+        }
+      }
+
+      render_change(lv, "update", params)
+      html = render_submit(lv, "commit", %{})
+
+      assert html =~ "Row 1"
+      assert html =~ "already in that pen"
+    end
+  end
+
+  describe "/farms/:slug/animals/:id/batch-entry" do
+    import Peggy.LocationsFixtures
+    import Peggy.AnimalsFixtures
+
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+      house = house_fixture(scope, code: "H1")
+      pen_a = pen_fixture(scope, house, code: "A", capacity: 200)
+      pen_b = pen_fixture(scope, house, code: "B", capacity: 200)
+      batch = batch_fixture(scope, quantity: 100)
+
+      %{
+        conn: log_in_user(conn, owner),
+        farm: farm,
+        scope: scope,
+        batch: batch,
+        pen_a: pen_a,
+        pen_b: pen_b
+      }
+    end
+
+    test "renders the grid for a batch animal", %{conn: conn, farm: farm, batch: batch} do
+      {:ok, _lv, html} =
+        live(conn, ~p"/farms/#{farm.slug}/animals/#{batch.id}/batch-entry")
+
+      assert html =~ "Batch Transfer"
+      assert html =~ "Unplaced"
+      # Three starter rows
+      assert html =~ ~s(name="rows[)
+    end
+
+    test "redirects individual animals away", %{
+      conn: conn,
+      farm: farm,
+      scope: scope,
+      pen_a: pen_a
+    } do
+      ind = animal_fixture(scope, current_pen_id: pen_a.id)
+
+      assert {:error, {:redirect, %{to: to}}} =
+               live(conn, ~p"/farms/#{farm.slug}/animals/#{ind.id}/batch-entry")
+
+      assert to =~ "/animals/#{ind.id}"
+    end
+
+    test "adds and removes rows", %{conn: conn, farm: farm, batch: batch} do
+      {:ok, lv, _html} =
+        live(conn, ~p"/farms/#{farm.slug}/animals/#{batch.id}/batch-entry")
+
+      before = lv |> render() |> String.split(~s(name="rows[)) |> length()
+      lv |> element("button", "Add row") |> render_click()
+      after_click = lv |> render() |> String.split(~s(name="rows[)) |> length()
+      assert after_click > before
+    end
+
+    test "commits rows and redirects to animal detail",
+         %{conn: conn, scope: scope, farm: farm, batch: batch, pen_a: a, pen_b: b} do
+      {:ok, lv, _html} =
+        live(conn, ~p"/farms/#{farm.slug}/animals/#{batch.id}/batch-entry")
+
+      # Simulate filling in two rows by pushing form params. We have to
+      # dig the generated tmp_ids out of the DOM because they're random.
+      tmp_ids =
+        Regex.scan(~r/name="rows\[([^\]]+)\]\[reason\]/, render(lv))
+        |> Enum.map(fn [_, id] -> id end)
+        |> Enum.uniq()
+
+      [id1, id2 | _] = tmp_ids
+
+      params = %{
+        "rows" => %{
+          id1 => %{
+            "reason" => "placement",
+            "to_pen_id" => Integer.to_string(a.id),
+            "quantity" => "60"
+          },
+          id2 => %{
+            "reason" => "placement",
+            "to_pen_id" => Integer.to_string(b.id),
+            "quantity" => "40"
+          }
+        }
+      }
+
+      # Phoenix LiveView form rendering would need hidden inputs populated
+      # — simulate phx-change directly.
+      render_change(lv, "update", params)
+
+      # Then commit.
+      assert {:error, {:live_redirect, %{to: to}}} =
+               render_submit(lv, "commit", %{})
+
+      assert to == "/farms/#{farm.slug}/animals/#{batch.id}"
+
+      total =
+        Peggy.Animals.list_placements(scope, batch)
+        |> Enum.reduce(0, &(&1.quantity + &2))
+
+      assert total == 100
+    end
+
+    test "shows row error when budget is exceeded",
+         %{conn: conn, farm: farm, batch: batch, pen_a: a, pen_b: b} do
+      {:ok, lv, _html} =
+        live(conn, ~p"/farms/#{farm.slug}/animals/#{batch.id}/batch-entry")
+
+      tmp_ids =
+        Regex.scan(~r/name="rows\[([^\]]+)\]\[reason\]/, render(lv))
+        |> Enum.map(fn [_, id] -> id end)
+        |> Enum.uniq()
+
+      [id1, id2 | _] = tmp_ids
+
+      params = %{
+        "rows" => %{
+          id1 => %{
+            "reason" => "placement",
+            "to_pen_id" => Integer.to_string(a.id),
+            "quantity" => "60"
+          },
+          id2 => %{
+            "reason" => "placement",
+            "to_pen_id" => Integer.to_string(b.id),
+            "quantity" => "60"
+          }
+        }
+      }
+
+      render_change(lv, "update", params)
+      html = render_submit(lv, "commit", %{})
+
+      assert html =~ "Row 2"
+      assert html =~ "exceeds unplaced"
+    end
+  end
 end

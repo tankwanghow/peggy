@@ -64,6 +64,13 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             <% end %>
           </span>
           <:actions>
+            <.link
+              :if={@can_move && @animal.tracking_type == "batch" && @animal.status == "active"}
+              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.id}/batch-entry"}
+              class="btn btn-sm"
+            >
+              {gettext("Batch Transfer")}
+            </.link>
             <.button
               :if={@can_manage && @animal.status == "active"}
               phx-click="edit"
@@ -87,15 +94,15 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               ({@animal.quantity} {gettext("total")})
             </span>
           </h3>
-          <ul :if={@placements != []} class="mt-2 space-y-1 text-sm">
-            <li :for={p <- @placements} class="flex gap-2">
-              <span class="font-mono">{p.pen.house.code}/{p.pen.code}</span>
-              <span class="text-base-content/60">× {p.quantity}</span>
-              <span class="text-base-content/60 ml-auto">
-                {gettext("placed")} {p.placed_at}
-              </span>
-            </li>
-          </ul>
+          <div :if={@placements != []} class="mt-2 flex flex-wrap gap-2 text-sm font-mono">
+            <span
+              :for={p <- @placements}
+              class="inline-flex items-center gap-1 rounded bg-base-200 px-2 py-0.5"
+            >
+              {p.pen.house.code}/{p.pen.code}
+              <span class="text-base-content/60">×{p.quantity}</span>
+            </span>
+          </div>
           <p :if={@placements == []} class="mt-2 text-sm text-base-content/60">
             {gettext("Not currently placed in any pen.")}
           </p>
@@ -276,7 +283,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 field={@edit_form[:stage]}
                 type="select"
                 label={gettext("Stage")}
-                options={Enum.map(Animal.stages(), &{String.capitalize(&1), &1})}
+                options={
+                  Enum.map(
+                    Animal.stages_for(@animal.tracking_type),
+                    &{String.capitalize(&1), &1}
+                  )
+                }
               />
               <.input
                 :if={@animal.tracking_type == "individual"}
@@ -334,7 +346,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     animal = Animals.get_animal!(scope, String.to_integer(id))
     offspring = Animals.list_offspring(scope, animal)
     placements = Animals.list_placements(scope, animal)
-    movements = visible_movements(animal, Animals.list_movements(scope, animal))
+    movements = Animals.list_movements(scope, animal)
 
     move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 
@@ -353,14 +365,6 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
      )
      |> stream(:movements, movements)}
   end
-
-  # For batches, the "Current placements" section is the live truth — the
-  # raw `placement` rows in movement history would just duplicate it.
-  # History is reserved for transfers, sales, deaths, etc.
-  defp visible_movements(%Animal{tracking_type: "batch"}, movements),
-    do: Enum.reject(movements, &(&1.reason == "placement"))
-
-  defp visible_movements(_, movements), do: movements
 
   @impl true
   def handle_event("validate_movement", %{"movement" => params}, socket) do
@@ -391,7 +395,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
       {:ok, _} ->
         animal = Animals.get_animal!(scope, animal.id)
         placements = Animals.list_placements(scope, animal)
-        movements = visible_movements(animal, Animals.list_movements(scope, animal))
+        movements = Animals.list_movements(scope, animal)
 
         move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 

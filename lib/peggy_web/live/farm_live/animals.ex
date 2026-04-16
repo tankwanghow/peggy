@@ -15,6 +15,13 @@ defmodule PeggyWeb.FarmLive.Animals do
           {gettext("Animals")}
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
           <:actions>
+            <.link
+              :if={@can_move}
+              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/bulk-move"}
+              class="btn btn-sm"
+            >
+              {gettext("Bulk Move Sire/Dam")}
+            </.link>
             <.button :if={@can_manage} phx-click="new" class="btn btn-primary btn-sm">
               {gettext("Register animal")}
             </.button>
@@ -124,7 +131,12 @@ defmodule PeggyWeb.FarmLive.Animals do
                 field={@form[:stage]}
                 type="select"
                 label={gettext("Stage")}
-                options={Enum.map(Animal.stages(), &{String.capitalize(&1), &1})}
+                options={
+                  Enum.map(
+                    Animal.stages_for(form_value(@form, :tracking_type)),
+                    &{String.capitalize(&1), &1}
+                  )
+                }
               />
               <.input
                 field={@form[:ear_tag]}
@@ -217,10 +229,11 @@ defmodule PeggyWeb.FarmLive.Animals do
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
     can_manage = Policy.can?(scope, :manage_animals)
+    can_move = Policy.can?(scope, :record_movement)
 
     {:ok,
      socket
-     |> assign(can_manage: can_manage)
+     |> assign(can_manage: can_manage, can_move: can_move)
      |> assign(filter_stage: "", filter_status: "")
      |> assign(form: nil, form_title: nil, form_target: nil)
      |> assign(ac: default_ac())
@@ -244,7 +257,7 @@ defmodule PeggyWeb.FarmLive.Animals do
        open_form(
          socket,
          nil,
-         %Animal{tracking_type: "individual", stage: "grower", sex: "female"},
+         %Animal{tracking_type: "individual", stage: "sow", sex: "female"},
          gettext("Register animal")
        )}
     else
@@ -256,6 +269,7 @@ defmodule PeggyWeb.FarmLive.Animals do
 
   def handle_event("validate", %{"animal" => params}, socket) do
     target = socket.assigns.form_target || %Animal{}
+    params = reset_stage_if_invalid(params)
     cs = Animals.change_animal(target, params) |> Map.put(:action, :validate)
     {:noreply, assign(socket, :form, to_form(cs, as: :animal))}
   end
@@ -269,6 +283,16 @@ defmodule PeggyWeb.FarmLive.Animals do
   end
 
   ## Save helpers
+
+  # When the user flips tracking_type, the previously-picked stage may no
+  # longer appear in the dropdown. Reset it to the first valid option so
+  # the select shows a consistent selection.
+  defp reset_stage_if_invalid(%{"tracking_type" => tt, "stage" => stage} = params) do
+    valid = Animal.stages_for(tt)
+    if stage in valid, do: params, else: Map.put(params, "stage", hd(valid))
+  end
+
+  defp reset_stage_if_invalid(params), do: params
 
   defp do_save(socket, nil, params) do
     case Animals.create_animal(socket.assigns.current_scope, params) do
@@ -403,7 +427,7 @@ defmodule PeggyWeb.FarmLive.Animals do
   defp pen_label(%{tracking_type: "batch", placements: [_ | _] = placements}) do
     placements
     |> Enum.map_join(" · ", fn p ->
-      "#{p.pen.house.code}/#{p.pen.code} ×#{p.quantity}"
+      "#{p.pen.house.code}/#{p.pen.code}×#{p.quantity}"
     end)
   end
 

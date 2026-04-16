@@ -586,6 +586,278 @@ defmodule Peggy.AnimalsTest do
     end
   end
 
+  describe "record_batch_movements/3" do
+    setup %{scope: scope, house: house} do
+      a = pen_fixture(scope, house, code: "A", capacity: 200)
+      b = pen_fixture(scope, house, code: "B", capacity: 200)
+      c = pen_fixture(scope, house, code: "C", capacity: 200)
+
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "weaner",
+          quantity: 100
+        })
+
+      %{batch: batch, a: a, b: b, c: c}
+    end
+
+    test "commits many placements atomically",
+         %{scope: scope, batch: batch, a: a, b: b, c: c} do
+      assert {:ok, [_, _, _]} =
+               Animals.record_batch_movements(scope, batch, [
+                 %{reason: "placement", to_pen_id: a.id, quantity: 40},
+                 %{reason: "placement", to_pen_id: b.id, quantity: 35},
+                 %{reason: "placement", to_pen_id: c.id, quantity: 25}
+               ])
+
+      total =
+        Animals.list_placements(scope, batch)
+        |> Enum.reduce(0, &(&1.quantity + &2))
+
+      assert total == 100
+    end
+
+    test "rejects aggregate placement over-subscription",
+         %{scope: scope, batch: batch, a: a, b: b} do
+      assert {:error, {1, cs}} =
+               Animals.record_batch_movements(scope, batch, [
+                 %{reason: "placement", to_pen_id: a.id, quantity: 60},
+                 %{reason: "placement", to_pen_id: b.id, quantity: 50}
+               ])
+
+      assert errors_on(cs)[:quantity]
+      assert Animals.list_placements(scope, batch) == []
+    end
+
+    test "merges multiple placements into one pen",
+         %{scope: scope, batch: batch, a: a} do
+      {:ok, _} =
+        Animals.record_batch_movements(scope, batch, [
+          %{reason: "placement", to_pen_id: a.id, quantity: 20},
+          %{reason: "placement", to_pen_id: a.id, quantity: 30}
+        ])
+
+      [p] = Animals.list_placements(scope, batch)
+      assert p.pen_id == a.id
+      assert p.quantity == 50
+    end
+
+    test "mixes placements and a pen transfer in one call",
+         %{scope: scope, batch: batch, a: a, b: b, c: c} do
+      {:ok, _} =
+        Animals.record_batch_movements(scope, batch, [
+          %{reason: "placement", to_pen_id: a.id, quantity: 60},
+          %{reason: "placement", to_pen_id: b.id, quantity: 40},
+          %{reason: "pen_transfer", from_pen_id: a.id, to_pen_id: c.id, quantity: 20}
+        ])
+
+      placements =
+        Animals.list_placements(scope, batch)
+        |> Map.new(&{&1.pen_id, &1.quantity})
+
+      assert placements == %{a.id => 40, b.id => 40, c.id => 20}
+      assert Animals.get_animal!(scope, batch.id).quantity == 100
+    end
+
+    test "rolls back everything when any row fails",
+         %{scope: scope, batch: batch, a: a} do
+      assert {:error, {1, _cs}} =
+               Animals.record_batch_movements(scope, batch, [
+                 %{reason: "placement", to_pen_id: a.id, quantity: 40},
+                 # missing to_pen_id
+                 %{reason: "placement", quantity: 20}
+               ])
+
+      assert Animals.list_placements(scope, batch) == []
+    end
+
+    test "rejects same-pen transfers", %{scope: scope, batch: batch, a: a} do
+      {:ok, _} =
+        Animals.record_batch_movements(scope, batch, [
+          %{reason: "placement", to_pen_id: a.id, quantity: 50}
+        ])
+
+      assert {:error, {0, cs}} =
+               Animals.record_batch_movements(scope, batch, [
+                 %{reason: "pen_transfer", from_pen_id: a.id, to_pen_id: a.id, quantity: 10}
+               ])
+
+      assert errors_on(cs)[:to_pen_id]
+    end
+
+    test "rejects transfer from a pen with no placement",
+         %{scope: scope, batch: batch, a: a, b: b} do
+      assert {:error, {0, cs}} =
+               Animals.record_batch_movements(scope, batch, [
+                 %{reason: "pen_transfer", from_pen_id: a.id, to_pen_id: b.id, quantity: 10}
+               ])
+
+      assert errors_on(cs)[:from_pen_id]
+    end
+
+    test "rejects unsupported reasons", %{scope: scope, batch: batch, a: a} do
+      assert {:error, {0, cs}} =
+               Animals.record_batch_movements(scope, batch, [
+                 %{reason: "sale", from_pen_id: a.id, quantity: 5}
+               ])
+
+      assert errors_on(cs)[:reason]
+    end
+
+    test "rejects individual animals", %{scope: scope, pen: pen} do
+      ind = animal_fixture(scope, current_pen_id: pen.id)
+
+      assert {:error, :batch_only} =
+               Animals.record_batch_movements(scope, ind, [
+                 %{reason: "placement", to_pen_id: pen.id, quantity: 1}
+               ])
+    end
+
+    test "rejects empty list", %{scope: scope, batch: batch} do
+      assert {:error, :no_entries} = Animals.record_batch_movements(scope, batch, [])
+    end
+
+    test "writes one audit row per committed movement",
+         %{scope: scope, batch: batch, a: a, b: b} do
+      before = length(Audit.list(scope))
+
+      {:ok, _} =
+        Animals.record_batch_movements(scope, batch, [
+          %{reason: "placement", to_pen_id: a.id, quantity: 40},
+          %{reason: "placement", to_pen_id: b.id, quantity: 30}
+        ])
+
+      assert length(Audit.list(scope)) - before == 2
+    end
+  end
+
+  describe "record_bulk_individual_moves/2" do
+    setup %{scope: scope, house: house, pen: pen} do
+      pen2 = pen_fixture(scope, house, code: "P2", capacity: 50)
+      pen3 = pen_fixture(scope, house, code: "P3", capacity: 50)
+
+      sow1 = animal_fixture(scope, ear_tag: "S1", stage: "sow", current_pen_id: pen.id)
+      sow2 = animal_fixture(scope, ear_tag: "S2", stage: "sow", current_pen_id: pen.id)
+      unplaced = animal_fixture(scope, ear_tag: "S3", stage: "sow")
+
+      %{pen2: pen2, pen3: pen3, sow1: sow1, sow2: sow2, unplaced: unplaced}
+    end
+
+    test "moves many individual animals atomically",
+         %{scope: scope, pen2: pen2, pen3: pen3, sow1: sow1, sow2: sow2} do
+      assert {:ok, [m1, m2]} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: sow1.id, to_pen_id: pen2.id},
+                 %{animal_id: sow2.id, to_pen_id: pen3.id}
+               ])
+
+      assert m1.reason == "pen_transfer"
+      assert m2.reason == "pen_transfer"
+      assert Animals.get_animal!(scope, sow1.id).current_pen_id == pen2.id
+      assert Animals.get_animal!(scope, sow2.id).current_pen_id == pen3.id
+    end
+
+    test "infers placement when animal has no current pen",
+         %{scope: scope, pen2: pen2, unplaced: unplaced} do
+      assert {:ok, [m]} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: unplaced.id, to_pen_id: pen2.id}
+               ])
+
+      assert m.reason == "placement"
+      assert is_nil(m.from_pen_id)
+      assert Animals.get_animal!(scope, unplaced.id).current_pen_id == pen2.id
+    end
+
+    test "rejects destination equal to current pen",
+         %{scope: scope, pen: pen, sow1: sow1} do
+      assert {:error, {0, cs}} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: sow1.id, to_pen_id: pen.id}
+               ])
+
+      assert errors_on(cs)[:to_pen_id]
+    end
+
+    test "rejects duplicated animal in same batch",
+         %{scope: scope, pen2: pen2, pen3: pen3, sow1: sow1} do
+      assert {:error, {1, cs}} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: sow1.id, to_pen_id: pen2.id},
+                 %{animal_id: sow1.id, to_pen_id: pen3.id}
+               ])
+
+      assert errors_on(cs)[:animal_id]
+    end
+
+    test "rejects missing destination",
+         %{scope: scope, sow1: sow1} do
+      assert {:error, {0, cs}} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: sow1.id}
+               ])
+
+      assert errors_on(cs)[:to_pen_id]
+    end
+
+    test "rejects batch animals",
+         %{scope: scope, pen2: pen2} do
+      batch = batch_fixture(scope, ear_tag: "BATCH1", quantity: 10)
+
+      assert {:error, {0, cs}} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: batch.id, to_pen_id: pen2.id}
+               ])
+
+      assert errors_on(cs)[:animal_id]
+    end
+
+    test "rejects animals outside scope", %{scope: scope, pen2: pen2} do
+      other_user = user_fixture()
+      other_farm = farm_fixture(other_user)
+      other_scope = scope_for(other_user, other_farm)
+      stranger = animal_fixture(other_scope)
+
+      assert {:error, {0, cs}} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: stranger.id, to_pen_id: pen2.id}
+               ])
+
+      assert errors_on(cs)[:animal_id]
+    end
+
+    test "rolls back everything when any row fails",
+         %{scope: scope, pen: pen, pen2: pen2, sow1: sow1, sow2: sow2} do
+      assert {:error, {1, _cs}} =
+               Animals.record_bulk_individual_moves(scope, [
+                 %{animal_id: sow1.id, to_pen_id: pen2.id},
+                 # sow2 is already in pen (same-pen)
+                 %{animal_id: sow2.id, to_pen_id: pen.id}
+               ])
+
+      # sow1's first step must not have persisted.
+      assert Animals.get_animal!(scope, sow1.id).current_pen_id == pen.id
+    end
+
+    test "rejects empty list", %{scope: scope} do
+      assert {:error, :no_entries} = Animals.record_bulk_individual_moves(scope, [])
+    end
+
+    test "writes one audit row per committed move",
+         %{scope: scope, pen2: pen2, pen3: pen3, sow1: sow1, sow2: sow2} do
+      before = length(Audit.list(scope))
+
+      {:ok, _} =
+        Animals.record_bulk_individual_moves(scope, [
+          %{animal_id: sow1.id, to_pen_id: pen2.id},
+          %{animal_id: sow2.id, to_pen_id: pen3.id}
+        ])
+
+      assert length(Audit.list(scope)) - before == 2
+    end
+  end
+
   describe "scope isolation" do
     test "animals are scoped to the farm", %{scope: scope} do
       animal = animal_fixture(scope)

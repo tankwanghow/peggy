@@ -240,6 +240,121 @@ defmodule Peggy.Animals do
     end
   end
 
+  @doc """
+  Records many batch movements for one batch animal atomically.
+
+  Supported reasons: `"placement"` and `"pen_transfer"` — the two
+  operations that happen in the large-batch spreadsheet-entry workflow.
+  Other reasons (departures, adjustments) remain single-entry through
+  `record_movement/3`.
+
+  Each entry is a map with `:reason`, `:quantity`, `:to_pen_id` (always),
+  `:from_pen_id` (required for `pen_transfer`), `:moved_at`, `:notes`.
+  Keys may be atoms or strings.
+
+  Validates the aggregate budget (unplaced qty for placements, per-pen
+  balance for transfers) up front, projecting each row's effect onto a
+  running state, so the caller gets the offending row index without
+  starting a DB transaction.
+
+  Returns `{:ok, [movement, ...]}` on success, `{:error, {row_index, cs}}`
+  or `{:error, reason}` on failure. Any failure rolls back the entire
+  batch — no partial writes.
+  """
+  def record_batch_movements(
+        %Scope{farm: farm} = scope,
+        %Animal{farm_id: fid, tracking_type: "batch"} = animal,
+        entries
+      )
+      when fid == farm.id and is_list(entries) and entries != [] do
+    with {:ok, normalized} <- normalize_batch_entries(animal, entries) do
+      multi =
+        normalized
+        |> Enum.with_index()
+        |> Enum.reduce(Multi.new(), fn {entry, i}, m ->
+          add_batch_entry_to_multi(m, scope, animal, entry, i)
+        end)
+
+      case Repo.transaction(multi) do
+        {:ok, changes} ->
+          movements =
+            0..(length(entries) - 1)
+            |> Enum.map(&Map.fetch!(changes, {:movement, &1}))
+
+          {:ok, movements}
+
+        {:error, {:source, i}, reason, _} ->
+          {:error, {i, reason}}
+
+        {:error, {:movement, i}, cs, _} ->
+          {:error, {i, cs}}
+
+        {:error, _op, reason, _} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  def record_batch_movements(_scope, %Animal{tracking_type: "individual"}, _entries),
+    do: {:error, :batch_only}
+
+  def record_batch_movements(_scope, _animal, []),
+    do: {:error, :no_entries}
+
+  @doc """
+  Records many pen-moves for individual animals atomically.
+
+  This is the bulk counterpart to `record_movement/3` for individual
+  tracking — every entry moves one animal to a destination pen. The
+  reason is inferred from the animal's current state:
+
+    * no `current_pen_id` → `"placement"` (first assignment)
+    * has `current_pen_id` → `"pen_transfer"` (from that pen)
+
+  Each entry is a map with `:animal_id`, `:to_pen_id`, and optional
+  `:moved_at`, `:notes`. Keys may be atoms or strings.
+
+  Validates per-entry before starting the transaction: animal must
+  belong to the scoped farm, be individual, be active, not be already
+  in the destination pen, and each animal may appear only once per
+  batch (otherwise later rows would see stale pen state).
+
+  Returns `{:ok, [movement, ...]}` on success, `{:error, {row_index,
+  changeset_or_reason}}` on failure. Any failure rolls back the whole
+  batch — no partial writes.
+  """
+  def record_bulk_individual_moves(%Scope{farm: farm} = scope, entries)
+      when is_list(entries) and entries != [] do
+    with {:ok, normalized} <- normalize_bulk_individual_entries(farm, entries) do
+      multi =
+        normalized
+        |> Enum.with_index()
+        |> Enum.reduce(Multi.new(), fn {entry, i}, m ->
+          add_bulk_individual_entry_to_multi(m, scope, entry, i)
+        end)
+
+      case Repo.transaction(multi) do
+        {:ok, changes} ->
+          movements =
+            0..(length(entries) - 1)
+            |> Enum.map(&Map.fetch!(changes, {:movement, &1}))
+
+          {:ok, movements}
+
+        {:error, {:movement, i}, cs, _} ->
+          {:error, {i, cs}}
+
+        {:error, {:animal, i}, cs, _} ->
+          {:error, {i, cs}}
+
+        {:error, _op, reason, _} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  def record_bulk_individual_moves(_scope, []), do: {:error, :no_entries}
+
   defp record_individual_movement(_scope, %Animal{} = _animal, %{"reason" => reason} = attrs)
        when reason in ["adjustment_loss", "adjustment_gain"] do
     {:error,
@@ -475,6 +590,344 @@ defmodule Peggy.Animals do
   end
 
   defp maybe_decrement_batch_total(multi, _, _, _), do: multi
+
+  ## Batch-entry helpers (record_batch_movements/3)
+
+  # Normalize input rows and project their effect onto a running placement
+  # state so aggregate budget violations (unplaced exceeded, source pen
+  # exceeded) surface with the row index before we touch the DB.
+  defp normalize_batch_entries(%Animal{} = animal, entries) do
+    proj = initial_projection(animal)
+
+    entries
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, [], proj}, fn {entry, i}, {:ok, acc, p} ->
+      case normalize_batch_entry(animal, entry, p) do
+        {:ok, norm, p2} -> {:cont, {:ok, [norm | acc], p2}}
+        {:error, cs} -> {:halt, {:error, {i, cs}}}
+      end
+    end)
+    |> case do
+      {:ok, rev, _} -> {:ok, Enum.reverse(rev)}
+      other -> other
+    end
+  end
+
+  defp initial_projection(%Animal{id: id, quantity: total}) do
+    per_pen =
+      Repo.all(
+        from p in Placement,
+          where: p.animal_id == ^id and is_nil(p.removed_at),
+          select: {p.pen_id, p.quantity}
+      )
+      |> Map.new()
+
+    placed = per_pen |> Map.values() |> Enum.sum()
+    %{per_pen: per_pen, unplaced: total - placed}
+  end
+
+  defp normalize_batch_entry(%Animal{} = animal, entry, proj) do
+    reason = get_field_val(entry, :reason)
+    qty = parse_int(get_field_val(entry, :quantity))
+    from_pen_id = parse_int(get_field_val(entry, :from_pen_id))
+    to_pen_id = parse_int(get_field_val(entry, :to_pen_id))
+    moved_at = get_field_val(entry, :moved_at) || Date.utc_today()
+    notes = get_field_val(entry, :notes)
+
+    attrs = %{
+      "reason" => reason,
+      "quantity" => qty,
+      "from_pen_id" => from_pen_id,
+      "to_pen_id" => to_pen_id,
+      "moved_at" => moved_at,
+      "notes" => notes,
+      "animal_id" => animal.id,
+      "farm_id" => animal.farm_id
+    }
+
+    cs = Movement.changeset(%Movement{}, attrs) |> Map.put(:action, :validate)
+
+    cond do
+      not cs.valid? ->
+        {:error, cs}
+
+      reason == "placement" ->
+        project_placement(cs, qty, to_pen_id, proj, attrs, moved_at)
+
+      reason == "pen_transfer" ->
+        project_transfer(cs, qty, from_pen_id, to_pen_id, proj, attrs, moved_at)
+
+      true ->
+        {:error, cs |> Ecto.Changeset.add_error(:reason, "not supported in batch entry")}
+    end
+  end
+
+  defp project_placement(cs, qty, to_pen_id, proj, attrs, moved_at) do
+    cond do
+      is_nil(to_pen_id) ->
+        {:error, cs |> missing(:to_pen_id)}
+
+      qty > proj.unplaced ->
+        {:error,
+         cs
+         |> Ecto.Changeset.add_error(
+           :quantity,
+           "exceeds unplaced quantity (#{proj.unplaced} remaining)"
+         )}
+
+      true ->
+        proj2 =
+          proj
+          |> Map.update!(:unplaced, &(&1 - qty))
+          |> update_in([:per_pen, to_pen_id], &((&1 || 0) + qty))
+
+        norm = %{
+          reason: "placement",
+          qty: qty,
+          from_pen_id: nil,
+          to_pen_id: to_pen_id,
+          moved_at: moved_at,
+          attrs: attrs
+        }
+
+        {:ok, norm, proj2}
+    end
+  end
+
+  defp project_transfer(cs, qty, from_pen_id, to_pen_id, proj, attrs, moved_at) do
+    available = get_in(proj, [:per_pen, from_pen_id]) || 0
+
+    cond do
+      is_nil(from_pen_id) ->
+        {:error, cs |> missing(:from_pen_id)}
+
+      is_nil(to_pen_id) ->
+        {:error, cs |> missing(:to_pen_id)}
+
+      from_pen_id == to_pen_id ->
+        {:error, cs |> Ecto.Changeset.add_error(:to_pen_id, "must differ from source pen")}
+
+      available == 0 ->
+        {:error, cs |> Ecto.Changeset.add_error(:from_pen_id, "pen has no active placement")}
+
+      qty > available ->
+        {:error,
+         cs
+         |> Ecto.Changeset.add_error(
+           :quantity,
+           "exceeds available in source pen (#{available} there)"
+         )}
+
+      true ->
+        per_pen =
+          if available == qty do
+            Map.delete(proj.per_pen, from_pen_id)
+          else
+            Map.put(proj.per_pen, from_pen_id, available - qty)
+          end
+          |> Map.update(to_pen_id, qty, &(&1 + qty))
+
+        proj2 = Map.put(proj, :per_pen, per_pen)
+
+        norm = %{
+          reason: "pen_transfer",
+          qty: qty,
+          from_pen_id: from_pen_id,
+          to_pen_id: to_pen_id,
+          moved_at: moved_at,
+          attrs: attrs
+        }
+
+        {:ok, norm, proj2}
+    end
+  end
+
+  # Append DB steps for one normalized entry, keyed by row index.
+  # Within the outer transaction, later rows see earlier rows' writes —
+  # so two placements into the same pen compose into one row naturally.
+  defp add_batch_entry_to_multi(multi, scope, animal, %{reason: "placement"} = entry, i) do
+    cs = Movement.changeset(%Movement{}, entry.attrs)
+
+    multi
+    |> Multi.insert({:movement, i}, cs)
+    |> upsert_destination_keyed(i, animal.id, entry.to_pen_id, entry.qty, entry.moved_at)
+    |> audit_movement_keyed(i, scope, animal)
+  end
+
+  defp add_batch_entry_to_multi(multi, scope, animal, %{reason: "pen_transfer"} = entry, i) do
+    cs = Movement.changeset(%Movement{}, entry.attrs)
+
+    multi
+    |> Multi.run({:source, i}, fn _repo, _ ->
+      case active_placement(animal.id, entry.from_pen_id) do
+        nil -> {:error, :no_source_placement}
+        %Placement{quantity: q} when q < entry.qty -> {:error, :insufficient_quantity}
+        placement -> {:ok, placement}
+      end
+    end)
+    |> Multi.insert({:movement, i}, cs)
+    |> Multi.run({:source_update, i}, fn _repo, changes ->
+      source = Map.fetch!(changes, {:source, i})
+
+      if source.quantity == entry.qty do
+        source |> Placement.changeset(%{removed_at: entry.moved_at}) |> Repo.update()
+      else
+        source
+        |> Placement.changeset(%{quantity: source.quantity - entry.qty})
+        |> Repo.update()
+      end
+    end)
+    |> upsert_destination_keyed(i, animal.id, entry.to_pen_id, entry.qty, entry.moved_at)
+    |> audit_movement_keyed(i, scope, animal)
+  end
+
+  defp upsert_destination_keyed(multi, i, animal_id, to_pen_id, qty, moved_at) do
+    Multi.run(multi, {:destination, i}, fn _repo, _ ->
+      case active_placement(animal_id, to_pen_id) do
+        nil ->
+          Repo.insert(
+            Placement.changeset(%Placement{}, %{
+              animal_id: animal_id,
+              pen_id: to_pen_id,
+              quantity: qty,
+              placed_at: moved_at
+            })
+          )
+
+        %Placement{} = existing ->
+          existing
+          |> Placement.changeset(%{quantity: existing.quantity + qty})
+          |> Repo.update()
+      end
+    end)
+  end
+
+  defp audit_movement_keyed(multi, i, scope, %Animal{id: animal_id}) do
+    Multi.run(multi, {:audit, i}, fn _repo, changes ->
+      m = Map.fetch!(changes, {:movement, i})
+
+      Audit.log_now!(scope, "movement.recorded",
+        entity_type: :animal,
+        entity_id: animal_id,
+        changes:
+          normalize_changes(%{
+            reason: m.reason,
+            from_pen_id: m.from_pen_id,
+            to_pen_id: m.to_pen_id,
+            quantity: m.quantity
+          })
+      )
+
+      {:ok, :logged}
+    end)
+  end
+
+  defp get_field_val(map, key) when is_atom(key) do
+    Map.get(map, key) || Map.get(map, Atom.to_string(key))
+  end
+
+  ## Bulk individual-move helpers (record_bulk_individual_moves/2)
+
+  # Validate all entries up front, threading a MapSet of already-seen
+  # animal ids so a duplicate row is rejected rather than silently
+  # applied against stale state (the first move already shifted the
+  # animal's current pen).
+  defp normalize_bulk_individual_entries(farm, entries) do
+    entries
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn {entry, i}, {:ok, acc, seen} ->
+      case normalize_bulk_individual_entry(farm, entry, seen) do
+        {:ok, norm} ->
+          {:cont, {:ok, [norm | acc], MapSet.put(seen, norm.animal.id)}}
+
+        {:error, cs} ->
+          {:halt, {:error, {i, cs}}}
+      end
+    end)
+    |> case do
+      {:ok, rev, _} -> {:ok, Enum.reverse(rev)}
+      other -> other
+    end
+  end
+
+  defp normalize_bulk_individual_entry(farm, entry, seen) do
+    animal_id = parse_int(get_field_val(entry, :animal_id))
+    to_pen_id = parse_int(get_field_val(entry, :to_pen_id))
+    moved_at = get_field_val(entry, :moved_at) || Date.utc_today()
+    notes = get_field_val(entry, :notes)
+
+    cs = blank_movement_cs()
+
+    cond do
+      is_nil(animal_id) ->
+        {:error, cs |> missing(:animal_id)}
+
+      MapSet.member?(seen, animal_id) ->
+        {:error, cs |> Ecto.Changeset.add_error(:animal_id, "duplicated in batch")}
+
+      is_nil(to_pen_id) ->
+        {:error, cs |> missing(:to_pen_id)}
+
+      true ->
+        validate_bulk_individual_animal(farm, animal_id, to_pen_id, moved_at, notes, cs)
+    end
+  end
+
+  defp validate_bulk_individual_animal(farm, animal_id, to_pen_id, moved_at, notes, cs) do
+    case Repo.get_by(Animal, id: animal_id, farm_id: farm.id) do
+      nil ->
+        {:error, cs |> Ecto.Changeset.add_error(:animal_id, "not found")}
+
+      %Animal{tracking_type: "batch"} ->
+        {:error, cs |> Ecto.Changeset.add_error(:animal_id, "not an individual animal")}
+
+      %Animal{status: status} when status != "active" ->
+        {:error, cs |> Ecto.Changeset.add_error(:animal_id, "is not active")}
+
+      %Animal{current_pen_id: ^to_pen_id} ->
+        {:error, cs |> Ecto.Changeset.add_error(:to_pen_id, "animal is already in that pen")}
+
+      %Animal{} = animal ->
+        reason = if is_nil(animal.current_pen_id), do: "placement", else: "pen_transfer"
+
+        {:ok,
+         %{
+           animal: animal,
+           reason: reason,
+           from_pen_id: animal.current_pen_id,
+           to_pen_id: to_pen_id,
+           moved_at: moved_at,
+           notes: notes
+         }}
+    end
+  end
+
+  defp blank_movement_cs do
+    Movement.changeset(%Movement{}, %{}) |> Map.put(:action, :validate)
+  end
+
+  defp add_bulk_individual_entry_to_multi(multi, scope, entry, i) do
+    attrs = %{
+      "reason" => entry.reason,
+      "quantity" => 1,
+      "from_pen_id" => entry.from_pen_id,
+      "to_pen_id" => entry.to_pen_id,
+      "moved_at" => entry.moved_at,
+      "notes" => entry.notes,
+      "animal_id" => entry.animal.id,
+      "farm_id" => entry.animal.farm_id
+    }
+
+    cs = Movement.changeset(%Movement{}, attrs)
+
+    multi
+    |> Multi.insert({:movement, i}, cs)
+    |> Multi.update(
+      {:animal, i},
+      Animal.changeset(entry.animal, %{current_pen_id: entry.to_pen_id})
+    )
+    |> audit_movement_keyed(i, scope, entry.animal)
+  end
 
   defp active_placement(animal_id, pen_id) when not is_nil(pen_id) do
     Repo.one(

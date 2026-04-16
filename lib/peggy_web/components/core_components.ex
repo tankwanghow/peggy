@@ -328,10 +328,16 @@ defmodule PeggyWeb.CoreComponents do
   attr :placeholder, :string, default: nil
 
   def autocomplete(assigns) do
+    assigns = assign(assigns, :has_label?, is_binary(assigns.label) and assigns.label != "")
+
     ~H"""
-    <div class="fieldset mb-2 relative" id={@id} phx-update="ignore">
+    <div
+      class={["fieldset relative", @has_label? && "mb-2"]}
+      id={@id}
+      phx-update="ignore"
+    >
       <label>
-        <span class="label mb-1">{@label}</span>
+        <span :if={@has_label?} class="label mb-1">{@label}</span>
         <input type="hidden" id={"#{@id}-value"} name={@name} value={@value || ""} />
         <input
           type="text"
