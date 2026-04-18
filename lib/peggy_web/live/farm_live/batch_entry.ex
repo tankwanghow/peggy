@@ -66,99 +66,97 @@ defmodule PeggyWeb.FarmLive.BatchEntry do
             phx-submit="commit"
             phx-debounce="300"
           >
-            <div class="overflow-x-auto">
-              <table class="table table-sm w-full text-sm">
-                <thead class="text-left text-base-content/60">
-                  <tr>
-                    <th class="py-2 w-8">#</th>
-                    <th class="py-2">{gettext("Reason")}</th>
-                    <th class="py-2">{gettext("From pen")}</th>
-                    <th class="py-2">{gettext("To pen")}</th>
-                    <th class="py-2 w-24">{gettext("Qty")}</th>
-                    <th class="py-2">{gettext("Notes")}</th>
-                    <th class="py-2 w-10"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    :for={{row, i} <- Enum.with_index(@rows)}
-                    class={[
-                      "border-t border-base-200 align-top",
-                      @error_index == i && "bg-error/10"
-                    ]}
-                  >
-                    <td class="py-1 text-base-content/60">{i + 1}</td>
-                    <td class="py-1">
-                      <select
-                        name={"rows[#{row.tmp_id}][reason]"}
-                        class="select select-sm w-full"
-                      >
-                        <option value="placement" selected={row.reason == "placement"}>
-                          {gettext("Placement")}
-                        </option>
-                        <option value="pen_transfer" selected={row.reason == "pen_transfer"}>
-                          {gettext("Pen transfer")}
-                        </option>
-                      </select>
-                    </td>
-                    <td class="py-1">
-                      <.autocomplete
-                        :if={row.reason == "pen_transfer"}
-                        id={"row-#{row.tmp_id}-from"}
-                        label=""
-                        name={"rows[#{row.tmp_id}][from_pen_id]"}
-                        value={row.from_pen_id}
-                        items={@placement_items}
-                        selected_label={row.from_pen_label}
-                        class="input input-sm w-full font-mono"
-                        placeholder={gettext("Search...")}
-                      />
-                      <span :if={row.reason != "pen_transfer"} class="text-base-content/30">—</span>
-                    </td>
-                    <td class="py-1">
-                      <.autocomplete
-                        id={"row-#{row.tmp_id}-to"}
-                        label=""
-                        name={"rows[#{row.tmp_id}][to_pen_id]"}
-                        value={row.to_pen_id}
-                        items={@pen_items}
-                        selected_label={row.to_pen_label}
-                        class="input input-sm w-full font-mono"
-                        placeholder={gettext("Search...")}
-                      />
-                    </td>
-                    <td class="py-1">
-                      <input
-                        type="number"
-                        min="1"
-                        name={"rows[#{row.tmp_id}][quantity]"}
-                        value={row.qty}
-                        class="input input-sm w-full"
-                      />
-                    </td>
-                    <td class="py-1">
-                      <input
-                        type="text"
-                        name={"rows[#{row.tmp_id}][notes]"}
-                        value={row.notes || ""}
-                        class="input input-sm w-full"
-                      />
-                    </td>
-                    <td class="py-1 text-right">
-                      <button
-                        type="button"
-                        phx-click="remove_row"
-                        phx-value-id={row.tmp_id}
-                        class="btn btn-ghost btn-xs"
-                        title={gettext("Remove row")}
-                      >
-                        ×
-                      </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <table class="table table-sm w-full text-sm">
+              <thead class="text-left text-base-content/60">
+                <tr>
+                  <th class="py-2 w-8">#</th>
+                  <th class="py-2">{gettext("Reason")}</th>
+                  <th class="py-2">{gettext("From pen")}</th>
+                  <th class="py-2">{gettext("To pen")}</th>
+                  <th class="py-2 w-24">{gettext("Qty")}</th>
+                  <th class="py-2">{gettext("Notes")}</th>
+                  <th class="py-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  :for={{row, i} <- Enum.with_index(@rows)}
+                  class={[
+                    "border-t border-base-200 align-top",
+                    @error_index == i && "bg-error/10"
+                  ]}
+                >
+                  <td class="py-1 text-base-content/60">{i + 1}</td>
+                  <td class="py-1">
+                    <select
+                      name={"rows[#{row.tmp_id}][reason]"}
+                      class="select w-full"
+                    >
+                      <option value="placement" selected={row.reason == "placement"}>
+                        {gettext("Placement")}
+                      </option>
+                      <option value="pen_transfer" selected={row.reason == "pen_transfer"}>
+                        {gettext("Pen transfer")}
+                      </option>
+                    </select>
+                  </td>
+                  <td class="py-1">
+                    <.autocomplete
+                      :if={row.reason == "pen_transfer"}
+                      id={"row-#{row.tmp_id}-from"}
+                      label=""
+                      name={"rows[#{row.tmp_id}][from_pen_id]"}
+                      value={row.from_pen_id}
+                      items={@placement_items}
+                      selected_label={row.from_pen_label}
+                      class="input w-full font-mono"
+                      placeholder={gettext("Search...")}
+                    />
+                    <span :if={row.reason != "pen_transfer"} class="text-base-content/30">—</span>
+                  </td>
+                  <td class="py-1">
+                    <.autocomplete
+                      id={"row-#{row.tmp_id}-to"}
+                      label=""
+                      name={"rows[#{row.tmp_id}][to_pen_id]"}
+                      value={row.to_pen_id}
+                      items={@pen_items}
+                      selected_label={row.to_pen_label}
+                      class="input w-full font-mono"
+                      placeholder={gettext("Search...")}
+                    />
+                  </td>
+                  <td class="py-1">
+                    <input
+                      type="number"
+                      min="1"
+                      name={"rows[#{row.tmp_id}][quantity]"}
+                      value={row.qty}
+                      class="input w-full"
+                    />
+                  </td>
+                  <td class="py-1">
+                    <input
+                      type="text"
+                      name={"rows[#{row.tmp_id}][notes]"}
+                      value={row.notes || ""}
+                      class="input w-full"
+                    />
+                  </td>
+                  <td class="py-1 text-right">
+                    <button
+                      type="button"
+                      phx-click="remove_row"
+                      phx-value-id={row.tmp_id}
+                      class="btn btn-ghost btn-xs"
+                      title={gettext("Remove row")}
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
 
             <p
               :if={@error_message}

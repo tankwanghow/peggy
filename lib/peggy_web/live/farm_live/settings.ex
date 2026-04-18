@@ -29,7 +29,13 @@ defmodule PeggyWeb.FarmLive.Settings do
               class="w-full input font-mono"
               required
             />
-            <.input field={@farm_form[:timezone]} type="text" label={gettext("Timezone")} required />
+            <.input
+              field={@farm_form[:timezone]}
+              type="select"
+              label={gettext("Timezone")}
+              options={Peggy.Timezones.options()}
+              required
+            />
             <.input
               field={@farm_form[:unit_system]}
               type="select"

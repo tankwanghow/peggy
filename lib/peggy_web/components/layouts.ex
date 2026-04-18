@@ -119,6 +119,12 @@ defmodule PeggyWeb.Layouts do
           label={gettext("Animals")}
         />
         <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :read_breeding)}
+          href={~p"/farms/#{@current_scope.farm.slug}/breeding"}
+          icon="hero-heart-micro"
+          label={gettext("Breeding")}
+        />
+        <.farm_nav_link
           :if={Peggy.Policy.can?(@current_scope, :view_audit)}
           href={~p"/farms/#{@current_scope.farm.slug}/audit"}
           icon="hero-clipboard-document-list-micro"

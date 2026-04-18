@@ -558,6 +558,205 @@ defmodule Peggy.AnimalsTest do
       assert errors_on(cs)[:reason]
     end
 
+    test "foster_on auto-resolves pen from the batch's placement",
+         %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "piglet",
+          quantity: 10,
+          current_pen_id: pen.id
+        })
+
+      assert {:ok, movement} =
+               Animals.record_movement(scope, batch, %{
+                 reason: "foster_on",
+                 quantity: 2,
+                 moved_at: Date.utc_today(),
+                 notes: "fostered on from sow #42"
+               })
+
+      assert movement.reason == "foster_on"
+      assert movement.to_pen_id == pen.id
+      updated = Animals.get_animal!(scope, batch.id)
+      assert updated.quantity == 12
+      assert [%{quantity: 12}] = Animals.list_placements(scope, batch)
+    end
+
+    test "foster_off auto-resolves pen from the batch's placement",
+         %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "piglet",
+          quantity: 10,
+          current_pen_id: pen.id
+        })
+
+      assert {:ok, movement} =
+               Animals.record_movement(scope, batch, %{
+                 reason: "foster_off",
+                 quantity: 3,
+                 moved_at: Date.utc_today(),
+                 notes: "fostered off to sow #17"
+               })
+
+      assert movement.reason == "foster_off"
+      assert movement.from_pen_id == pen.id
+      updated = Animals.get_animal!(scope, batch.id)
+      assert updated.quantity == 7
+      assert updated.status == "active"
+      assert [%{quantity: 7}] = Animals.list_placements(scope, batch)
+    end
+
+    test "foster_on is rejected for non-piglet batches", %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "weaner",
+          quantity: 20,
+          current_pen_id: pen.id
+        })
+
+      assert {:error, cs} =
+               Animals.record_movement(scope, batch, %{
+                 reason: "foster_on",
+                 quantity: 1,
+                 moved_at: Date.utc_today()
+               })
+
+      assert errors_on(cs)[:reason]
+    end
+
+    test "foster_off is rejected for non-piglet batches", %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "weaner",
+          quantity: 20,
+          current_pen_id: pen.id
+        })
+
+      assert {:error, cs} =
+               Animals.record_movement(scope, batch, %{
+                 reason: "foster_off",
+                 quantity: 1,
+                 moved_at: Date.utc_today()
+               })
+
+      assert errors_on(cs)[:reason]
+    end
+
+    test "foster_on/foster_off rejected for individual animals", %{scope: scope, pen: pen} do
+      animal = animal_fixture(scope, current_pen_id: pen.id)
+
+      for reason <- ["foster_on", "foster_off"] do
+        assert {:error, cs} =
+                 Animals.record_movement(scope, animal, %{
+                   reason: reason,
+                   quantity: 1,
+                   moved_at: Date.utc_today()
+                 })
+
+        assert errors_on(cs)[:reason]
+      end
+    end
+
+    test "foster fails when piglet batch has no active placement", %{scope: scope} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "piglet",
+          quantity: 10
+        })
+
+      assert {:error, cs} =
+               Animals.record_movement(scope, batch, %{
+                 reason: "foster_on",
+                 quantity: 1,
+                 moved_at: Date.utc_today()
+               })
+
+      assert errors_on(cs)[:reason]
+    end
+
+    test "foster fails when piglet batch is split across pens",
+         %{scope: scope, house: house, pen: pen} do
+      pen2 = pen_fixture(scope, house, code: "P2", capacity: 50)
+
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "piglet",
+          quantity: 10,
+          current_pen_id: pen.id
+        })
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "pen_transfer",
+          from_pen_id: pen.id,
+          to_pen_id: pen2.id,
+          quantity: 4,
+          moved_at: Date.utc_today()
+        })
+
+      assert {:error, cs} =
+               Animals.record_movement(scope, batch, %{
+                 reason: "foster_off",
+                 quantity: 1,
+                 moved_at: Date.utc_today()
+               })
+
+      assert errors_on(cs)[:reason]
+    end
+
+    test "undo_last_movement reverses foster_on", %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "piglet",
+          quantity: 10,
+          current_pen_id: pen.id
+        })
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "foster_on",
+          quantity: 2,
+          moved_at: Date.utc_today()
+        })
+
+      batch = Animals.get_animal!(scope, batch.id)
+      assert {:ok, _undone} = Animals.undo_last_movement(scope, batch)
+      reloaded = Animals.get_animal!(scope, batch.id)
+      assert reloaded.quantity == 10
+      assert [%{quantity: 10}] = Animals.list_placements(scope, batch)
+    end
+
+    test "undo_last_movement reverses foster_off", %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "piglet",
+          quantity: 10,
+          current_pen_id: pen.id
+        })
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "foster_off",
+          quantity: 3,
+          moved_at: Date.utc_today()
+        })
+
+      batch = Animals.get_animal!(scope, batch.id)
+      assert {:ok, _undone} = Animals.undo_last_movement(scope, batch)
+      reloaded = Animals.get_animal!(scope, batch.id)
+      assert reloaded.quantity == 10
+      assert [%{quantity: 10}] = Animals.list_placements(scope, batch)
+    end
+
     test "count_animals_in_pen aggregates individuals and batches",
          %{scope: scope, house: house, pen: pen} do
       animal_fixture(scope, ear_tag: "IND1", current_pen_id: pen.id)
@@ -858,6 +1057,78 @@ defmodule Peggy.AnimalsTest do
     end
   end
 
+  describe "create_batch_animals/2" do
+    test "creates multiple individual animals atomically", %{scope: scope, pen: pen} do
+      {:ok, animals} =
+        Animals.create_batch_animals(scope, [
+          %{ear_tag: "SOW01", stage: "sow", sex: "female", breed: "Landrace"},
+          %{
+            ear_tag: "SOW02",
+            stage: "sow",
+            sex: "female",
+            breed: "Yorkshire",
+            current_pen_id: pen.id
+          },
+          %{ear_tag: "BOAR01", stage: "boar", sex: "male"}
+        ])
+
+      assert length(animals) == 3
+
+      sow1 = Enum.at(animals, 0)
+      assert sow1.ear_tag == "SOW01"
+      assert sow1.tracking_type == "individual"
+      assert sow1.stage == "sow"
+      assert sow1.sex == "female"
+
+      sow2 = Enum.at(animals, 1)
+      assert sow2.ear_tag == "SOW02"
+      assert sow2.current_pen_id == pen.id
+
+      boar = Enum.at(animals, 2)
+      assert boar.ear_tag == "BOAR01"
+      assert boar.stage == "boar"
+      assert boar.sex == "male"
+    end
+
+    test "creates placement movement when pen_id given", %{scope: scope, pen: pen} do
+      {:ok, [animal]} =
+        Animals.create_batch_animals(scope, [
+          %{ear_tag: "SOW10", stage: "sow", sex: "female", current_pen_id: pen.id}
+        ])
+
+      movements = Animals.list_movements(scope, animal)
+      assert length(movements) == 1
+      assert hd(movements).reason == "placement"
+      assert hd(movements).to_pen_id == pen.id
+    end
+
+    test "rolls back all on validation error in any row", %{scope: scope} do
+      result =
+        Animals.create_batch_animals(scope, [
+          %{ear_tag: "SOW20", stage: "sow", sex: "female"},
+          %{ear_tag: "", stage: "sow", sex: "female"}
+        ])
+
+      assert {:error, {1, %Ecto.Changeset{}}} = result
+      # First row should not have been committed
+      assert Animals.list_animals(scope) == []
+    end
+
+    test "rejects duplicate ear tags in the same batch", %{scope: scope} do
+      result =
+        Animals.create_batch_animals(scope, [
+          %{ear_tag: "DUP01", stage: "sow", sex: "female"},
+          %{ear_tag: "DUP01", stage: "sow", sex: "female"}
+        ])
+
+      assert {:error, {1, %Ecto.Changeset{}}} = result
+    end
+
+    test "rejects empty list", %{scope: scope} do
+      assert {:error, :no_entries} = Animals.create_batch_animals(scope, [])
+    end
+  end
+
   describe "scope isolation" do
     test "animals are scoped to the farm", %{scope: scope} do
       animal = animal_fixture(scope)
@@ -893,6 +1164,377 @@ defmodule Peggy.AnimalsTest do
       assert "animal.created" in actions
       assert "animal.updated" in actions
       assert "movement.recorded" in actions
+    end
+  end
+
+  describe "import_herd/2" do
+    test "creates an active individual sow from a single row", %{scope: scope} do
+      {:ok, [animal]} =
+        Animals.import_herd(scope, [
+          %{
+            tracking_type: "individual",
+            ear_tag: "IMP-001",
+            sex: "female",
+            stage: "sow",
+            status: "active"
+          }
+        ])
+
+      assert animal.ear_tag == "IMP-001"
+      assert animal.status == "active"
+    end
+
+    test "rejects served row without last_served_at", %{scope: scope} do
+      assert {:error, {0, reason}} =
+               Animals.import_herd(scope, [
+                 %{
+                   tracking_type: "individual",
+                   ear_tag: "IMP-002",
+                   sex: "female",
+                   stage: "sow",
+                   status: "served"
+                 }
+               ])
+
+      assert reason =~ "last_served_at"
+    end
+
+    test "served status creates an open Service", %{scope: scope} do
+      {:ok, [animal]} =
+        Animals.import_herd(scope, [
+          %{
+            tracking_type: "individual",
+            ear_tag: "IMP-003",
+            sex: "female",
+            stage: "sow",
+            status: "served",
+            service_type: "ai",
+            last_served_at: "2026-03-15"
+          }
+        ])
+
+      assert animal.status == "served"
+
+      service = Peggy.Repo.get_by(Peggy.Breeding.Service, sow_id: animal.id)
+      assert service
+      assert is_nil(service.result)
+      assert service.served_at == ~D[2026-03-15]
+    end
+
+    test "lactating status creates closed service + farrowing + litter", %{
+      scope: scope,
+      pen: pen
+    } do
+      {:ok, [animal]} =
+        Animals.import_herd(scope, [
+          %{
+            tracking_type: "individual",
+            ear_tag: "IMP-004",
+            sex: "female",
+            stage: "sow",
+            status: "lactating",
+            service_type: "ai",
+            last_served_at: "2026-01-01",
+            last_farrowed_at: "2026-04-25",
+            born_alive: 10,
+            current_pen_id: pen.id
+          }
+        ])
+
+      assert animal.status == "lactating"
+
+      service = Peggy.Repo.get_by(Peggy.Breeding.Service, sow_id: animal.id)
+      assert service.result == "farrowing"
+
+      farrowing = Peggy.Repo.get_by(Peggy.Breeding.Farrowing, sow_id: animal.id)
+      assert farrowing.born_alive == 10
+      assert farrowing.farrowed_at == ~D[2026-04-25]
+
+      # Litter batch created and linked to the farrowing
+      import Ecto.Query
+      litter = Peggy.Repo.one(from a in Animals.Animal, where: a.farrowing_id == ^farrowing.id)
+      assert litter
+      assert litter.tracking_type == "batch"
+      assert litter.stage == "piglet"
+      assert litter.quantity == 10
+    end
+
+    test "rolls back the entire batch on any row failure", %{scope: scope} do
+      # Row 0 is valid; row 1 is invalid (missing last_served_at for served)
+      assert {:error, {1, _reason}} =
+               Animals.import_herd(scope, [
+                 %{
+                   tracking_type: "individual",
+                   ear_tag: "ROLL-1",
+                   sex: "female",
+                   stage: "sow",
+                   status: "active"
+                 },
+                 %{
+                   tracking_type: "individual",
+                   ear_tag: "ROLL-2",
+                   sex: "female",
+                   stage: "sow",
+                   status: "served"
+                 }
+               ])
+
+      # First row must not have been persisted
+      refute Peggy.Repo.get_by(Animals.Animal, ear_tag: "ROLL-1")
+    end
+
+    test "accepts open/dry/culled statuses directly on new animals", %{scope: scope} do
+      {:ok, animals} =
+        Animals.import_herd(scope, [
+          %{
+            tracking_type: "individual",
+            ear_tag: "IMP-OPEN",
+            sex: "female",
+            stage: "sow",
+            status: "open"
+          },
+          %{
+            tracking_type: "individual",
+            ear_tag: "IMP-DRY",
+            sex: "female",
+            stage: "sow",
+            status: "dry"
+          },
+          %{
+            tracking_type: "individual",
+            ear_tag: "IMP-CULL",
+            sex: "female",
+            stage: "sow",
+            status: "culled"
+          }
+        ])
+
+      assert Enum.map(animals, & &1.status) == ["open", "dry", "culled"]
+    end
+  end
+
+  describe "undo_last_movement/2" do
+    test "undoes a placement — clears current_pen_id for individual", %{
+      scope: scope,
+      pen: pen
+    } do
+      animal = animal_fixture(scope, ear_tag: "U1", sex: "female", stage: "sow")
+
+      {:ok, _} =
+        Animals.record_movement(scope, animal, %{
+          reason: "placement",
+          to_pen_id: pen.id,
+          moved_at: Date.utc_today()
+        })
+
+      animal = Animals.get_animal!(scope, animal.id)
+      assert animal.current_pen_id == pen.id
+
+      {:ok, _undone} = Animals.undo_last_movement(scope, animal)
+
+      updated = Animals.get_animal!(scope, animal.id)
+      assert is_nil(updated.current_pen_id)
+      assert Animals.list_movements(scope, updated) == []
+    end
+
+    test "undoes a pen_transfer — restores current_pen_id", %{
+      scope: scope,
+      house: house,
+      pen: pen
+    } do
+      pen2 = pen_fixture(scope, house, code: "P2", capacity: 50)
+
+      animal =
+        animal_fixture(scope, ear_tag: "U2", sex: "female", stage: "sow", current_pen_id: pen.id)
+
+      {:ok, _} =
+        Animals.record_movement(scope, animal, %{
+          reason: "pen_transfer",
+          to_pen_id: pen2.id,
+          moved_at: Date.utc_today()
+        })
+
+      animal = Animals.get_animal!(scope, animal.id)
+      assert animal.current_pen_id == pen2.id
+
+      {:ok, _} = Animals.undo_last_movement(scope, animal)
+
+      updated = Animals.get_animal!(scope, animal.id)
+      assert updated.current_pen_id == pen.id
+    end
+
+    test "undoes a departure — restores status and current_pen_id", %{
+      scope: scope,
+      pen: pen
+    } do
+      animal =
+        animal_fixture(scope, ear_tag: "U3", sex: "female", stage: "sow", current_pen_id: pen.id)
+
+      {:ok, _} =
+        Animals.record_movement(scope, animal, %{
+          reason: "death",
+          moved_at: Date.utc_today()
+        })
+
+      animal = Animals.get_animal!(scope, animal.id)
+      assert animal.status == "deceased"
+      assert is_nil(animal.current_pen_id)
+
+      {:ok, _} = Animals.undo_last_movement(scope, animal)
+
+      updated = Animals.get_animal!(scope, animal.id)
+      assert updated.status == "active"
+      assert updated.current_pen_id == pen.id
+    end
+
+    test "undoes a departure — reopens linked breeding service", %{
+      scope: scope,
+      pen: pen
+    } do
+      boar = animal_fixture(scope, ear_tag: "B1", sex: "male", stage: "boar")
+
+      sow =
+        animal_fixture(scope, ear_tag: "S1", sex: "female", stage: "sow", current_pen_id: pen.id)
+
+      {:ok, service} =
+        Peggy.Breeding.record_service(scope, %{
+          sow_id: sow.id,
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-01-15]
+        })
+
+      {:ok, _} =
+        Peggy.Breeding.close_service(scope, service, "death", %{result_at: ~D[2026-03-01]})
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "deceased"
+
+      # Service is closed
+      closed = Peggy.Breeding.get_service!(scope, service.id)
+      assert closed.result == "death"
+
+      # Undo the departure movement
+      {:ok, _} = Animals.undo_last_movement(scope, sow)
+
+      # Sow restored
+      updated = Animals.get_animal!(scope, sow.id)
+      assert updated.status == "served"
+      assert updated.current_pen_id == pen.id
+
+      # Service reopened
+      reopened = Peggy.Breeding.get_service!(scope, service.id)
+      assert is_nil(reopened.result)
+      assert is_nil(reopened.result_at)
+    end
+
+    test "returns error when no movements exist", %{scope: scope} do
+      animal = animal_fixture(scope, ear_tag: "U5", sex: "female", stage: "sow")
+      assert {:error, :no_movements} = Animals.undo_last_movement(scope, animal)
+    end
+
+    test "undoes batch placement — removes destination placement", %{scope: scope, pen: pen} do
+      batch =
+        animal_fixture(scope,
+          tracking_type: "batch",
+          stage: "grower",
+          quantity: 50
+        )
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "placement",
+          to_pen_id: pen.id,
+          quantity: 50,
+          moved_at: Date.utc_today()
+        })
+
+      assert length(Animals.list_placements(scope, batch)) == 1
+
+      batch = Animals.get_animal!(scope, batch.id)
+      {:ok, _} = Animals.undo_last_movement(scope, batch)
+
+      assert Animals.list_placements(scope, batch) == []
+    end
+
+    test "undoes batch pen_transfer — reverses placements", %{
+      scope: scope,
+      house: house,
+      pen: pen
+    } do
+      pen2 = pen_fixture(scope, house, code: "P2", capacity: 50)
+
+      batch =
+        animal_fixture(scope,
+          tracking_type: "batch",
+          stage: "grower",
+          quantity: 100,
+          current_pen_id: pen.id
+        )
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "pen_transfer",
+          from_pen_id: pen.id,
+          to_pen_id: pen2.id,
+          quantity: 40,
+          moved_at: Date.utc_today()
+        })
+
+      batch = Animals.get_animal!(scope, batch.id)
+      {:ok, _} = Animals.undo_last_movement(scope, batch)
+
+      placements = Animals.list_placements(scope, batch)
+      # All 100 back in pen, nothing in pen2
+      assert length(placements) == 1
+      assert hd(placements).pen_id == pen.id
+      assert hd(placements).quantity == 100
+    end
+
+    test "undoes batch departure — restores quantity and status", %{scope: scope, pen: pen} do
+      batch =
+        animal_fixture(scope,
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 30,
+          current_pen_id: pen.id
+        )
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "sale",
+          from_pen_id: pen.id,
+          quantity: 30,
+          moved_at: Date.utc_today()
+        })
+
+      batch = Animals.get_animal!(scope, batch.id)
+      assert batch.status == "sold"
+      assert batch.quantity == 0
+
+      {:ok, _} = Animals.undo_last_movement(scope, batch)
+
+      updated = Animals.get_animal!(scope, batch.id)
+      assert updated.status == "active"
+      assert updated.quantity == 30
+    end
+
+    test "writes audit log entry for undo", %{scope: scope, pen: pen} do
+      animal =
+        animal_fixture(scope, ear_tag: "U9", sex: "female", stage: "sow", current_pen_id: pen.id)
+
+      {:ok, _} =
+        Animals.record_movement(scope, animal, %{
+          reason: "pen_transfer",
+          to_pen_id: pen.id,
+          moved_at: Date.utc_today()
+        })
+
+      animal = Animals.get_animal!(scope, animal.id)
+      {:ok, _} = Animals.undo_last_movement(scope, animal)
+
+      logs = Audit.list(scope, action: "movement.undone")
+      assert length(logs) == 1
     end
   end
 end

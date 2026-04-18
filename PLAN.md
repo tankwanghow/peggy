@@ -10,6 +10,52 @@ Conventions:
 
 ---
 
+## Animal status model (cross-cutting reference)
+
+Status is a single source of truth on `animals.animals.status`. It changes **only through domain events** (service, farrowing, weaning, movement, treatment) — never through direct edit. The full set:
+
+| Status | Applies to | Description (shown in UI tooltips) |
+|---|---|---|
+| `active` | all | Present and healthy; no current reproductive cycle. Default for new animals and for non-breeding stock. |
+| `served` | sow / gilt | Sow has been serviced (AI or natural) and is presumed gestating. |
+| `open` | sow / gilt | Pregnancy check negative or sow returned to heat; ready to re-serve. |
+| `lactating` | sow | Sow has farrowed and is currently nursing piglets. |
+| `dry` | sow | Piglets weaned; sow resting before next heat. |
+| `under_treatment` | all | Receiving medication; withdrawal period active. Blocks sale/slaughter. |
+| `culled` | all | Marked for culling (decision made) but not yet sold/slaughtered. Final disposition pending. |
+| `sold` | all | Departed via sale. Terminal. |
+| `slaughtered` | all | Departed via slaughter. Terminal. |
+| `deceased` | all | Died on farm. Terminal. |
+| `transferred` | all | Moved to another farm/entity. Terminal. |
+
+**Groupings (centralized in `Animal`):**
+- `present_statuses` — `active · served · open · lactating · dry · under_treatment · culled`
+- `departed_statuses` — `sold · slaughtered · deceased · transferred`
+- `breeding_active_statuses` — `served · lactating` (counted in active breeding inventory)
+- `serviceable_statuses` — `active · open · dry` (eligible for new service)
+
+**Sow lifecycle transitions:**
+```
+active ──service──▶ served ──farrowing──▶ lactating ──weaning──▶ dry ──service──▶ served
+                       │                       │                   │
+                       └──preg-check fail──▶ open ──service──▶ served
+                       │
+                       └──abortion──▶ open
+```
+Any present status → `under_treatment` ↔ previous status (on treatment start / withdrawal clear).
+Any present status → `culled` → `sold`/`slaughtered`/`deceased` (terminal).
+
+**Validation rules** (enforced in `Animal.changeset` + context functions):
+- `served · open · lactating · dry` are valid only when `stage in [:sow, :gilt]`.
+- Transitions are validated by `Animal.valid_transition?(from, to)`; invalid transitions return a changeset error.
+- `status` is **read-only** in the animal edit form. Corrections are made by undoing the originating event (`Animals.undo_last_movement/2`, future `Breeding.undo_*`).
+
+**Status descriptions** are exposed via `Animal.status_description/1` and a `Animal.statuses_with_descriptions/0` helper, used by HEEx tooltips and the `<.status_badge>` core component.
+
+**Status history** is reconstructed from the audit log (Phase 2) — every status change is logged with `from`, `to`, `source_type`, `source_id`. No separate history table.
+
+---
+
 ## Phase 0 — Repo hygiene (½ day)
 
 - `mix format` config, `.credo.exs` (optional), `.tool-versions`
@@ -91,14 +137,16 @@ Can build a farm map; every create/update/delete shows up in the audit log with 
 ## Phase 3 — Animal registry (4–5 days)
 
 ### Schemas
-- `animals.animals` — farm_id, tag (ear tag), rfid, sex (`:male`|`:female`), birth_date, stage (`:piglet`|`:weaner`|`:grower`|`:finisher`|`:sow`|`:boar`|`:cull`), status (`:active`|`:sold`|`:slaughtered`|`:dead`|`:culled`), sire_id, dam_id, current_pen_id, entered_at, exited_at, exit_reason
+- `animals.animals` — farm_id, tag (ear tag), rfid, sex (`:male`|`:female`), birth_date, stage (`:piglet`|`:weaner`|`:grower`|`:finisher`|`:gilt`|`:sow`|`:boar`), status (see **Animal status model** above — full set: `active · served · open · lactating · dry · under_treatment · culled · sold · slaughtered · deceased · transferred`), previous_status (nullable, restored when `under_treatment` clears), sire_id, dam_id, current_pen_id, entered_at, exited_at, exit_reason
 - `animals.batches` — farm_id, code, current_pen_id, head_count, stage, opened_at, closed_at
-- `animals.movements` — farm_id, animal_id **or** batch_id + head_count, from_pen_id, to_pen_id, reason (`:transfer`|`:sale`|`:slaughter`|`:death`|`:cull`|`:arrival`), moved_at, notes, actor_user_id
+- `animals.movements` — farm_id, animal_id **or** batch_id + head_count, from_pen_id, to_pen_id, reason (`:placement`|`:pen_transfer`|`:sale`|`:slaughter`|`:death`|`:farm_transfer`|`:foster_on`|`:foster_off`|`:adjustment_gain`|`:adjustment_loss`) — `foster_on`/`foster_off` are piglet-batch-only (piglet joining/leaving a dam's litter); each is a single-entry event, previous_status (captured for departure reasons so `undo_last_movement/2` can restore status cleanly), moved_at, notes, actor_user_id
 - Unique index on `(farm_id, tag)` where tag not null; same for rfid
 
 ### Contexts
-- `Peggy.Animals` — `create_animal`, `create_batch`, `move!/2`, `split_batch/3`, `merge_batches/2`, `mark_dead!/3`, `cull!/3`
+- `Peggy.Animals` — `create_animal`, `create_batch`, `move!/2`, `split_batch/3`, `merge_batches/2`, `mark_dead!/3`, `cull!/3`, `undo_last_movement/2`
 - `move!/2` is the single chokepoint: updates `current_pen_id`, inserts `movements`, updates `batches.head_count`, validates pen capacity, audit-logs. Everything else (sales, mortality) calls it.
+- `undo_last_movement/2` reverses **only the most recent** movement (individual or batch): restores `current_pen_id`, restores `status` from `movement.previous_status`, reopens any linked breeding service, decrements/upserts placements for batch cases, writes `movement.undone` audit entry.
+- **Centralized query scopes** on `Animal` — `scope_present/1`, `scope_breeding_herd/1`, `scope_serviceable/1`, `scope_saleable/1` (excludes `under_treatment` and withdrawal-blocked). Every LiveView autocomplete and filter uses these; never inline `where: status == "active"`.
 
 ### UI (desktop)
 - `/farms/:slug/animals` — spreadsheet grid: filter by stage/pen/status, bulk edit pen, paste-from-Excel for bulk register
@@ -109,6 +157,9 @@ Can build a farm map; every create/update/delete shows up in the audit log with 
 ### Key UX
 - Paste-from-Excel: `phx-hook` that intercepts paste on the grid, splits tsv rows, pushes to server for validation, renders per-row errors inline
 - Keyboard nav (tab/enter/arrows) in grids — one `Grid` LiveComponent reused across phases
+- `<.status_badge status={...} />` core component — colour-coded pill with hover tooltip from `Animal.status_description/1`; used everywhere status is shown
+- Animal edit form: `status` field is **display-only** (badge, not input). A footnote links to the event log: "Status changes through service, farrowing, weaning, movement, or treatment."
+- **Initial herd import wizard** (`/farms/:slug/onboarding/herd`) — CSV paste that accepts tag, sex, stage, initial status, birth date, last service date (if `served`), expected farrow date (if `served`), last farrowing date (if `lactating`); creates corresponding `services`/`gestations`/`farrowings` stub rows so breeding history starts coherent instead of everything collapsed to `active`
 
 ### Done when
 Can register 500 piglets via CSV paste, move them between pens, and see a parentage tree for any animal.
@@ -127,7 +178,9 @@ Can register 500 piglets via CSV paste, move them between pens, and see a parent
 
 ### Contexts
 - `Peggy.Breeding` — heat → service → gestation auto-created; farrowing creates piglet animals in one transaction
-- Derived: `wean_to_service_interval(sow)`, `parity(sow)`, `farrowing_rate(farm, range)`
+- **Owns sow status transitions** (see Animal status model): `record_service` → `served`; `record_farrowing` → `lactating`; `record_weaning` → `dry`; pregnancy-check fail or abortion → `open`; death/cull during gestation → records departure movement with `previous_status` captured so it can be undone cleanly
+- Service forms restrict sow autocomplete to `Animal.scope_serviceable/1` (`active · open · dry`); attempting to service a `served` or `lactating` sow returns a validation error, not a silent duplicate
+- Derived: `wean_to_service_interval(sow)` (uses `dry → served` gap), `parity(sow)`, `farrowing_rate(farm, range)`, `return_to_service_rate(farm, range)` (uses `open` count), `non_productive_days(sow)`
 
 ### UI
 - `/farms/:slug/breeding` — dashboard: sows due this week, open services, recent farrowings
@@ -151,7 +204,8 @@ A sow's full reproductive lifecycle is recordable; dashboard surfaces sows due i
 - `health.outbreaks` — farm_id, disease, started_at, ended_at; plus `outbreak_pens` join
 
 ### Contexts
-- `Peggy.Health` — `record_treatment!/2` (computes `withdrawal_clear_at`), `record_mortality!/2` (calls `Animals.mark_dead!`), `due_vaccinations(scope, date)`, `withdrawal_blocked?(animal_or_batch, date)`
+- `Peggy.Health` — `record_treatment!/2` (computes `withdrawal_clear_at`, stashes `animal.status` into `previous_status`, sets `status = under_treatment`), `clear_withdrawal!/1` (restores `previous_status` when `withdrawal_clear_at` passes — driven by the Phase 8 scheduler tick), `record_mortality!/2` (calls `Animals.mark_dead!`), `due_vaccinations(scope, date)`, `withdrawal_blocked?(animal_or_batch, date)`
+- `Animal.scope_saleable/1` already excludes `under_treatment`, so sale forms and autocomplete naturally hide blocked animals; `withdrawal_blocked?/2` remains the hard guard at the write boundary
 - Quarantine: marking a pen as `:quarantine` flags all animals in it for withdrawal-like checks
 
 ### Cross-cutting: withdrawal enforcement

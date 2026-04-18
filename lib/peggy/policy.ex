@@ -40,6 +40,8 @@ defmodule Peggy.Policy do
   defp allowed?(:worker, :view_locations), do: true
   defp allowed?(:worker, :view_animals), do: true
   defp allowed?(:worker, :record_movement), do: true
+  defp allowed?(:worker, :record_breeding), do: true
+  defp allowed?(:worker, :read_breeding), do: true
   defp allowed?(:worker, :record_data), do: true
   defp allowed?(:worker, _), do: false
 
@@ -47,6 +49,7 @@ defmodule Peggy.Policy do
   defp allowed?(:vet, :view_farm), do: true
   defp allowed?(:vet, :view_locations), do: true
   defp allowed?(:vet, :view_animals), do: true
+  defp allowed?(:vet, :read_breeding), do: true
   defp allowed?(:vet, :record_health), do: true
   defp allowed?(:vet, _), do: false
 

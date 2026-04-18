@@ -125,9 +125,9 @@ defmodule PeggyWeb.FarmLive.Index do
             />
             <.input
               field={@form[:timezone]}
-              type="text"
+              type="select"
               label={gettext("Timezone")}
-              placeholder="Asia/Kuala_Lumpur"
+              options={Peggy.Timezones.options()}
             />
             <.input
               field={@form[:unit_system]}

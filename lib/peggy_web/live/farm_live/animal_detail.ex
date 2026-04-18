@@ -21,9 +21,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         </div>
         <.header>
           <span class="font-mono">{@animal.ear_tag || "##{@animal.id}"}</span>
-          <span class={["ml-2 badge", status_badge_class(@animal.status)]}>
-            {String.capitalize(@animal.status)}
-          </span>
+          <.status_badge status={@animal.status} class="ml-2" />
           <span class="ml-2 text-base-content/60 text-base font-normal">
             {String.capitalize(@animal.stage)} · {String.capitalize(@animal.tracking_type)}
             <%= if @animal.tracking_type == "batch" do %>
@@ -65,14 +63,17 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           </span>
           <:actions>
             <.link
-              :if={@can_move && @animal.tracking_type == "batch" && @animal.status == "active"}
+              :if={
+                @can_move && @animal.tracking_type == "batch" &&
+                  Peggy.Animals.Animal.present_status?(@animal.status)
+              }
               navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.id}/batch-entry"}
               class="btn btn-sm"
             >
               {gettext("Batch Transfer")}
             </.link>
             <.button
-              :if={@can_manage && @animal.status == "active"}
+              :if={@can_manage && Peggy.Animals.Animal.present_status?(@animal.status)}
               phx-click="edit"
               class="btn btn-primary btn-sm"
             >
@@ -127,7 +128,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         </section>
 
         <%!-- Movement form --%>
-        <section :if={@can_move && @animal.status == "active"} class="mt-8">
+        <section :if={@can_move && Peggy.Animals.Animal.present_status?(@animal.status)} class="mt-8">
           <h3 class="font-semibold mb-2">{gettext("Record movement")}</h3>
           <.form
             for={@move_form}
@@ -147,7 +148,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 @animal.tracking_type == "batch" and
                   Phoenix.HTML.Form.input_value(@move_form, :reason) not in [
                     "placement",
-                    "adjustment_gain"
+                    "adjustment_gain",
+                    "foster_on",
+                    "foster_off"
                   ]
               }
               id="move-from-pen-picker"
@@ -210,6 +213,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 <th class="py-2">{gettext("To pen")}</th>
                 <th class="py-2">{gettext("Qty")}</th>
                 <th class="py-2">{gettext("Notes")}</th>
+                <th :if={@can_move} class="py-2"></th>
               </tr>
             </thead>
             <tbody id="movements" phx-update="stream">
@@ -230,6 +234,18 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 </td>
                 <td class="py-1.5">{m.quantity}</td>
                 <td class="py-1.5 text-base-content/60">{m.notes}</td>
+                <td :if={@can_move} class="py-1.5 text-right">
+                  <button
+                    :if={m.id == @latest_movement_id}
+                    phx-click="undo_last_movement"
+                    class="btn btn-ghost btn-xs text-error"
+                    data-confirm={
+                      gettext("Undo this movement? This will reverse all related state changes.")
+                    }
+                  >
+                    {gettext("Undo")}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -324,6 +340,15 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               <div class="col-span-2">
                 <.input field={@edit_form[:notes]} type="textarea" label={gettext("Notes")} />
               </div>
+              <div class="col-span-2 flex items-center gap-2 text-sm text-base-content/60">
+                <span>{gettext("Status")}:</span>
+                <.status_badge status={@animal.status} />
+                <span class="text-xs">
+                  {gettext(
+                    "Status changes through service, farrowing, weaning, movement, or treatment — not this form."
+                  )}
+                </span>
+              </div>
               <div class="col-span-2 flex gap-2 justify-end">
                 <button type="button" phx-click="cancel_edit" class="btn btn-ghost">
                   {gettext("Cancel")}
@@ -350,6 +375,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
     move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 
+    latest_id = movements |> List.first() |> then(&(&1 && &1.id))
+
     {:ok,
      socket
      |> assign(
@@ -361,6 +388,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
        edit_form: nil,
        move_form: to_form(move_cs, as: :movement),
        movement_count: length(movements),
+       latest_movement_id: latest_id,
        ac: move_ac_items(scope, placements)
      )
      |> stream(:movements, movements)}
@@ -382,7 +410,10 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         reason not in ["placement", "pen_transfer", "adjustment_gain"],
         "move-pen-picker"
       )
-      |> maybe_reset_picker(reason in ["placement", "adjustment_gain"], "move-from-pen-picker")
+      |> maybe_reset_picker(
+        reason in ["placement", "adjustment_gain", "foster_on", "foster_off"],
+        "move-from-pen-picker"
+      )
 
     {:noreply, socket}
   end
@@ -415,6 +446,43 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
       {:error, cs} ->
         {:noreply, assign(socket, :move_form, to_form(cs, as: :movement))}
+    end
+  end
+
+  def handle_event("undo_last_movement", _, socket) do
+    if socket.assigns.can_move do
+      scope = socket.assigns.current_scope
+      animal = socket.assigns.animal
+
+      case Animals.undo_last_movement(scope, animal) do
+        {:ok, _} ->
+          animal = Animals.get_animal!(scope, animal.id)
+          placements = Animals.list_placements(scope, animal)
+          movements = Animals.list_movements(scope, animal)
+          latest_id = movements |> List.first() |> then(&(&1 && &1.id))
+          move_cs = Animals.change_movement(new_movement(animal, placements), %{})
+
+          {:noreply,
+           socket
+           |> assign(
+             animal: animal,
+             placements: placements,
+             movement_count: length(movements),
+             latest_movement_id: latest_id,
+             move_form: to_form(move_cs, as: :movement),
+             ac: move_ac_items(scope, placements)
+           )
+           |> stream(:movements, movements, reset: true)
+           |> put_flash(:info, gettext("Movement undone."))}
+
+        {:error, :no_movements} ->
+          {:noreply, put_flash(socket, :error, gettext("No movements to undo."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not undo movement."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
     end
   end
 
@@ -504,7 +572,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   defp edit_ac_items(scope, animal, placements) do
     animals =
       scope
-      |> Animals.list_animals(status: "active")
+      |> Animals.list_animals(status: "present")
       |> Enum.reject(&(&1.id == animal.id))
 
     %{
@@ -553,12 +621,18 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   # individuals since the count is always 1.
   defp reason_options(%Animal{tracking_type: "individual"}) do
     Movement.reasons()
-    |> Enum.reject(&(&1 in ["adjustment_loss", "adjustment_gain"]))
+    |> Enum.reject(&(&1 in ["adjustment_loss", "adjustment_gain", "foster_on", "foster_off"]))
     |> Enum.map(&{humanize_reason(&1), &1})
   end
 
-  defp reason_options(_) do
+  defp reason_options(%Animal{tracking_type: "batch", stage: "piglet"}) do
     Enum.map(Movement.reasons(), &{humanize_reason(&1), &1})
+  end
+
+  defp reason_options(_) do
+    Movement.reasons()
+    |> Enum.reject(&(&1 in ["foster_on", "foster_off"]))
+    |> Enum.map(&{humanize_reason(&1), &1})
   end
 
   defp humanize_reason(r), do: r |> String.replace("_", " ") |> String.capitalize()
@@ -584,11 +658,4 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
       _ -> nil
     end
   end
-
-  defp status_badge_class("active"), do: "badge-success"
-  defp status_badge_class("sold"), do: "badge-info"
-  defp status_badge_class("slaughtered"), do: "badge-warning"
-  defp status_badge_class("deceased"), do: "badge-error"
-  defp status_badge_class("transferred"), do: "badge-ghost"
-  defp status_badge_class(_), do: ""
 end

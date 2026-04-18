@@ -1,0 +1,85 @@
+defmodule Peggy.Breeding.Service do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  @service_types ~w(ai natural)
+  @results ~w(farrowing abortion re_service death cull)
+
+  schema "breeding_services" do
+    field :service_type, :string
+    field :served_at, :date
+    field :result, :string
+    field :result_at, :date
+    field :result_notes, :string
+    field :notes, :string
+    belongs_to :farm, Peggy.Farms.Farm
+    belongs_to :sow, Peggy.Animals.Animal
+    belongs_to :boar, Peggy.Animals.Animal
+    belongs_to :technician_user, Peggy.Accounts.User
+    has_one :farrowing, Peggy.Breeding.Farrowing
+    timestamps(type: :utc_datetime)
+  end
+
+  def service_types, do: @service_types
+  def results, do: @results
+
+  def changeset(service, attrs) do
+    service
+    |> cast(attrs, [
+      :service_type,
+      :served_at,
+      :result,
+      :result_at,
+      :result_notes,
+      :notes,
+      :sow_id,
+      :boar_id,
+      :technician_user_id,
+      :farm_id
+    ])
+    |> validate_required([:service_type, :served_at, :sow_id, :farm_id])
+    |> validate_inclusion(:service_type, @service_types)
+    |> validate_inclusion(:result, @results)
+    |> validate_boar_for_natural()
+    |> validate_result_date()
+  end
+
+  @doc """
+  Changeset that reopens a closed service (clears result fields).
+  Used when undoing a departure movement linked to a service closure.
+  """
+  def reopen_changeset(service) do
+    Ecto.Changeset.change(service, %{result: nil, result_at: nil, result_notes: nil})
+  end
+
+  def close_changeset(service, attrs) do
+    service
+    |> cast(attrs, [:result, :result_at, :result_notes])
+    |> validate_required([:result, :result_at])
+    |> validate_inclusion(:result, @results)
+  end
+
+  defp validate_boar_for_natural(cs) do
+    if get_field(cs, :service_type) == "natural" and is_nil(get_field(cs, :boar_id)) do
+      add_error(cs, :boar_id, "is required for natural service")
+    else
+      cs
+    end
+  end
+
+  defp validate_result_date(cs) do
+    result = get_field(cs, :result)
+    result_at = get_field(cs, :result_at)
+
+    cond do
+      not is_nil(result) and is_nil(result_at) ->
+        add_error(cs, :result_at, "is required when result is set")
+
+      is_nil(result) and not is_nil(result_at) ->
+        add_error(cs, :result_at, "must be blank when result is not set")
+
+      true ->
+        cs
+    end
+  end
+end

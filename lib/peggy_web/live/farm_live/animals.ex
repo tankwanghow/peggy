@@ -16,6 +16,13 @@ defmodule PeggyWeb.FarmLive.Animals do
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
           <:actions>
             <.link
+              :if={@can_manage}
+              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/batch-register"}
+              class="btn btn-sm"
+            >
+              {gettext("Batch Register")}
+            </.link>
+            <.link
               :if={@can_move}
               navigate={~p"/farms/#{@current_scope.farm.slug}/animals/bulk-move"}
               class="btn btn-sm"
@@ -86,12 +93,7 @@ defmodule PeggyWeb.FarmLive.Animals do
                   {pen_label(a)}
                 </td>
                 <td class="py-1.5">
-                  <span class={[
-                    "badge badge-sm",
-                    status_badge_class(a.status)
-                  ]}>
-                    {String.capitalize(a.status)}
-                  </span>
+                  <.status_badge status={a.status} class="badge-sm" />
                 </td>
               </tr>
             </tbody>
@@ -434,11 +436,4 @@ defmodule PeggyWeb.FarmLive.Animals do
   defp pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}/#{code}"
   defp pen_label(%{current_pen: %{code: code}}), do: code
   defp pen_label(_), do: nil
-
-  defp status_badge_class("active"), do: "badge-success"
-  defp status_badge_class("sold"), do: "badge-info"
-  defp status_badge_class("slaughtered"), do: "badge-warning"
-  defp status_badge_class("deceased"), do: "badge-error"
-  defp status_badge_class("transferred"), do: "badge-ghost"
-  defp status_badge_class(_), do: ""
 end

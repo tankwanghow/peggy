@@ -504,6 +504,46 @@ defmodule PeggyWeb.CoreComponents do
     """
   end
 
+  @doc ~S"""
+  Renders a colour-coded status badge for an animal status.
+
+  Pulls the label and tooltip from `Peggy.Animals.Animal.status_description/1`
+  so every screen shows the same text for the same status. Use this
+  instead of hand-rolling `<span class="badge …">` everywhere.
+
+  ## Examples
+
+      <.status_badge status={@animal.status} />
+      <.status_badge status="served" class="ml-2" />
+  """
+  attr :status, :string, required: true
+  attr :class, :any, default: nil
+
+  def status_badge(assigns) do
+    assigns =
+      assigns
+      |> assign(:tone, Peggy.Animals.Animal.status_description(assigns.status))
+      |> assign(:colour_class, status_badge_class(assigns.status))
+
+    ~H"""
+    <span class={["badge", @colour_class, @class]} title={@tone}>
+      {@status}
+    </span>
+    """
+  end
+
+  defp status_badge_class("active"), do: "badge-success"
+  defp status_badge_class("served"), do: "badge-info"
+  defp status_badge_class("open"), do: "badge-warning"
+  defp status_badge_class("lactating"), do: "badge-accent"
+  defp status_badge_class("dry"), do: "badge-ghost"
+  defp status_badge_class("culled"), do: "badge-warning"
+  defp status_badge_class("sold"), do: "badge-neutral"
+  defp status_badge_class("slaughtered"), do: "badge-warning"
+  defp status_badge_class("deceased"), do: "badge-error"
+  defp status_badge_class("transferred"), do: "badge-ghost"
+  defp status_badge_class(_), do: ""
+
   ## JS Commands
 
   def show(js \\ %JS{}, selector) do
