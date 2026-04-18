@@ -2,6 +2,7 @@ defmodule Peggy.BreedingFixtures do
   @moduledoc "Fixtures for the Breeding context."
 
   alias Peggy.Breeding
+  import Peggy.LocationsFixtures
 
   def service_fixture(scope, sow, attrs \\ %{}) do
     attrs =
@@ -44,8 +45,25 @@ defmodule Peggy.BreedingFixtures do
           a
         )
       end)
+      |> ensure_pen_id(scope, sow)
 
     {:ok, farrowing, _piglets} = Breeding.record_farrowing(scope, service, farrowing_attrs)
     farrowing
+  end
+
+  defp ensure_pen_id(attrs, scope, sow) do
+    cond do
+      Map.has_key?(attrs, :pen_id) and not is_nil(attrs.pen_id) ->
+        attrs
+
+      not is_nil(sow.current_pen_id) ->
+        Map.put(attrs, :pen_id, sow.current_pen_id)
+
+      true ->
+        u = System.unique_integer([:positive])
+        house = house_fixture(scope, code: "FH#{u}", purpose: "farrowing")
+        pen = pen_fixture(scope, house, code: "FP#{u}", capacity: 20)
+        Map.put(attrs, :pen_id, pen.id)
+    end
   end
 end

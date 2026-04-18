@@ -104,9 +104,22 @@ defmodule PeggyWeb.FarmLive.Audit do
     Audit.list(scope, entity_type: entity_type, action: action, limit: 500)
   end
 
+  defp format_value(nil), do: ""
+
+  defp format_value(map) when is_map(map) and not is_struct(map) do
+    Jason.encode!(map)
+  end
+
   defp format_value(list) when is_list(list) do
-    Enum.join(list, ", ")
+    if Enum.all?(list, &scalar?/1) do
+      Enum.join(list, ", ")
+    else
+      Jason.encode!(list)
+    end
   end
 
   defp format_value(value), do: "#{value}"
+
+  defp scalar?(v) when is_binary(v) or is_number(v) or is_atom(v), do: true
+  defp scalar?(_), do: false
 end

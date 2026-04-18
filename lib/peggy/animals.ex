@@ -1435,7 +1435,8 @@ defmodule Peggy.Animals do
                where:
                  s.farm_id == ^scope.farm.id and
                    s.sow_id == ^animal.id and
-                   s.result in ["death", "cull"],
+                   s.result in ["death", "cull"] and
+                   is_nil(s.deleted_at),
                order_by: [desc: s.id],
                limit: 1
            ) do

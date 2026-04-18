@@ -13,8 +13,10 @@ defmodule Peggy.Breeding.Farrowing do
     belongs_to :service, Peggy.Breeding.Service
     belongs_to :sow, Peggy.Animals.Animal
     belongs_to :pen, Peggy.Locations.Pen
-    has_one :weaning, Peggy.Breeding.Weaning
+    has_one :weaning, Peggy.Breeding.Weaning, where: [deleted_at: nil]
     has_many :piglets, Peggy.Animals.Animal, foreign_key: :farrowing_id
+    field :deleted_at, :utc_datetime
+    belongs_to :deleted_by, Peggy.Accounts.User
     timestamps(type: :utc_datetime)
   end
 
@@ -32,7 +34,7 @@ defmodule Peggy.Breeding.Farrowing do
       :pen_id,
       :farm_id
     ])
-    |> validate_required([:farrowed_at, :born_alive, :service_id, :sow_id, :farm_id])
+    |> validate_required([:farrowed_at, :born_alive, :service_id, :sow_id, :farm_id, :pen_id])
     |> validate_number(:born_alive, greater_than_or_equal_to: 0)
     |> validate_number(:stillborn, greater_than_or_equal_to: 0)
     |> validate_number(:mummified, greater_than_or_equal_to: 0)

@@ -10,6 +10,8 @@ defmodule Peggy.Breeding.Weaning do
     belongs_to :farm, Peggy.Farms.Farm
     belongs_to :farrowing, Peggy.Breeding.Farrowing
     belongs_to :destination_pen, Peggy.Locations.Pen
+    field :deleted_at, :utc_datetime
+    belongs_to :deleted_by, Peggy.Accounts.User
     timestamps(type: :utc_datetime)
   end
 
@@ -27,6 +29,8 @@ defmodule Peggy.Breeding.Weaning do
     |> validate_required([:weaned_at, :weaned_count, :farrowing_id, :farm_id])
     |> validate_number(:weaned_count, greater_than_or_equal_to: 0)
     |> validate_number(:avg_wean_weight_g, greater_than: 0)
-    |> unique_constraint(:farrowing_id)
+    |> unique_constraint(:farrowing_id,
+      name: :breeding_weanings_farrowing_id_active_index
+    )
   end
 end

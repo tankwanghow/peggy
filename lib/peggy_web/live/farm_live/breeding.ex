@@ -27,28 +27,59 @@ defmodule PeggyWeb.FarmLive.Breeding do
         </.header>
 
         <%!-- Tabs --%>
-        <div role="tablist" class="tabs tabs-bordered mt-6">
+        <div role="tablist" class="tabs tabs-boxed bg-base-200 mt-6 w-fit p-1">
           <button
             type="button"
             role="tab"
             phx-click="change_tab"
             phx-value-tab="gestating"
-            class={["tab", @tab == "gestating" && "tab-active"]}
+            class={[
+              "tab cursor-pointer font-medium px-6 transition-colors",
+              @tab == "gestating" && "tab-active bg-primary text-primary-content",
+              @tab != "gestating" && "hover:bg-base-300"
+            ]}
           >
             {gettext("Gestating")}
-            <span class="ml-1 text-base-content/60 text-sm">({@total})</span>
           </button>
           <button
             type="button"
             role="tab"
             phx-click="change_tab"
             phx-value-tab="lactating"
-            class={["tab", @tab == "lactating" && "tab-active"]}
+            class={[
+              "tab cursor-pointer font-medium px-6 transition-colors",
+              @tab == "lactating" && "tab-active bg-primary text-primary-content",
+              @tab != "lactating" && "hover:bg-base-300"
+            ]}
           >
             {gettext("Lactating")}
-            <span :if={@tab == "lactating"} class="ml-1 text-base-content/60 text-sm">
-              ({@total})
-            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            phx-click="change_tab"
+            phx-value-tab="weaned"
+            class={[
+              "tab cursor-pointer font-medium px-6 transition-colors",
+              @tab == "weaned" && "tab-active bg-primary text-primary-content",
+              @tab != "weaned" && "hover:bg-base-300"
+            ]}
+          >
+            {gettext("Weaned")}
+          </button>
+          <button
+            :if={@can_record}
+            type="button"
+            role="tab"
+            phx-click="change_tab"
+            phx-value-tab="deleted"
+            class={[
+              "tab cursor-pointer font-medium px-6 transition-colors",
+              @tab == "deleted" && "tab-active bg-primary text-primary-content",
+              @tab != "deleted" && "hover:bg-base-300"
+            ]}
+          >
+            {gettext("Deleted")}
           </button>
         </div>
 
@@ -164,6 +195,15 @@ defmodule PeggyWeb.FarmLive.Breeding do
                       class="btn btn-ghost btn-xs text-base-content/50"
                     >
                       {gettext("Close")}
+                    </button>
+                    <button
+                      phx-click="delete_service"
+                      phx-value-service-id={entry.service.id}
+                      data-confirm={gettext("Delete this service? The sow will be reverted to open.")}
+                      class="btn btn-ghost btn-xs text-error/70"
+                      title={gettext("Delete service")}
+                    >
+                      <.icon name="hero-trash" class="size-4" />
                     </button>
                   </td>
                 </tr>
@@ -284,6 +324,19 @@ defmodule PeggyWeb.FarmLive.Breeding do
                     >
                       {gettext("Wean")}
                     </button>
+                    <button
+                      phx-click="delete_farrowing"
+                      phx-value-farrowing-id={entry.farrowing.id}
+                      data-confirm={
+                        gettext(
+                          "Delete this farrowing? The litter batch and movements will be removed and the sow reverted."
+                        )
+                      }
+                      class="btn btn-ghost btn-xs text-error/70"
+                      title={gettext("Delete farrowing")}
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -294,6 +347,257 @@ defmodule PeggyWeb.FarmLive.Breeding do
           </div>
 
           <.pagination page={@page} per_page={@per_page} total={@total} />
+        </section>
+
+        <%!-- Weaned tab --%>
+        <section :if={@tab == "weaned"} class="mt-4">
+          <form
+            id="weaned-filters"
+            phx-change="filter_weaned"
+            phx-submit="filter_weaned"
+            class="flex flex-wrap gap-3 items-end"
+          >
+            <label class="form-control w-full sm:w-56">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Search sow tag")}</span>
+              </div>
+              <input
+                type="text"
+                name="q"
+                value={@filters.q}
+                phx-debounce="300"
+                placeholder={gettext("e.g. 1234")}
+                class="input input-sm input-bordered font-mono"
+              />
+            </label>
+          </form>
+
+          <div class="mt-4 overflow-x-auto">
+            <table class="table table-sm w-full">
+              <thead class="text-left text-base-content/60">
+                <tr>
+                  <th class="py-2">{gettext("Sow")}</th>
+                  <th class="py-2">{gettext("Weaned at")}</th>
+                  <th class="py-2 text-right">{gettext("Weaned count")}</th>
+                  <th class="py-2 text-right">{gettext("Avg wt (g)")}</th>
+                  <th class="py-2">{gettext("Dest. pen")}</th>
+                  <th :if={@can_record} class="py-2"></th>
+                </tr>
+              </thead>
+              <tbody id="weaned-rows" phx-update="stream">
+                <tr
+                  :for={{dom_id, w} <- @streams.weaned}
+                  id={dom_id}
+                  class="border-t border-base-200"
+                >
+                  <td class="py-1.5 font-mono font-semibold">
+                    {w.farrowing && w.farrowing.sow && w.farrowing.sow.ear_tag}
+                  </td>
+                  <td class="py-1.5">{w.weaned_at}</td>
+                  <td class="py-1.5 text-right">{w.weaned_count}</td>
+                  <td class="py-1.5 text-right">{w.avg_wean_weight_g}</td>
+                  <td class="py-1.5 font-mono">
+                    {w.destination_pen &&
+                      "#{w.destination_pen.house.code}/#{w.destination_pen.code}"}
+                  </td>
+                  <td :if={@can_record} class="py-1.5 text-right">
+                    <button
+                      phx-click="delete_weaning"
+                      phx-value-weaning-id={w.id}
+                      data-confirm={
+                        gettext("Delete this weaning? The litter batch and sow will be reverted.")
+                      }
+                      class="btn btn-ghost btn-xs text-error/70"
+                      title={gettext("Delete weaning")}
+                    >
+                      <.icon name="hero-trash" class="size-4" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p :if={@total == 0} class="mt-2 text-sm text-base-content/60">
+              {gettext("No weanings match the filters.")}
+            </p>
+          </div>
+        </section>
+
+        <%!-- Deleted tab --%>
+        <section :if={@tab == "deleted"} class="mt-4 space-y-8">
+          <div>
+            <h3 class="font-semibold mb-2">{gettext("Deleted services")}</h3>
+            <p class="text-sm text-base-content/60 mb-3">
+              {gettext("Restore reverts sow status if it is still consistent.")}
+            </p>
+
+            <div class="overflow-x-auto">
+              <table class="table table-sm w-full">
+                <thead class="text-left text-base-content/60">
+                  <tr>
+                    <th class="py-2">{gettext("Sow")}</th>
+                    <th class="py-2">{gettext("Boar")}</th>
+                    <th class="py-2">{gettext("Type")}</th>
+                    <th class="py-2">{gettext("Served")}</th>
+                    <th class="py-2">{gettext("Result")}</th>
+                    <th class="py-2">{gettext("Deleted at")}</th>
+                    <th class="py-2">{gettext("By")}</th>
+                    <th :if={@can_record} class="py-2"></th>
+                  </tr>
+                </thead>
+                <tbody id="deleted-rows" phx-update="stream">
+                  <tr
+                    :for={{dom_id, s} <- @streams.deleted}
+                    id={dom_id}
+                    class="border-t border-base-200"
+                  >
+                    <td class="py-1.5 font-mono font-semibold">
+                      {s.sow && s.sow.ear_tag}
+                    </td>
+                    <td class="py-1.5 font-mono">{s.boar && s.boar.ear_tag}</td>
+                    <td class="py-1.5">{s.service_type}</td>
+                    <td class="py-1.5">{s.served_at}</td>
+                    <td class="py-1.5">{s.result || gettext("open")}</td>
+                    <td class="py-1.5 text-base-content/70">
+                      {Calendar.strftime(s.deleted_at, "%Y-%m-%d %H:%M")}
+                    </td>
+                    <td class="py-1.5 text-base-content/70">
+                      {s.deleted_by && s.deleted_by.email}
+                    </td>
+                    <td :if={@can_record} class="py-1.5 text-right">
+                      <button
+                        phx-click="restore_service"
+                        phx-value-service-id={s.id}
+                        class="btn btn-ghost btn-xs text-primary"
+                      >
+                        <.icon name="hero-arrow-uturn-left" class="size-4" />
+                        {gettext("Restore")}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p :if={@deleted_services_empty} class="mt-2 text-sm text-base-content/60">
+                {gettext("No deleted services.")}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="font-semibold mb-2">{gettext("Deleted farrowings")}</h3>
+            <p class="text-sm text-base-content/60 mb-3">
+              {gettext("Restoring re-creates the litter batch and reapplies sow and service state.")}
+            </p>
+
+            <div class="overflow-x-auto">
+              <table class="table table-sm w-full">
+                <thead class="text-left text-base-content/60">
+                  <tr>
+                    <th class="py-2">{gettext("Sow")}</th>
+                    <th class="py-2">{gettext("Farrowed")}</th>
+                    <th class="py-2 text-right">{gettext("Born alive")}</th>
+                    <th class="py-2">{gettext("Pen")}</th>
+                    <th class="py-2">{gettext("Deleted at")}</th>
+                    <th class="py-2">{gettext("By")}</th>
+                    <th :if={@can_record} class="py-2"></th>
+                  </tr>
+                </thead>
+                <tbody id="deleted-farrowing-rows" phx-update="stream">
+                  <tr
+                    :for={{dom_id, f} <- @streams.deleted_farrowings}
+                    id={dom_id}
+                    class="border-t border-base-200"
+                  >
+                    <td class="py-1.5 font-mono font-semibold">
+                      {f.sow && f.sow.ear_tag}
+                    </td>
+                    <td class="py-1.5">{f.farrowed_at}</td>
+                    <td class="py-1.5 text-right font-mono">{f.born_alive}</td>
+                    <td class="py-1.5 font-mono">
+                      {f.pen && "#{f.pen.house.code}/#{f.pen.code}"}
+                    </td>
+                    <td class="py-1.5 text-base-content/70">
+                      {Calendar.strftime(f.deleted_at, "%Y-%m-%d %H:%M")}
+                    </td>
+                    <td class="py-1.5 text-base-content/70">
+                      {f.deleted_by && f.deleted_by.email}
+                    </td>
+                    <td :if={@can_record} class="py-1.5 text-right">
+                      <button
+                        phx-click="restore_farrowing"
+                        phx-value-farrowing-id={f.id}
+                        class="btn btn-ghost btn-xs text-primary"
+                      >
+                        <.icon name="hero-arrow-uturn-left" class="size-4" />
+                        {gettext("Restore")}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p :if={@deleted_farrowings_empty} class="mt-2 text-sm text-base-content/60">
+                {gettext("No deleted farrowings.")}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h3 class="font-semibold mb-2">{gettext("Deleted weanings")}</h3>
+            <p class="text-sm text-base-content/60 mb-3">
+              {gettext("Restoring re-applies the batch update and sow transition.")}
+            </p>
+
+            <div class="overflow-x-auto">
+              <table class="table table-sm w-full">
+                <thead class="text-left text-base-content/60">
+                  <tr>
+                    <th class="py-2">{gettext("Sow")}</th>
+                    <th class="py-2">{gettext("Weaned at")}</th>
+                    <th class="py-2 text-right">{gettext("Weaned count")}</th>
+                    <th class="py-2">{gettext("Dest. pen")}</th>
+                    <th class="py-2">{gettext("Deleted at")}</th>
+                    <th class="py-2">{gettext("By")}</th>
+                    <th :if={@can_record} class="py-2"></th>
+                  </tr>
+                </thead>
+                <tbody id="deleted-weaning-rows" phx-update="stream">
+                  <tr
+                    :for={{dom_id, w} <- @streams.deleted_weanings}
+                    id={dom_id}
+                    class="border-t border-base-200"
+                  >
+                    <td class="py-1.5 font-mono font-semibold">
+                      {w.farrowing && w.farrowing.sow && w.farrowing.sow.ear_tag}
+                    </td>
+                    <td class="py-1.5">{w.weaned_at}</td>
+                    <td class="py-1.5 text-right">{w.weaned_count}</td>
+                    <td class="py-1.5 font-mono">
+                      {w.destination_pen &&
+                        "#{w.destination_pen.house.code}/#{w.destination_pen.code}"}
+                    </td>
+                    <td class="py-1.5 text-base-content/70">
+                      {Calendar.strftime(w.deleted_at, "%Y-%m-%d %H:%M")}
+                    </td>
+                    <td class="py-1.5 text-base-content/70">
+                      {w.deleted_by && w.deleted_by.email}
+                    </td>
+                    <td :if={@can_record} class="py-1.5 text-right">
+                      <button
+                        phx-click="restore_weaning"
+                        phx-value-weaning-id={w.id}
+                        class="btn btn-ghost btn-xs text-primary"
+                      >
+                        <.icon name="hero-arrow-uturn-left" class="size-4" />
+                        {gettext("Restore")}
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p :if={@deleted_weanings_empty} class="mt-2 text-sm text-base-content/60">
+                {gettext("No deleted weanings.")}
+              </p>
+            </div>
+          </div>
         </section>
 
         <%!-- Service form modal --%>
@@ -593,8 +897,16 @@ defmodule PeggyWeb.FarmLive.Breeding do
      )
      |> stream_configure(:gestating, dom_id: &"service-#{&1.service.id}")
      |> stream_configure(:lactating, dom_id: &"farrowing-#{&1.farrowing.id}")
+     |> stream_configure(:deleted, dom_id: &"deleted-#{&1.id}")
+     |> stream_configure(:deleted_farrowings, dom_id: &"deleted-farrowing-#{&1.id}")
+     |> stream_configure(:weaned, dom_id: &"weaning-#{&1.id}")
+     |> stream_configure(:deleted_weanings, dom_id: &"deleted-weaning-#{&1.id}")
      |> stream(:gestating, [])
-     |> stream(:lactating, [])}
+     |> stream(:lactating, [])
+     |> stream(:deleted, [])
+     |> stream(:deleted_farrowings, [])
+     |> stream(:weaned, [])
+     |> stream(:deleted_weanings, [])}
   end
 
   @impl true
@@ -830,6 +1142,144 @@ defmodule PeggyWeb.FarmLive.Breeding do
 
   def handle_event("cancel", _, socket), do: {:noreply, close_form(socket)}
 
+  def handle_event("delete_service", %{"service-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    if socket.assigns.can_record do
+      service = Breeding.get_service!(scope, String.to_integer(id))
+
+      case Breeding.delete_service(scope, service) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> load_tab()
+           |> put_flash(:info, gettext("Service deleted. Restore from the Deleted tab."))}
+
+        {:error, :service_has_closed_outcome} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot delete a service with a recorded outcome.")
+           )}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not delete service."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("restore_service", %{"service-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    if socket.assigns.can_record do
+      service = Breeding.get_deleted_service!(scope, String.to_integer(id))
+
+      case Breeding.restore_service(scope, service) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> load_tab()
+           |> put_flash(:info, gettext("Service restored."))}
+
+        {:error, :conflicting_open_service} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot restore — another open service exists for this sow.")
+           )}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not restore service."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("delete_farrowing", %{"farrowing-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    if socket.assigns.can_record do
+      farrowing = Breeding.get_farrowing!(scope, String.to_integer(id))
+
+      case Breeding.delete_farrowing(scope, farrowing) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> load_tab()
+           |> put_flash(:info, gettext("Farrowing deleted. Restore from the Deleted tab."))}
+
+        {:error, :farrowing_has_weaning} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot delete — a weaning has been recorded for this farrowing.")
+           )}
+
+        {:error, :farrowing_has_activity} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot delete — the litter has downstream activity (moves or mortality).")
+           )}
+
+        {:error, :already_deleted} ->
+          {:noreply, put_flash(socket, :error, gettext("Farrowing is already deleted."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not delete farrowing."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("restore_farrowing", %{"farrowing-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    if socket.assigns.can_record do
+      farrowing = Breeding.get_deleted_farrowing!(scope, String.to_integer(id))
+
+      case Breeding.restore_farrowing(scope, farrowing) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> load_tab()
+           |> put_flash(:info, gettext("Farrowing restored."))}
+
+        {:error, :service_reclosed} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot restore — the service was closed with a different outcome.")
+           )}
+
+        {:error, :conflicting_weaning} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot restore — a conflicting weaning exists.")
+           )}
+
+        {:error, :not_deleted} ->
+          {:noreply, put_flash(socket, :error, gettext("Farrowing is not deleted."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not restore farrowing."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
   def handle_event("change_tab", %{"tab" => tab}, socket) do
     {:noreply, push_patch(socket, to: breeding_path(socket, %{"tab" => tab, "page" => 1}))}
   end
@@ -856,6 +1306,88 @@ defmodule PeggyWeb.FarmLive.Breeding do
     }
 
     {:noreply, push_patch(socket, to: breeding_path(socket, query))}
+  end
+
+  def handle_event("filter_weaned", params, socket) do
+    query = %{
+      "tab" => "weaned",
+      "q" => params["q"] || "",
+      "page" => 1
+    }
+
+    {:noreply, push_patch(socket, to: breeding_path(socket, query))}
+  end
+
+  def handle_event("delete_weaning", %{"weaning-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    if socket.assigns.can_record do
+      weaning = Breeding.get_weaning!(scope, String.to_integer(id))
+
+      case Breeding.delete_weaning(scope, weaning) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> load_tab()
+           |> put_flash(:info, gettext("Weaning deleted. Restore from the Deleted tab."))}
+
+        {:error, :weaning_has_activity} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot delete — the litter has moved or changed since weaning.")
+           )}
+
+        {:error, :already_deleted} ->
+          {:noreply, put_flash(socket, :error, gettext("Weaning is already deleted."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not delete weaning."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("restore_weaning", %{"weaning-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    if socket.assigns.can_record do
+      weaning = Breeding.get_deleted_weaning!(scope, String.to_integer(id))
+
+      case Breeding.restore_weaning(scope, weaning) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> load_tab()
+           |> put_flash(:info, gettext("Weaning restored."))}
+
+        {:error, :conflicting_weaning} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot restore — another weaning already exists for this farrowing.")
+           )}
+
+        {:error, :farrowing_deleted} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Cannot restore — the farrowing has been deleted.")
+           )}
+
+        {:error, :not_deleted} ->
+          {:noreply, put_flash(socket, :error, gettext("Weaning is not deleted."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not restore weaning."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
   end
 
   def handle_event("paginate", %{"page" => page}, socket) do
@@ -886,6 +1418,34 @@ defmodule PeggyWeb.FarmLive.Breeding do
     socket
     |> assign(total: total)
     |> stream(:gestating, rows, reset: true)
+  end
+
+  defp load_tab(%{assigns: %{tab: "deleted"}} = socket) do
+    scope = socket.assigns.current_scope
+    services = Breeding.list_deleted_services(scope)
+    farrowings = Breeding.list_deleted_farrowings(scope)
+    weanings = Breeding.list_deleted_weanings(scope)
+
+    socket
+    |> assign(
+      total: length(services) + length(farrowings) + length(weanings),
+      deleted_services_empty: services == [],
+      deleted_farrowings_empty: farrowings == [],
+      deleted_weanings_empty: weanings == []
+    )
+    |> stream(:deleted, services, reset: true)
+    |> stream(:deleted_farrowings, farrowings, reset: true)
+    |> stream(:deleted_weanings, weanings, reset: true)
+  end
+
+  defp load_tab(%{assigns: %{tab: "weaned"}} = socket) do
+    scope = socket.assigns.current_scope
+    filters = socket.assigns.filters
+    rows = Breeding.list_recent_weanings(scope, search: filters.q)
+
+    socket
+    |> assign(total: length(rows))
+    |> stream(:weaned, rows, reset: true)
   end
 
   defp load_tab(%{assigns: %{tab: "lactating"}} = socket) do
@@ -951,6 +1511,8 @@ defmodule PeggyWeb.FarmLive.Breeding do
   end
 
   defp param_tab("lactating"), do: "lactating"
+  defp param_tab("weaned"), do: "weaned"
+  defp param_tab("deleted"), do: "deleted"
   defp param_tab(_), do: "gestating"
 
   defp param_window(w) when w in ["7", "14", "overdue"], do: w

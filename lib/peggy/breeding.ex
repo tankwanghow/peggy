@@ -190,7 +190,8 @@ defmodule Peggy.Breeding do
                  where:
                    s.farm_id == ^scope.farm.id and
                      s.sow_id == ^sow_id and
-                     is_nil(s.result),
+                     is_nil(s.result) and
+                     is_nil(s.deleted_at),
                  lock: "FOR UPDATE"
                )
              ) do
@@ -246,7 +247,8 @@ defmodule Peggy.Breeding do
                  where:
                    s.farm_id == ^scope.farm.id and
                      s.sow_id == ^sow_id and
-                     is_nil(s.result),
+                     is_nil(s.result) and
+                     is_nil(s.deleted_at),
                  lock: "FOR UPDATE"
                )
              ) do
@@ -357,7 +359,9 @@ defmodule Peggy.Breeding do
   def current_service(%Scope{farm: farm}, sow_id) do
     Repo.one(
       from(s in Service,
-        where: s.farm_id == ^farm.id and s.sow_id == ^sow_id and is_nil(s.result),
+        where:
+          s.farm_id == ^farm.id and s.sow_id == ^sow_id and
+            is_nil(s.result) and is_nil(s.deleted_at),
         order_by: [desc: s.served_at, desc: s.id],
         limit: 1,
         preload: [:sow, :boar]
@@ -371,7 +375,7 @@ defmodule Peggy.Breeding do
   """
   def list_services(%Scope{farm: farm}, opts \\ []) do
     from(s in Service,
-      where: s.farm_id == ^farm.id,
+      where: s.farm_id == ^farm.id and is_nil(s.deleted_at),
       order_by: [desc: s.served_at, desc: s.id],
       preload: [:sow, :boar]
     )
@@ -391,7 +395,11 @@ defmodule Peggy.Breeding do
   Gets a service by id, scoped to the farm.
   """
   def get_service!(%Scope{farm: farm}, id) do
-    Repo.get_by!(Service, id: id, farm_id: farm.id)
+    Repo.one!(
+      from(s in Service,
+        where: s.id == ^id and s.farm_id == ^farm.id and is_nil(s.deleted_at)
+      )
+    )
     |> Repo.preload([:sow, :boar, farrowing: [:weaning]])
   end
 
@@ -400,6 +408,199 @@ defmodule Peggy.Breeding do
   """
   def change_service(%Service{} = service, attrs \\ %{}) do
     Service.changeset(service, attrs)
+  end
+
+  # ── Service soft-delete ────────────────────────────────────────────
+
+  @doc """
+  Returns `true` if the service may be soft-deleted.
+
+  Allowed when the service is still open (`result IS NULL`) or was
+  superseded by a later service (`result = "re_service"`). Services that
+  closed with a meaningful outcome (`farrowing`, `abortion`, `death`,
+  `cull`) are locked — their side effects on sow state make rewind
+  unsafe.
+  """
+  def service_deletable?(%Scope{}, %Service{deleted_at: %_{}}), do: false
+  def service_deletable?(%Scope{}, %Service{result: nil}), do: true
+  def service_deletable?(%Scope{}, %Service{result: "re_service"}), do: true
+  def service_deletable?(%Scope{}, %Service{}), do: false
+
+  @doc """
+  Soft-deletes a service.
+
+  Preconditions: see `service_deletable?/2`.
+
+  State rewind: if the service was open (`result IS NULL`) and the sow's
+  current status is `"served"`, the sow is reverted to `"open"` (ready
+  to be serviced again).
+
+  Returns `{:ok, service}` or `{:error, reason}` where reason is one of:
+
+    * `:already_deleted`
+    * `:service_has_closed_outcome`
+  """
+  def delete_service(%Scope{} = scope, %Service{} = service) do
+    cond do
+      not is_nil(service.deleted_at) ->
+        {:error, :already_deleted}
+
+      not service_deletable?(scope, service) ->
+        {:error, :service_has_closed_outcome}
+
+      true ->
+        do_delete_service(scope, service)
+    end
+  end
+
+  defp do_delete_service(scope, service) do
+    now = DateTime.utc_now(:second)
+    user_id = scope.user && scope.user.id
+
+    multi =
+      Multi.new()
+      |> Multi.update(
+        :service,
+        Ecto.Changeset.change(service, %{deleted_at: now, deleted_by_id: user_id})
+      )
+      |> maybe_revert_sow_to_dry(service)
+      |> Audit.log!(scope, "service.deleted",
+        entity_type: :service,
+        entity_id: service.id,
+        changes: %{snapshot: service_snapshot(service)}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{service: s}} -> {:ok, s}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  defp maybe_revert_sow_to_dry(multi, %Service{result: nil, sow_id: sow_id}) do
+    Multi.run(multi, :revert_sow, fn repo, _ ->
+      sow = repo.get!(Animal, sow_id)
+
+      if sow.status == "served" do
+        sow |> Ecto.Changeset.change(%{status: "open"}) |> repo.update()
+      else
+        {:ok, sow}
+      end
+    end)
+  end
+
+  defp maybe_revert_sow_to_dry(multi, _service), do: multi
+
+  @doc """
+  Restores a soft-deleted service.
+
+  Rejects if another open service already exists for the sow (would
+  create two concurrent pregnancies). Reapplies sow state if the
+  restored service was open.
+
+  Error reasons:
+
+    * `:not_deleted`
+    * `:conflicting_open_service`
+  """
+  def restore_service(%Scope{} = scope, %Service{} = service) do
+    cond do
+      is_nil(service.deleted_at) ->
+        {:error, :not_deleted}
+
+      is_nil(service.result) and open_service_exists?(scope, service.sow_id, service.id) ->
+        {:error, :conflicting_open_service}
+
+      true ->
+        do_restore_service(scope, service)
+    end
+  end
+
+  defp do_restore_service(scope, service) do
+    multi =
+      Multi.new()
+      |> Multi.update(
+        :service,
+        Ecto.Changeset.change(service, %{deleted_at: nil, deleted_by_id: nil})
+      )
+      |> maybe_reapply_sow_served(service)
+      |> Audit.log!(scope, "service.restored",
+        entity_type: :service,
+        entity_id: service.id,
+        changes: %{}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{service: s}} -> {:ok, s}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  defp maybe_reapply_sow_served(multi, %Service{result: nil, sow_id: sow_id}) do
+    Multi.run(multi, :reapply_sow, fn repo, _ ->
+      sow = repo.get!(Animal, sow_id)
+
+      if sow.status in ["open", "dry"] do
+        sow |> Ecto.Changeset.change(%{status: "served"}) |> repo.update()
+      else
+        {:ok, sow}
+      end
+    end)
+  end
+
+  defp maybe_reapply_sow_served(multi, _service), do: multi
+
+  defp open_service_exists?(%Scope{farm: farm}, sow_id, except_id) do
+    Repo.exists?(
+      from(s in Service,
+        where:
+          s.farm_id == ^farm.id and s.sow_id == ^sow_id and
+            is_nil(s.result) and is_nil(s.deleted_at) and
+            s.id != ^except_id
+      )
+    )
+  end
+
+  @doc """
+  Lists soft-deleted services for the farm, newest first.
+
+  Options: `:limit` (default 50).
+  """
+  def list_deleted_services(%Scope{farm: farm}, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+
+    from(s in Service,
+      where: s.farm_id == ^farm.id and not is_nil(s.deleted_at),
+      order_by: [desc: s.deleted_at, desc: s.id],
+      limit: ^limit,
+      preload: [:sow, :boar, :deleted_by]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Fetches a soft-deleted service by id, scoped to the farm. Raises if
+  the row does not exist or is not deleted.
+  """
+  def get_deleted_service!(%Scope{farm: farm}, id) do
+    Repo.one!(
+      from(s in Service,
+        where: s.id == ^id and s.farm_id == ^farm.id and not is_nil(s.deleted_at),
+        preload: [:sow, :boar, :deleted_by]
+      )
+    )
+  end
+
+  defp service_snapshot(%Service{} = s) do
+    %{
+      id: s.id,
+      sow_id: s.sow_id,
+      boar_id: s.boar_id,
+      service_type: s.service_type,
+      served_at: s.served_at && Date.to_iso8601(s.served_at),
+      result: s.result,
+      result_at: s.result_at && Date.to_iso8601(s.result_at),
+      notes: s.notes
+    }
   end
 
   # ── Gestating sows (read helpers) ──────────────────────────────────
@@ -443,7 +644,7 @@ defmodule Peggy.Breeding do
     q =
       from(s in Service,
         join: sow in assoc(s, :sow),
-        where: s.farm_id == ^farm.id and is_nil(s.result),
+        where: s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at),
         order_by: [asc: s.served_at],
         preload: [:sow, :boar]
       )
@@ -491,6 +692,7 @@ defmodule Peggy.Breeding do
       where:
         s.farm_id == ^farm.id and
           is_nil(s.result) and
+          is_nil(s.deleted_at) and
           s.served_at <= ^served_before,
       order_by: [asc: s.served_at],
       preload: [:sow, :boar]
@@ -547,9 +749,9 @@ defmodule Peggy.Breeding do
       |> Map.merge(%{
         "farm_id" => farm.id,
         "service_id" => service.id,
-        "sow_id" => sow.id
+        "sow_id" => sow.id,
+        "pen_id" => pen_id
       })
-      |> then(fn a -> if pen_id, do: Map.put(a, "pen_id", pen_id), else: a end)
 
     multi =
       Multi.new()
@@ -562,7 +764,8 @@ defmodule Peggy.Breeding do
         })
       )
       |> insert_piglets(farm.id, sow, service.boar_id, pen_id, born_alive, farrowed_at)
-      |> update_sow_for_farrowing(sow)
+      |> maybe_move_sow(farm.id, sow, pen_id, farrowed_at)
+      |> update_sow_for_farrowing(sow, pen_id)
       |> audit_after(scope, "farrowing.created", :farrowing)
 
     case Repo.transaction(multi) do
@@ -630,10 +833,41 @@ defmodule Peggy.Breeding do
     end)
   end
 
-  defp update_sow_for_farrowing(multi, sow) do
+  defp update_sow_for_farrowing(multi, sow, pen_id) do
     changes = %{status: "lactating"}
     changes = if sow.stage != "sow", do: Map.put(changes, :stage, "sow"), else: changes
+
+    changes =
+      if pen_id && pen_id != sow.current_pen_id,
+        do: Map.put(changes, :current_pen_id, pen_id),
+        else: changes
+
     Multi.update(multi, :update_sow, Ecto.Changeset.change(sow, changes))
+  end
+
+  defp maybe_move_sow(multi, _farm_id, _sow, nil, _date), do: multi
+
+  defp maybe_move_sow(multi, _farm_id, %{current_pen_id: cur}, pen_id, _date)
+       when cur == pen_id,
+       do: multi
+
+  defp maybe_move_sow(multi, farm_id, sow, pen_id, farrowed_at) do
+    reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
+    moved_at = farrowed_at || Date.utc_today()
+
+    Multi.insert(
+      multi,
+      :sow_movement,
+      Movement.changeset(%Movement{}, %{
+        "farm_id" => farm_id,
+        "animal_id" => sow.id,
+        "from_pen_id" => sow.current_pen_id,
+        "to_pen_id" => pen_id,
+        "reason" => reason,
+        "quantity" => 1,
+        "moved_at" => moved_at
+      })
+    )
   end
 
   @doc """
@@ -643,7 +877,7 @@ defmodule Peggy.Breeding do
   def list_farrowings(%Scope{farm: farm}, opts \\ []) do
     q =
       from(f in Farrowing,
-        where: f.farm_id == ^farm.id,
+        where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
         order_by: [desc: f.farrowed_at, desc: f.id],
         preload: [:sow, [pen: :house], service: [:boar]]
       )
@@ -661,7 +895,11 @@ defmodule Peggy.Breeding do
   Gets a farrowing by id, scoped to the farm.
   """
   def get_farrowing!(%Scope{farm: farm}, id) do
-    Repo.get_by!(Farrowing, id: id, farm_id: farm.id)
+    Repo.one!(
+      from(f in Farrowing,
+        where: f.id == ^id and f.farm_id == ^farm.id and is_nil(f.deleted_at)
+      )
+    )
     |> Repo.preload([:sow, :pen, :weaning, :piglets, service: [:boar]])
   end
 
@@ -672,12 +910,315 @@ defmodule Peggy.Breeding do
     Farrowing.changeset(farrowing, attrs)
   end
 
+  # ── Farrowing soft-delete ──────────────────────────────────────────
+
+  @doc """
+  Returns `true` if the farrowing may be soft-deleted.
+
+  Blocked when:
+    * already soft-deleted
+    * a weaning row exists for the farrowing
+    * the litter batch has downstream activity (piglets fostered,
+      died, or transferred — detected by extra movement rows or a
+      quantity change)
+  """
+  def farrowing_deletable?(%Scope{} = scope, %Farrowing{} = farrowing) do
+    cond do
+      not is_nil(farrowing.deleted_at) -> false
+      weaning_exists?(farrowing) -> false
+      not litter_activity_clean?(scope, farrowing) -> false
+      true -> true
+    end
+  end
+
+  defp weaning_exists?(%Farrowing{id: id}) do
+    Repo.exists?(from w in Weaning, where: w.farrowing_id == ^id and is_nil(w.deleted_at))
+  end
+
+  # The litter is "clean" if:
+  #   * no batch exists (born_alive was 0), OR
+  #   * the batch has exactly the initial placement, its quantity still
+  #     matches `born_alive`, and it has at most 1 movement row.
+  defp litter_activity_clean?(%Scope{farm: farm}, %Farrowing{} = farrowing) do
+    case Repo.one(
+           from(a in Animal,
+             where:
+               a.farm_id == ^farm.id and
+                 a.farrowing_id == ^farrowing.id and
+                 a.tracking_type == "batch"
+           )
+         ) do
+      nil ->
+        true
+
+      batch ->
+        placement_count =
+          Repo.aggregate(
+            from(p in Placement, where: p.animal_id == ^batch.id),
+            :count,
+            :id
+          )
+
+        movement_count =
+          Repo.aggregate(
+            from(m in Movement, where: m.animal_id == ^batch.id),
+            :count,
+            :id
+          )
+
+        batch.quantity == farrowing.born_alive and
+          batch.status == "active" and
+          placement_count <= 1 and
+          movement_count <= 1
+    end
+  end
+
+  @doc """
+  Soft-deletes a farrowing and reverses its side-effects atomically.
+
+  Preconditions: see `farrowing_deletable?/2`.
+
+  Cascade (in one transaction):
+    * hard-delete the litter batch (animal), its placement, its
+      placement-movement, and the sow's farrowing pen-transfer movement
+    * revert `sow.current_pen_id` to the pre-farrowing pen (read from
+      the sow movement's `from_pen_id`); revert `sow.status` to
+      `"served"`
+    * reopen the service: `result = nil`, `result_at = nil`
+    * stamp `deleted_at` / `deleted_by_id` on the farrowing row
+    * write `farrowing.deleted` audit with a row snapshot
+
+  Error reasons: `:already_deleted`, `:farrowing_has_weaning`,
+  `:farrowing_has_activity`.
+  """
+  def delete_farrowing(%Scope{} = scope, %Farrowing{} = farrowing) do
+    cond do
+      not is_nil(farrowing.deleted_at) ->
+        {:error, :already_deleted}
+
+      weaning_exists?(farrowing) ->
+        {:error, :farrowing_has_weaning}
+
+      not litter_activity_clean?(scope, farrowing) ->
+        {:error, :farrowing_has_activity}
+
+      true ->
+        do_delete_farrowing(scope, farrowing)
+    end
+  end
+
+  defp do_delete_farrowing(scope, farrowing) do
+    now = DateTime.utc_now(:second)
+    user_id = scope.user && scope.user.id
+
+    multi =
+      Multi.new()
+      |> Multi.run(:load, fn repo, _ ->
+        batch =
+          repo.one(
+            from(a in Animal,
+              where:
+                a.farm_id == ^scope.farm.id and
+                  a.farrowing_id == ^farrowing.id and
+                  a.tracking_type == "batch"
+            )
+          )
+
+        sow_move =
+          repo.one(
+            from(m in Movement,
+              where:
+                m.farm_id == ^scope.farm.id and
+                  m.animal_id == ^farrowing.sow_id and
+                  m.to_pen_id == ^farrowing.pen_id and
+                  m.moved_at == ^farrowing.farrowed_at and
+                  m.reason in ["pen_transfer", "placement"],
+              order_by: [desc: m.id],
+              limit: 1
+            )
+          )
+
+        {:ok, %{batch: batch, sow_move: sow_move}}
+      end)
+      |> Multi.run(:delete_placement, fn repo, %{load: %{batch: batch}} ->
+        if batch do
+          {count, _} =
+            repo.delete_all(from p in Placement, where: p.animal_id == ^batch.id)
+
+          {:ok, count}
+        else
+          {:ok, 0}
+        end
+      end)
+      |> Multi.run(:delete_batch_movements, fn repo, %{load: %{batch: batch}} ->
+        if batch do
+          {count, _} =
+            repo.delete_all(from m in Movement, where: m.animal_id == ^batch.id)
+
+          {:ok, count}
+        else
+          {:ok, 0}
+        end
+      end)
+      |> Multi.run(:delete_batch, fn repo, %{load: %{batch: batch}} ->
+        if batch, do: repo.delete(batch), else: {:ok, nil}
+      end)
+      |> Multi.run(:delete_sow_movement, fn repo, %{load: %{sow_move: m}} ->
+        if m, do: repo.delete(m), else: {:ok, nil}
+      end)
+      |> Multi.run(:revert_sow, fn repo, %{load: %{sow_move: sow_move}} ->
+        sow = repo.get!(Animal, farrowing.sow_id)
+        prior_pen_id = if sow_move, do: sow_move.from_pen_id, else: sow.current_pen_id
+
+        changes = %{current_pen_id: prior_pen_id}
+
+        changes =
+          if sow.status == "lactating",
+            do: Map.put(changes, :status, "served"),
+            else: changes
+
+        sow |> Ecto.Changeset.change(changes) |> repo.update()
+      end)
+      |> Multi.run(:reopen_service, fn repo, _ ->
+        service = repo.get!(Service, farrowing.service_id)
+        service |> Service.reopen_changeset() |> repo.update()
+      end)
+      |> Multi.update(
+        :farrowing,
+        Ecto.Changeset.change(farrowing, %{deleted_at: now, deleted_by_id: user_id})
+      )
+      |> Audit.log!(scope, "farrowing.deleted",
+        entity_type: :farrowing,
+        entity_id: farrowing.id,
+        changes: %{snapshot: farrowing_snapshot(farrowing)}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{farrowing: f}} -> {:ok, f}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  @doc """
+  Restores a soft-deleted farrowing, re-running its side effects.
+
+  Rejects if the service has been closed with a different result since
+  the delete, or a weaning somehow exists. Re-creates the litter batch,
+  placement, movements, re-closes the service with `farrowing`, and
+  reapplies sow status/pen.
+
+  Error reasons: `:not_deleted`, `:service_reclosed`,
+  `:conflicting_weaning`.
+  """
+  def restore_farrowing(%Scope{} = scope, %Farrowing{} = farrowing) do
+    cond do
+      is_nil(farrowing.deleted_at) ->
+        {:error, :not_deleted}
+
+      true ->
+        service = Repo.get!(Service, farrowing.service_id)
+
+        cond do
+          not is_nil(service.result) -> {:error, :service_reclosed}
+          weaning_exists?(farrowing) -> {:error, :conflicting_weaning}
+          true -> do_restore_farrowing(scope, farrowing, service)
+        end
+    end
+  end
+
+  defp do_restore_farrowing(scope, farrowing, service) do
+    farm = scope.farm
+    sow = Repo.get!(Animal, farrowing.sow_id)
+    born_alive = farrowing.born_alive || 0
+
+    multi =
+      Multi.new()
+      |> Multi.update(
+        :farrowing,
+        Ecto.Changeset.change(farrowing, %{deleted_at: nil, deleted_by_id: nil})
+      )
+      |> Multi.update(
+        :close_service,
+        Service.close_changeset(service, %{
+          "result" => "farrowing",
+          "result_at" => farrowing.farrowed_at
+        })
+      )
+      |> insert_piglets(
+        farm.id,
+        sow,
+        service.boar_id,
+        farrowing.pen_id,
+        born_alive,
+        farrowing.farrowed_at
+      )
+      |> maybe_move_sow(farm.id, sow, farrowing.pen_id, farrowing.farrowed_at)
+      |> update_sow_for_farrowing(sow, farrowing.pen_id)
+      |> Audit.log!(scope, "farrowing.restored",
+        entity_type: :farrowing,
+        entity_id: farrowing.id,
+        changes: %{}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{farrowing: f}} -> {:ok, f}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  @doc """
+  Lists soft-deleted farrowings for the farm, newest-deleted first.
+
+  Options: `:limit` (default 50).
+  """
+  def list_deleted_farrowings(%Scope{farm: farm}, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+
+    from(f in Farrowing,
+      where: f.farm_id == ^farm.id and not is_nil(f.deleted_at),
+      order_by: [desc: f.deleted_at, desc: f.id],
+      limit: ^limit,
+      preload: [:sow, [pen: :house], :deleted_by, service: [:boar]]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Fetches a soft-deleted farrowing by id. Raises if not found or not
+  deleted.
+  """
+  def get_deleted_farrowing!(%Scope{farm: farm}, id) do
+    Repo.one!(
+      from(f in Farrowing,
+        where: f.id == ^id and f.farm_id == ^farm.id and not is_nil(f.deleted_at),
+        preload: [:sow, [pen: :house], :deleted_by, service: [:boar]]
+      )
+    )
+  end
+
+  defp farrowing_snapshot(%Farrowing{} = f) do
+    %{
+      id: f.id,
+      service_id: f.service_id,
+      sow_id: f.sow_id,
+      pen_id: f.pen_id,
+      farrowed_at: f.farrowed_at && Date.to_iso8601(f.farrowed_at),
+      born_alive: f.born_alive,
+      stillborn: f.stillborn,
+      mummified: f.mummified,
+      total_birth_weight_g: f.total_birth_weight_g,
+      notes: f.notes
+    }
+  end
+
   @doc """
   Returns the parity (number of farrowings) for a sow.
   """
   def parity(%Scope{farm: farm}, sow_id) do
     Repo.aggregate(
-      from(f in Farrowing, where: f.farm_id == ^farm.id and f.sow_id == ^sow_id),
+      from(f in Farrowing,
+        where: f.farm_id == ^farm.id and f.sow_id == ^sow_id and is_nil(f.deleted_at)
+      ),
       :count
     )
   end
@@ -720,8 +1261,8 @@ defmodule Peggy.Breeding do
       from(f in Farrowing,
         join: sow in assoc(f, :sow),
         left_join: w in Weaning,
-        on: w.farrowing_id == f.id,
-        where: f.farm_id == ^farm.id and is_nil(w.id),
+        on: w.farrowing_id == f.id and is_nil(w.deleted_at),
+        where: f.farm_id == ^farm.id and is_nil(w.id) and is_nil(f.deleted_at),
         order_by: [asc: f.farrowed_at],
         preload: [:sow, [pen: :house], service: [:boar]]
       )
@@ -814,7 +1355,11 @@ defmodule Peggy.Breeding do
   The third element is the updated batch animal, or nil if no litter exists.
   """
   def record_weaning(%Scope{} = scope, %Farrowing{} = farrowing, attrs) do
-    if Repo.get_by(Weaning, farrowing_id: farrowing.id) do
+    if Repo.one(
+         from w in Weaning,
+           where: w.farrowing_id == ^farrowing.id and is_nil(w.deleted_at),
+           limit: 1
+       ) do
       {:error, :already_weaned}
     else
       do_record_weaning(scope, farrowing, stringify_keys(attrs))
@@ -966,6 +1511,355 @@ defmodule Peggy.Breeding do
   """
   def change_weaning(%Weaning{} = weaning, attrs \\ %{}) do
     Weaning.changeset(weaning, attrs)
+  end
+
+  @doc """
+  Lists recent (non-deleted) weanings for the farm, newest first.
+
+  Options: `:limit` (default 50), `:search` (sow ear tag prefix).
+  """
+  def list_recent_weanings(%Scope{farm: farm}, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+    search = opts |> Keyword.get(:search) |> normalize_search()
+
+    q =
+      from(w in Weaning,
+        join: f in assoc(w, :farrowing),
+        join: sow in assoc(f, :sow),
+        where: w.farm_id == ^farm.id and is_nil(w.deleted_at),
+        order_by: [desc: w.weaned_at, desc: w.id],
+        limit: ^limit,
+        preload: [[destination_pen: :house], farrowing: [:sow, [pen: :house]]]
+      )
+
+    q =
+      if search do
+        like = "#{search}%"
+        from [w, f, sow] in q, where: ilike(sow.ear_tag, ^like)
+      else
+        q
+      end
+
+    Repo.all(q)
+  end
+
+  @doc """
+  Gets a weaning by id, scoped to the farm. Excludes soft-deleted rows.
+  """
+  def get_weaning!(%Scope{farm: farm}, id) do
+    Repo.one!(
+      from(w in Weaning,
+        where: w.id == ^id and w.farm_id == ^farm.id and is_nil(w.deleted_at),
+        preload: [:destination_pen, farrowing: [:sow, :pen]]
+      )
+    )
+  end
+
+  # ── Weaning soft-delete ────────────────────────────────────────────
+
+  @doc """
+  Returns `true` if the weaning may be soft-deleted.
+
+  Blocked when:
+    * already soft-deleted
+    * the litter batch has downstream activity after the weaning —
+      i.e., extra movements after `weaned_at`, or the batch's state
+      no longer matches what the weaning set it to.
+  """
+  def weaning_deletable?(%Scope{} = scope, %Weaning{} = w) do
+    cond do
+      not is_nil(w.deleted_at) -> false
+      not post_weaning_clean?(scope, w) -> false
+      true -> true
+    end
+  end
+
+  defp post_weaning_clean?(%Scope{farm: farm}, %Weaning{} = w) do
+    farrowing = Repo.get!(Farrowing, w.farrowing_id)
+
+    case Repo.one(
+           from(a in Animal,
+             where:
+               a.farm_id == ^farm.id and
+                 a.farrowing_id == ^farrowing.id and
+                 a.tracking_type == "batch"
+           )
+         ) do
+      nil ->
+        # No batch (born_alive was 0) — nothing downstream to worry about.
+        true
+
+      batch ->
+        later_moves =
+          Repo.aggregate(
+            from(m in Movement,
+              where: m.animal_id == ^batch.id and m.moved_at > ^w.weaned_at
+            ),
+            :count,
+            :id
+          )
+
+        {expected_stage, expected_status, expected_qty} =
+          if (w.weaned_count || 0) >= 1,
+            do: {"weaner", "active", w.weaned_count},
+            else: {batch.stage, "deceased", 0}
+
+        later_moves == 0 and
+          batch.quantity == expected_qty and
+          batch.status == expected_status and
+          batch.stage == expected_stage
+    end
+  end
+
+  @doc """
+  Soft-deletes a weaning and reverses its side-effects atomically.
+
+  Cascade (in one transaction):
+    * revert the litter batch to its pre-weaning state
+      (stage: `"piglet"`, status: `"active"`, quantity: `born_alive`)
+    * if a destination pen was used: delete the post-weaning
+      placement + movement, and reopen the pre-weaning placement
+      (clear its `removed_at`)
+    * revert sow status `"dry"` → `"lactating"` (if applicable)
+    * stamp `deleted_at` / `deleted_by_id` on the weaning row
+    * write `weaning.deleted` audit with a row snapshot
+
+  Error reasons: `:already_deleted`, `:weaning_has_activity`.
+  """
+  def delete_weaning(%Scope{} = scope, %Weaning{} = w) do
+    cond do
+      not is_nil(w.deleted_at) ->
+        {:error, :already_deleted}
+
+      not post_weaning_clean?(scope, w) ->
+        {:error, :weaning_has_activity}
+
+      true ->
+        do_delete_weaning(scope, w)
+    end
+  end
+
+  defp do_delete_weaning(scope, %Weaning{} = w) do
+    now = DateTime.utc_now(:second)
+    user_id = scope.user && scope.user.id
+    farrowing = Repo.get!(Farrowing, w.farrowing_id)
+    born_alive = farrowing.born_alive || 0
+
+    multi =
+      Multi.new()
+      |> Multi.run(:load, fn repo, _ ->
+        batch =
+          repo.one(
+            from(a in Animal,
+              where:
+                a.farm_id == ^scope.farm.id and
+                  a.farrowing_id == ^farrowing.id and
+                  a.tracking_type == "batch"
+            )
+          )
+
+        {:ok, %{batch: batch}}
+      end)
+      |> Multi.run(:delete_wean_movement, fn repo, %{load: %{batch: batch}} ->
+        if batch && w.destination_pen_id do
+          {count, _} =
+            repo.delete_all(
+              from(m in Movement,
+                where:
+                  m.animal_id == ^batch.id and
+                    m.moved_at == ^w.weaned_at and
+                    m.to_pen_id == ^w.destination_pen_id and
+                    m.reason == "pen_transfer"
+              )
+            )
+
+          {:ok, count}
+        else
+          {:ok, 0}
+        end
+      end)
+      |> Multi.run(:delete_wean_placement, fn repo, %{load: %{batch: batch}} ->
+        if batch && w.destination_pen_id do
+          {count, _} =
+            repo.delete_all(
+              from(p in Placement,
+                where:
+                  p.animal_id == ^batch.id and
+                    p.pen_id == ^w.destination_pen_id and
+                    p.placed_at == ^w.weaned_at
+              )
+            )
+
+          {:ok, count}
+        else
+          {:ok, 0}
+        end
+      end)
+      |> Multi.run(:reopen_prior_placement, fn repo, %{load: %{batch: batch}} ->
+        if batch && w.destination_pen_id do
+          ts = DateTime.truncate(DateTime.utc_now(), :second)
+
+          {count, _} =
+            repo.update_all(
+              from(p in Placement,
+                where:
+                  p.animal_id == ^batch.id and
+                    p.removed_at == ^w.weaned_at
+              ),
+              set: [removed_at: nil, updated_at: ts]
+            )
+
+          {:ok, count}
+        else
+          {:ok, 0}
+        end
+      end)
+      |> Multi.run(:revert_batch, fn repo, %{load: %{batch: batch}} ->
+        if batch do
+          batch
+          |> Ecto.Changeset.change(%{
+            stage: "piglet",
+            status: "active",
+            quantity: born_alive
+          })
+          |> repo.update()
+        else
+          {:ok, nil}
+        end
+      end)
+      |> Multi.run(:revert_sow, fn repo, _ ->
+        sow = repo.get!(Animal, farrowing.sow_id)
+
+        if sow.status == "dry" do
+          sow |> Ecto.Changeset.change(%{status: "lactating"}) |> repo.update()
+        else
+          {:ok, sow}
+        end
+      end)
+      |> Multi.update(
+        :weaning,
+        Ecto.Changeset.change(w, %{deleted_at: now, deleted_by_id: user_id})
+      )
+      |> Audit.log!(scope, "weaning.deleted",
+        entity_type: :weaning,
+        entity_id: w.id,
+        changes: %{snapshot: weaning_snapshot(w)}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{weaning: wn}} -> {:ok, wn}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  @doc """
+  Restores a soft-deleted weaning, re-running its side effects.
+
+  Rejects if a non-deleted weaning already exists for the same
+  farrowing, or the farrowing itself has been soft-deleted.
+
+  Error reasons: `:not_deleted`, `:conflicting_weaning`,
+  `:farrowing_deleted`.
+  """
+  def restore_weaning(%Scope{} = scope, %Weaning{} = w) do
+    cond do
+      is_nil(w.deleted_at) ->
+        {:error, :not_deleted}
+
+      true ->
+        farrowing = Repo.get!(Farrowing, w.farrowing_id)
+
+        cond do
+          not is_nil(farrowing.deleted_at) ->
+            {:error, :farrowing_deleted}
+
+          weaning_exists?(farrowing) ->
+            {:error, :conflicting_weaning}
+
+          true ->
+            do_restore_weaning(scope, w, farrowing)
+        end
+    end
+  end
+
+  defp do_restore_weaning(scope, %Weaning{} = w, %Farrowing{} = farrowing) do
+    farm = scope.farm
+    sow = Repo.get!(Animal, farrowing.sow_id)
+    weaned_count = w.weaned_count || 0
+
+    multi =
+      Multi.new()
+      |> Multi.update(
+        :weaning,
+        Ecto.Changeset.change(w, %{deleted_at: nil, deleted_by_id: nil})
+      )
+      |> consolidate_piglets(
+        farm.id,
+        farrowing,
+        sow,
+        weaned_count,
+        w.destination_pen_id,
+        w.weaned_at
+      )
+      |> update_sow_after_weaning(sow)
+      |> Audit.log!(scope, "weaning.restored",
+        entity_type: :weaning,
+        entity_id: w.id,
+        changes: %{}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{weaning: wn}} -> {:ok, wn}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  @doc """
+  Lists soft-deleted weanings for the farm, newest-deleted first.
+  """
+  def list_deleted_weanings(%Scope{farm: farm}, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 50)
+
+    from(w in Weaning,
+      where: w.farm_id == ^farm.id and not is_nil(w.deleted_at),
+      order_by: [desc: w.deleted_at, desc: w.id],
+      limit: ^limit,
+      preload: [
+        :deleted_by,
+        [destination_pen: :house],
+        farrowing: [:sow, [pen: :house]]
+      ]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Fetches a soft-deleted weaning by id. Raises if not found or not
+  deleted.
+  """
+  def get_deleted_weaning!(%Scope{farm: farm}, id) do
+    Repo.one!(
+      from(w in Weaning,
+        where: w.id == ^id and w.farm_id == ^farm.id and not is_nil(w.deleted_at),
+        preload: [
+          :deleted_by,
+          [destination_pen: :house],
+          farrowing: [:sow, [pen: :house]]
+        ]
+      )
+    )
+  end
+
+  defp weaning_snapshot(%Weaning{} = w) do
+    %{
+      id: w.id,
+      farrowing_id: w.farrowing_id,
+      weaned_at: w.weaned_at && Date.to_iso8601(w.weaned_at),
+      weaned_count: w.weaned_count,
+      avg_wean_weight_g: w.avg_wean_weight_g,
+      destination_pen_id: w.destination_pen_id,
+      notes: w.notes
+    }
   end
 
   @doc """
