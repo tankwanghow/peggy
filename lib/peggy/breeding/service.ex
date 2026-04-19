@@ -12,6 +12,9 @@ defmodule Peggy.Breeding.Service do
     field :result_at, :date
     field :result_notes, :string
     field :notes, :string
+    field :inferred, :boolean, default: false
+    field :created_via, :string
+    belongs_to :origin_audit, Peggy.Audit.AuditLog
     belongs_to :farm, Peggy.Farms.Farm
     belongs_to :sow, Peggy.Animals.Animal
     belongs_to :boar, Peggy.Animals.Animal
@@ -34,6 +37,9 @@ defmodule Peggy.Breeding.Service do
       :result_at,
       :result_notes,
       :notes,
+      :inferred,
+      :created_via,
+      :origin_audit_id,
       :sow_id,
       :boar_id,
       :technician_user_id,

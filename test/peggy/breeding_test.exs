@@ -1907,4 +1907,82 @@ defmodule Peggy.BreedingTest do
       assert length(Breeding.list_farrowings(scope, sow_id: sow.id)) == 1
     end
   end
+
+  describe "inferred-record columns (PR 4 foundation)" do
+    test "service defaults inferred=false with no created_via", %{
+      scope: scope,
+      sow: sow,
+      boar: boar
+    } do
+      service = service_fixture(scope, sow, boar_id: boar.id)
+      assert service.inferred == false
+      assert is_nil(service.created_via)
+      assert is_nil(service.origin_audit_id)
+    end
+
+    test "farrowing defaults inferred=false with no created_via", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      farrowing = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
+      assert farrowing.inferred == false
+      assert is_nil(farrowing.created_via)
+      assert is_nil(farrowing.origin_audit_id)
+    end
+
+    test "weaning defaults inferred=false with no created_via", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      farrowing = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
+
+      {:ok, weaning, _batch} =
+        Breeding.record_weaning(scope, farrowing, %{
+          weaned_at: Date.add(farrowing.farrowed_at, Breeding.lactation_days()),
+          weaned_count: farrowing.born_alive,
+          destination_pen_id: pen.id
+        })
+
+      assert weaning.inferred == false
+      assert is_nil(weaning.created_via)
+      assert is_nil(weaning.origin_audit_id)
+    end
+
+    test "animal defaults inferred=false and needs_review=false", %{sow: sow} do
+      assert sow.inferred == false
+      assert sow.needs_review == false
+      assert is_nil(sow.created_via)
+      assert is_nil(sow.origin_audit_id)
+    end
+
+    test "back-fill helpers can write inferred=true through the changeset", %{
+      scope: scope,
+      sow: sow,
+      boar: boar
+    } do
+      # Smoke-test the columns are writable end-to-end. PR 5 will wrap this
+      # in a back-fill helper; here we just confirm the changeset accepts them.
+      {:ok, service} =
+        Breeding.record_service(scope, %{
+          sow_id: sow.id,
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-01-15],
+          inferred: true,
+          created_via: "back_fill_from_farrowing"
+        })
+
+      assert service.inferred == true
+      assert service.created_via == "back_fill_from_farrowing"
+    end
+
+    test "constants expose lactation_days and minimum_sow_age_days" do
+      assert Breeding.lactation_days() == 24
+      assert Breeding.minimum_sow_age_days() == 365
+    end
+  end
 end

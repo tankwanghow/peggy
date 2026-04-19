@@ -7,6 +7,9 @@ defmodule Peggy.Breeding.Weaning do
     field :weaned_count, :integer
     field :avg_wean_weight_g, :integer
     field :notes, :string
+    field :inferred, :boolean, default: false
+    field :created_via, :string
+    belongs_to :origin_audit, Peggy.Audit.AuditLog
     belongs_to :farm, Peggy.Farms.Farm
     belongs_to :farrowing, Peggy.Breeding.Farrowing
     belongs_to :destination_pen, Peggy.Locations.Pen
@@ -22,6 +25,9 @@ defmodule Peggy.Breeding.Weaning do
       :weaned_count,
       :avg_wean_weight_g,
       :notes,
+      :inferred,
+      :created_via,
+      :origin_audit_id,
       :farrowing_id,
       :destination_pen_id,
       :farm_id

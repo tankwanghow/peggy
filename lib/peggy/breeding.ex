@@ -30,8 +30,12 @@ defmodule Peggy.Breeding do
   alias Peggy.Animals.{Movement, Placement}
 
   @gestation_days 114
+  @lactation_days 24
+  @minimum_sow_age_days 365
 
   def gestation_days, do: @gestation_days
+  def lactation_days, do: @lactation_days
+  def minimum_sow_age_days, do: @minimum_sow_age_days
 
   # ── Services ──────────────────────────────────────────────────────
 
@@ -780,6 +784,51 @@ defmodule Peggy.Breeding do
         {:error, {step, cs}}
     end
   end
+
+  @doc """
+  Records multiple farrowings atomically (batch entry from spreadsheet grid).
+
+  Each entry is a map with `:service_id` plus the same farrowing attrs
+  accepted by `record_farrowing/3` (`:farrowed_at`, `:born_alive`,
+  `:stillborn`, `:mummified`, `:total_birth_weight_g`, `:pen_id`,
+  `:notes`). Keys may be atoms or strings.
+
+  Returns `{:ok, [farrowing, ...]}` on success,
+  `{:error, {row_index, changeset_or_reason}}` on failure.
+  Any failure rolls back the entire batch.
+  """
+  def record_batch_farrowings(%Scope{} = scope, entries)
+      when is_list(entries) and entries != [] do
+    Repo.transaction(fn ->
+      entries
+      |> Enum.with_index()
+      |> Enum.reduce([], fn {entry, i}, acc ->
+        attrs = stringify_keys(entry)
+        service_id = to_int(attrs["service_id"])
+        attrs = Map.delete(attrs, "service_id")
+
+        service =
+          case service_id && Repo.get(Service, service_id) do
+            %Service{farm_id: fid} = s when fid == scope.farm.id -> s
+            _ -> nil
+          end
+
+        cond do
+          is_nil(service) ->
+            Repo.rollback({i, :service_not_found})
+
+          true ->
+            case record_farrowing(scope, service, attrs) do
+              {:ok, farrowing, _piglets} -> [farrowing | acc]
+              {:error, reason} -> Repo.rollback({i, reason})
+            end
+        end
+      end)
+      |> Enum.reverse()
+    end)
+  end
+
+  def record_batch_farrowings(_scope, []), do: {:error, :no_entries}
 
   defp insert_piglets(multi, _farm_id, _sow, _boar_id, _pen_id, 0, _farrowed_at), do: multi
 

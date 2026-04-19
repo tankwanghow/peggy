@@ -52,6 +52,10 @@ defmodule Peggy.Animals.Animal do
     field :quantity, :integer, default: 1
     field :status, :string, default: "active"
     field :notes, :string
+    field :inferred, :boolean, default: false
+    field :needs_review, :boolean, default: false
+    field :created_via, :string
+    belongs_to :origin_audit, Peggy.Audit.AuditLog
     belongs_to :farm, Peggy.Farms.Farm
     belongs_to :sire, __MODULE__
     belongs_to :dam, __MODULE__
@@ -163,6 +167,10 @@ defmodule Peggy.Animals.Animal do
       :quantity,
       :status,
       :notes,
+      :inferred,
+      :needs_review,
+      :created_via,
+      :origin_audit_id,
       :sire_id,
       :dam_id,
       :current_pen_id,
