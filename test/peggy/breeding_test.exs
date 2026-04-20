@@ -209,6 +209,230 @@ defmodule Peggy.BreedingTest do
     end
   end
 
+  describe "record_batch_services_with_backfill/2" do
+    test "mixes existing-sow rows with inferred-sow rows atomically",
+         %{scope: scope, sow: sow, boar: boar} do
+      {:ok, services} =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_id: sow.id,
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01]
+          },
+          %{
+            sow_ear_tag: "BATCH-NEW-1",
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01],
+            backfill_sow: %{breed: "Duroc"}
+          }
+        ])
+
+      assert length(services) == 2
+      [s1, s2] = services
+      assert s1.sow_id == sow.id
+
+      new_sow = Peggy.Animals.find_by_ear_tag(scope, "BATCH-NEW-1")
+      assert new_sow
+      assert new_sow.inferred == true
+      assert new_sow.created_via == "back_fill_from_service"
+      assert s2.sow_id == new_sow.id
+      assert new_sow.status == "served"
+    end
+
+    test "resolves by ear_tag when sow exists", %{scope: scope, sow: sow, boar: boar} do
+      {:ok, [service]} =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_ear_tag: sow.ear_tag,
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01]
+          }
+        ])
+
+      assert service.sow_id == sow.id
+    end
+
+    test "hard-blocks on similar tag without force_create",
+         %{scope: scope, boar: boar} do
+      # sow fixture "SOW1" → "SOW2" is Levenshtein 1 away
+      assert {:error, {0, {:similar_tag, tags}}} =
+               Breeding.record_batch_services_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "SOW2",
+                   boar_id: boar.id,
+                   service_type: "natural",
+                   served_at: ~D[2026-02-01],
+                   backfill_sow: %{breed: "Duroc"}
+                 }
+               ])
+
+      assert "SOW1" in tags
+    end
+
+    test "returns :sow_not_found when tag unknown and no backfill_sow given",
+         %{scope: scope, boar: boar} do
+      assert {:error, {0, :sow_not_found}} =
+               Breeding.record_batch_services_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "UNKNOWN-XYZ",
+                   boar_id: boar.id,
+                   service_type: "natural",
+                   served_at: ~D[2026-02-01]
+                 }
+               ])
+    end
+
+    test "rejects duplicate new ear tags within the grid", %{scope: scope, boar: boar} do
+      assert {:error, {1, :duplicate_ear_tag}} =
+               Breeding.record_batch_services_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "DUPE-1",
+                   boar_id: boar.id,
+                   service_type: "natural",
+                   served_at: ~D[2026-02-01],
+                   backfill_sow: %{breed: "Duroc"}
+                 },
+                 %{
+                   sow_ear_tag: "DUPE-1",
+                   boar_id: boar.id,
+                   service_type: "natural",
+                   served_at: ~D[2026-02-01],
+                   backfill_sow: %{breed: "Duroc"}
+                 }
+               ])
+    end
+
+    test "rolls back all rows when any row fails validation",
+         %{scope: scope, sow: sow} do
+      result =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_ear_tag: "ROLLBACK-BATCH-1",
+            service_type: "natural",
+            served_at: ~D[2026-02-01],
+            backfill_sow: %{breed: "Duroc"}
+          },
+          # Missing boar_id for second row → natural service validation fails
+          %{
+            sow_id: sow.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01]
+          }
+        ])
+
+      assert {:error, {_i, %Ecto.Changeset{}}} = result
+      # Inferred sow from first row must not persist
+      assert is_nil(Peggy.Animals.find_by_ear_tag(scope, "ROLLBACK-BATCH-1"))
+    end
+
+    test "per-row pen_id places inferred sow (placement movement)",
+         %{scope: scope, pen: pen, boar: boar} do
+      {:ok, [_s]} =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_ear_tag: "PEN-BATCH-1",
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01],
+            pen_id: pen.id,
+            backfill_sow: %{breed: "Duroc"}
+          }
+        ])
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "PEN-BATCH-1")
+      assert sow.current_pen_id == pen.id
+
+      [mv] = Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+      assert mv.reason == "placement"
+      assert is_nil(mv.from_pen_id)
+      assert mv.to_pen_id == pen.id
+    end
+
+    test "per-row pen_id transfers existing sow in different pen",
+         %{scope: scope, house: house, pen: pen, boar: boar} do
+      other_pen = pen_fixture(scope, house, code: "F-OTHER", capacity: 20)
+      sow = animal_fixture(scope, ear_tag: "BATCH-MOVE", sex: "female", stage: "sow")
+
+      {:ok, _} =
+        sow
+        |> Ecto.Changeset.change(%{current_pen_id: other_pen.id})
+        |> Peggy.Repo.update()
+
+      {:ok, [_s]} =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BATCH-MOVE",
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01],
+            pen_id: pen.id
+          }
+        ])
+
+      reloaded = Peggy.Animals.get_animal!(scope, sow.id)
+      assert reloaded.current_pen_id == pen.id
+
+      [mv] = Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+      assert mv.reason == "pen_transfer"
+      assert mv.from_pen_id == other_pen.id
+      assert mv.to_pen_id == pen.id
+    end
+
+    test "per-row pen_id same as current pen → no movement",
+         %{scope: scope, pen: pen, boar: boar} do
+      sow = animal_fixture(scope, ear_tag: "BATCH-SAME", sex: "female", stage: "sow")
+
+      {:ok, _} =
+        sow
+        |> Ecto.Changeset.change(%{current_pen_id: pen.id})
+        |> Peggy.Repo.update()
+
+      {:ok, [_s]} =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BATCH-SAME",
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01],
+            pen_id: pen.id
+          }
+        ])
+
+      movements =
+        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+
+      assert movements == []
+    end
+
+    test "no pen_id → no movement, no sow update",
+         %{scope: scope, sow: sow, boar: boar} do
+      {:ok, _} =
+        Breeding.record_batch_services_with_backfill(scope, [
+          %{
+            sow_ear_tag: sow.ear_tag,
+            boar_id: boar.id,
+            service_type: "natural",
+            served_at: ~D[2026-02-01]
+          }
+        ])
+
+      reloaded = Peggy.Animals.get_animal!(scope, sow.id)
+      assert is_nil(reloaded.current_pen_id)
+
+      movements =
+        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+
+      assert movements == []
+    end
+
+    test "rejects empty list", %{scope: scope} do
+      assert {:error, :no_entries} = Breeding.record_batch_services_with_backfill(scope, [])
+    end
+  end
+
   describe "close_service/4" do
     test "closes an open service with abortion", %{scope: scope, sow: sow, boar: boar} do
       service = service_fixture(scope, sow, boar_id: boar.id)

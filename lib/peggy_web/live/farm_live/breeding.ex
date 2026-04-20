@@ -136,11 +136,11 @@ defmodule PeggyWeb.FarmLive.Breeding do
                 <option value="all" selected={@filters.service_type == "all"}>
                   {gettext("All")}
                 </option>
-                <option value="natural" selected={@filters.service_type == "natural"}>
-                  {gettext("Natural")}
-                </option>
                 <option value="ai" selected={@filters.service_type == "ai"}>
                   {gettext("AI")}
+                </option>
+                <option value="natural" selected={@filters.service_type == "natural"}>
+                  {gettext("Natural")}
                 </option>
               </select>
             </label>
@@ -737,11 +737,11 @@ defmodule PeggyWeb.FarmLive.Breeding do
                 <span class="label-text">{gettext("Service type")}</span>
               </label>
               <select name="service_type" class="select select-bordered w-full">
-                <option value="natural" selected={@svc.service_type == "natural"}>
-                  {gettext("Natural")}
-                </option>
                 <option value="ai" selected={@svc.service_type == "ai"}>
                   {gettext("AI")}
+                </option>
+                <option value="natural" selected={@svc.service_type == "natural"}>
+                  {gettext("Natural")}
                 </option>
               </select>
             </div>
@@ -773,7 +773,7 @@ defmodule PeggyWeb.FarmLive.Breeding do
 
             <div class="col-span-2">
               <.autocomplete
-                id="service-pen-picker"
+                id={"service-pen-picker-#{@svc.resolved_sow_id || "none"}"}
                 label={gettext("Service pen (optional)")}
                 name="pen_id"
                 value={@svc.pen_id}
@@ -1106,7 +1106,7 @@ defmodule PeggyWeb.FarmLive.Breeding do
          resolved_sow_id: nil,
          force_create: false,
          backfill: %{},
-         service_type: "natural",
+         service_type: "ai",
          served_at: to_string(today),
          boar_id: nil,
          pen_id: nil,
@@ -1666,32 +1666,38 @@ defmodule PeggyWeb.FarmLive.Breeding do
 
   defp resolve_svc_sow(socket) do
     svc = socket.assigns.svc
+    ac = socket.assigns.ac
     scope = socket.assigns.current_scope
     tag = svc.sow_ear_tag
 
-    svc =
+    {svc, ac} =
       cond do
         tag in [nil, ""] ->
-          %{svc | sow_state: :empty, similar_tags: [], resolved_sow_id: nil}
+          {%{svc | sow_state: :empty, similar_tags: [], resolved_sow_id: nil},
+           %{ac | pen_label: nil}}
 
         true ->
           case Animals.find_by_ear_tag(scope, tag) do
-            %{id: id} ->
-              %{svc | sow_state: :existing, similar_tags: [], resolved_sow_id: id}
+            %{id: id} = sow ->
+              svc = %{svc | sow_state: :existing, similar_tags: [], resolved_sow_id: id}
+              svc = if is_nil(svc.pen_id), do: %{svc | pen_id: sow.current_pen_id}, else: svc
+              {svc, maybe_preselect_pen(%{ac | pen_label: nil}, scope, sow)}
 
             nil ->
+              ac = %{ac | pen_label: nil}
+
               case Animals.similar_ear_tags(scope, tag) do
                 [] ->
-                  %{svc | sow_state: :new, similar_tags: [], resolved_sow_id: nil}
+                  {%{svc | sow_state: :new, similar_tags: [], resolved_sow_id: nil}, ac}
 
                 tags ->
                   state = if svc.force_create, do: :similar_overridable, else: :similar
-                  %{svc | sow_state: state, similar_tags: tags, resolved_sow_id: nil}
+                  {%{svc | sow_state: state, similar_tags: tags, resolved_sow_id: nil}, ac}
               end
           end
       end
 
-    assign(socket, svc: svc)
+    assign(socket, svc: svc, ac: ac)
   end
 
   defp build_service_attrs(svc) do

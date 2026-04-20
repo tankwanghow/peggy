@@ -119,6 +119,266 @@ defmodule Peggy.Breeding do
   def record_batch_services(_scope, []), do: {:error, :no_entries}
 
   @doc """
+  Batch variant of `record_service_with_backfill/2`.
+
+  Each entry is a map like the single-row back-fill input:
+    * `:sow_id` — an existing sow id, or
+    * `:sow_ear_tag` + optional `:backfill_sow` map for inferred sows
+    * `:service_type`, `:served_at`, `:boar_id`, `:notes`
+
+  Each entry may carry an optional `:pen_id` — inferred sows are placed
+  in that pen (Movement + `current_pen_id`); existing sows are
+  transferred when the pen differs from their `current_pen_id`
+  (Movement `reason: "pen_transfer"`), or placed when they have no
+  current pen.
+
+  Returns `{:ok, [service, ...]}` or
+  `{:error, {row_index, reason}}` where reason can be
+  `{:similar_tag, [tag, ...]}`, `:sow_not_found`, `:duplicate_ear_tag`,
+  or an `Ecto.Changeset`. Any failure rolls back the entire batch.
+  """
+  def record_batch_services_with_backfill(%Scope{}, []), do: {:error, :no_entries}
+
+  def record_batch_services_with_backfill(%Scope{} = scope, entries)
+      when is_list(entries) do
+    case classify_batch_entries(scope, entries) do
+      {:ok, classified} ->
+        run_batch_backfill_multi(scope, classified)
+
+      {:error, _} = err ->
+        err
+    end
+  end
+
+  # Per-row classification: resolves existing sows, detects unknown tags
+  # needing back-fill, blocks on similar tags, and rejects duplicate new
+  # tags within the grid.
+  defp classify_batch_entries(scope, entries) do
+    entries
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn {entry, i}, {:ok, acc, seen_new} ->
+      case classify_one(scope, entry, seen_new) do
+        {:ok, :existing, attrs} ->
+          {:cont, {:ok, [{i, :existing, attrs} | acc], seen_new}}
+
+        {:ok, :inferred, ear_tag, backfill, attrs} ->
+          {:cont,
+           {:ok, [{i, :inferred, ear_tag, backfill, attrs} | acc], MapSet.put(seen_new, ear_tag)}}
+
+        {:error, reason} ->
+          {:halt, {:error, {i, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, acc, _seen} -> {:ok, Enum.reverse(acc)}
+      {:error, _} = err -> err
+    end
+  end
+
+  defp classify_one(scope, entry, seen_new) do
+    attrs = entry |> stringify_keys() |> Map.put("farm_id", scope.farm.id)
+    sow_id = to_int(attrs["sow_id"])
+    ear_tag = attrs["sow_ear_tag"]
+
+    cond do
+      not is_nil(sow_id) ->
+        {:ok, :existing, Map.delete(attrs, "sow_ear_tag")}
+
+      is_nil(ear_tag) or ear_tag == "" ->
+        {:error, :sow_not_found}
+
+      true ->
+        case Animals.find_by_ear_tag(scope, ear_tag) do
+          %Animal{id: id} ->
+            attrs =
+              attrs
+              |> Map.put("sow_id", id)
+              |> Map.delete("sow_ear_tag")
+              |> Map.delete("backfill_sow")
+
+            {:ok, :existing, attrs}
+
+          nil ->
+            classify_new_tag(scope, ear_tag, attrs, seen_new)
+        end
+    end
+  end
+
+  defp classify_new_tag(scope, ear_tag, attrs, seen_new) do
+    backfill = Map.get(attrs, "backfill_sow")
+
+    force? =
+      truthy?(backfill && (Map.get(backfill, :force_create) || Map.get(backfill, "force_create")))
+
+    cond do
+      MapSet.member?(seen_new, ear_tag) ->
+        {:error, :duplicate_ear_tag}
+
+      true ->
+        similars = Animals.similar_ear_tags(scope, ear_tag)
+
+        cond do
+          similars != [] and not force? ->
+            {:error, {:similar_tag, similars}}
+
+          is_nil(backfill) ->
+            {:error, :sow_not_found}
+
+          true ->
+            {:ok, :inferred, ear_tag, backfill,
+             attrs |> Map.delete("sow_ear_tag") |> Map.delete("backfill_sow")}
+        end
+    end
+  end
+
+  defp run_batch_backfill_multi(scope, classified) do
+    farm = scope.farm
+
+    multi =
+      Enum.reduce(classified, Multi.new(), fn row, m ->
+        case row do
+          {i, :existing, attrs} ->
+            pen_id = to_int(attrs["pen_id"])
+            attrs = Map.delete(attrs, "pen_id")
+            served_at = parse_date(attrs["served_at"]) || Date.utc_today()
+
+            m
+            |> ensure_sow_serviceable_keyed(scope, attrs, i)
+            |> auto_close_prior_service_keyed(scope, attrs, i)
+            |> Multi.insert({:service, i}, Service.changeset(%Service{}, attrs))
+            |> update_sow_status_keyed(attrs["sow_id"], "served", i)
+            |> maybe_move_existing_sow_keyed(farm.id, attrs["sow_id"], pen_id, served_at, i)
+            |> audit_after_keyed(scope, "service.created", {:service, i}, i)
+
+          {i, :inferred, ear_tag, backfill, attrs} ->
+            pen_id = to_int(attrs["pen_id"])
+            attrs = Map.delete(attrs, "pen_id")
+            served_at = parse_date(attrs["served_at"]) || Date.utc_today()
+            sow_cs = build_inferred_sow_changeset(farm, ear_tag, backfill, attrs)
+
+            m
+            |> Multi.insert({:sow, i}, sow_cs)
+            |> Multi.insert({:sow_audit, i}, fn changes ->
+              inferred_sow_audit(scope, Map.fetch!(changes, {:sow, i}))
+            end)
+            |> Multi.update({:sow_with_origin, i}, fn changes ->
+              sow = Map.fetch!(changes, {:sow, i})
+              audit = Map.fetch!(changes, {:sow_audit, i})
+              Ecto.Changeset.change(sow, origin_audit_id: audit.id)
+            end)
+            |> Multi.insert({:service, i}, fn changes ->
+              sow = Map.fetch!(changes, {:sow_with_origin, i})
+              Service.changeset(%Service{}, Map.put(attrs, "sow_id", sow.id))
+            end)
+            |> Multi.run({:sow_served, i}, fn _repo, changes ->
+              sow = Map.fetch!(changes, {:sow_with_origin, i})
+              changes_map = %{status: "served"}
+
+              changes_map =
+                if pen_id,
+                  do: Map.put(changes_map, :current_pen_id, pen_id),
+                  else: changes_map
+
+              sow |> Ecto.Changeset.change(changes_map) |> Repo.update()
+            end)
+            |> maybe_insert_inferred_placement_keyed(farm.id, pen_id, served_at, i)
+            |> audit_after_keyed(scope, "service.created", {:service, i}, i)
+        end
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, changes} ->
+        services =
+          0..(length(classified) - 1)
+          |> Enum.map(&Map.fetch!(changes, {:service, &1}))
+
+        {:ok, services}
+
+      {:error, {:service, i}, cs, _} ->
+        {:error, {i, cs}}
+
+      {:error, {:ensure_serviceable, i}, cs, _} ->
+        {:error, {i, cs}}
+
+      {:error, {:sow, i}, cs, _} ->
+        {:error, {i, cs}}
+
+      {:error, {:sow_movement, i}, cs, _} ->
+        {:error, {i, cs}}
+
+      {:error, _op, reason, _} ->
+        {:error, reason}
+    end
+  end
+
+  defp maybe_insert_inferred_placement_keyed(multi, _farm_id, nil, _moved_at, _i), do: multi
+
+  defp maybe_insert_inferred_placement_keyed(multi, farm_id, pen_id, moved_at, i) do
+    Multi.insert(multi, {:sow_placement, i}, fn changes ->
+      sow = Map.fetch!(changes, {:sow_with_origin, i})
+
+      Movement.changeset(%Movement{}, %{
+        "farm_id" => farm_id,
+        "animal_id" => sow.id,
+        "from_pen_id" => nil,
+        "to_pen_id" => pen_id,
+        "reason" => "placement",
+        "quantity" => 1,
+        "moved_at" => moved_at
+      })
+    end)
+  end
+
+  # For existing-sow rows in batch: insert Movement + update sow's
+  # current_pen_id when pen_id is given and differs. No-op when
+  # pen_id is nil or equals the sow's current pen.
+  defp maybe_move_existing_sow_keyed(multi, _farm_id, _sow_id, nil, _moved_at, _i), do: multi
+
+  defp maybe_move_existing_sow_keyed(multi, farm_id, sow_id, pen_id, moved_at, i)
+       when is_integer(sow_id) and is_integer(pen_id) do
+    multi
+    |> Multi.run({:sow_move_decision, i}, fn repo, _changes ->
+      case repo.get(Animal, sow_id) do
+        nil -> {:ok, :skip}
+        %Animal{current_pen_id: cur} when cur == pen_id -> {:ok, :skip}
+        %Animal{} = sow -> {:ok, {:move, sow}}
+      end
+    end)
+    |> Multi.run({:sow_movement, i}, fn repo, changes ->
+      case Map.fetch!(changes, {:sow_move_decision, i}) do
+        :skip ->
+          {:ok, nil}
+
+        {:move, sow} ->
+          reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
+
+          %Movement{}
+          |> Movement.changeset(%{
+            "farm_id" => farm_id,
+            "animal_id" => sow.id,
+            "from_pen_id" => sow.current_pen_id,
+            "to_pen_id" => pen_id,
+            "reason" => reason,
+            "quantity" => 1,
+            "moved_at" => moved_at
+          })
+          |> repo.insert()
+      end
+    end)
+    |> Multi.run({:sow_pen_updated, i}, fn repo, changes ->
+      case Map.fetch!(changes, {:sow_move_decision, i}) do
+        :skip ->
+          {:ok, nil}
+
+        {:move, sow} ->
+          sow |> Ecto.Changeset.change(%{current_pen_id: pen_id}) |> repo.update()
+      end
+    end)
+  end
+
+  defp maybe_move_existing_sow_keyed(multi, _farm_id, _sow_id, _pen_id, _moved_at, _i), do: multi
+
+  @doc """
   Records a service, optionally back-filling the sow when no animal
   with the given ear tag exists on the farm. First hop of the PR 5
   back-fill cascade; see design notes.
