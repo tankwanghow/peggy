@@ -1985,4 +1985,354 @@ defmodule Peggy.BreedingTest do
       assert Breeding.minimum_sow_age_days() == 365
     end
   end
+
+  describe "record_service_with_backfill/2 (PR 5: sow back-fill)" do
+    test "delegates to record_service/2 when sow_id is given", %{
+      scope: scope,
+      sow: sow,
+      boar: boar
+    } do
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_id: sow.id,
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01]
+        })
+
+      assert result.inferred? == false
+      assert result.sow.id == sow.id
+      assert result.service.sow_id == sow.id
+      # Existing sow unchanged
+      assert result.sow.inferred == false
+      assert result.sow.needs_review == false
+    end
+
+    test "resolves existing sow by ear_tag and delegates", %{
+      scope: scope,
+      sow: sow,
+      boar: boar
+    } do
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: sow.ear_tag,
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01]
+        })
+
+      assert result.inferred? == false
+      assert result.sow.id == sow.id
+      assert result.service.sow_id == sow.id
+    end
+
+    test "returns :sow_not_found when tag is unknown and no backfill_sow given",
+         %{scope: scope, boar: boar} do
+      assert {:error, :sow_not_found} =
+               Breeding.record_service_with_backfill(scope, %{
+                 sow_ear_tag: "UNKNOWN9999",
+                 boar_id: boar.id,
+                 service_type: "natural",
+                 served_at: ~D[2026-02-01]
+               })
+    end
+
+    test "hard-blocks with :similar_tag when a near-duplicate tag exists", %{
+      scope: scope,
+      sow: _sow,
+      boar: boar
+    } do
+      # existing sow fixture has ear_tag "SOW1" — "SOW2" is Levenshtein 1 away
+      assert {:error, {:similar_tag, tags}} =
+               Breeding.record_service_with_backfill(scope, %{
+                 sow_ear_tag: "SOW2",
+                 boar_id: boar.id,
+                 service_type: "natural",
+                 served_at: ~D[2026-02-01],
+                 backfill_sow: %{breed: "Large White"}
+               })
+
+      assert "SOW1" in tags
+    end
+
+    test "force_create overrides similar-tag block", %{scope: scope, boar: boar} do
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "SOW2",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          backfill_sow: %{breed: "Large White", force_create: true}
+        })
+
+      assert result.inferred? == true
+      assert result.sow.ear_tag == "SOW2"
+      assert result.sow.inferred == true
+    end
+
+    test "creates inferred sow + service when no similar tag exists", %{
+      scope: scope,
+      boar: boar
+    } do
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "BRANDNEW-9921",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          backfill_sow: %{breed: "Duroc"}
+        })
+
+      assert result.inferred? == true
+      sow = result.sow
+      assert sow.ear_tag == "BRANDNEW-9921"
+      assert sow.tracking_type == "individual"
+      assert sow.sex == "female"
+      assert sow.stage == "sow"
+      # status ends at "served" after the service is recorded
+      assert sow.status == "served"
+      assert sow.breed == "Duroc"
+      assert sow.inferred == true
+      assert sow.needs_review == true
+      assert sow.created_via == "back_fill_from_service"
+      assert is_integer(sow.origin_audit_id)
+
+      # Default dob = served_at - minimum_sow_age_days
+      assert sow.dob == Date.add(~D[2026-02-01], -Breeding.minimum_sow_age_days())
+
+      # Service created and references the inferred sow
+      assert result.service.sow_id == sow.id
+      assert result.service.service_type == "natural"
+    end
+
+    test "respects dob override in backfill_sow", %{scope: scope, boar: boar} do
+      {:ok, %{sow: sow}} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "BRANDNEW-DOB",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          backfill_sow: %{breed: "Duroc", dob: ~D[2024-06-15]}
+        })
+
+      assert sow.dob == ~D[2024-06-15]
+    end
+
+    test "rolls back inferred sow when service changeset fails", %{scope: scope} do
+      # Natural service without boar_id fails validation — inferred sow must
+      # not persist.
+      assert {:error, %Ecto.Changeset{}} =
+               Breeding.record_service_with_backfill(scope, %{
+                 sow_ear_tag: "NEW-ROLLBACK-42",
+                 service_type: "natural",
+                 served_at: ~D[2026-02-01],
+                 backfill_sow: %{breed: "Large White"}
+               })
+
+      # No orphan animal created
+      assert is_nil(Peggy.Animals.find_by_ear_tag(scope, "NEW-ROLLBACK-42"))
+    end
+
+    test "writes audit rows for both the inferred sow and the service", %{
+      scope: scope,
+      boar: boar
+    } do
+      {:ok, %{sow: sow, service: service}} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "AUDITED-9921",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          backfill_sow: %{breed: "Duroc"}
+        })
+
+      sow_logs =
+        Audit.list(scope, entity_type: "animal", action: "animal.created.inferred")
+
+      assert Enum.any?(sow_logs, &(&1.entity_id == to_string(sow.id)))
+
+      service_logs = Audit.list(scope, entity_type: "service", action: "service.created")
+      assert Enum.any?(service_logs, &(&1.entity_id == to_string(service.id)))
+
+      # origin_audit_id on the sow points at one of the animal.created.inferred rows
+      assert Enum.any?(sow_logs, &(&1.id == sow.origin_audit_id))
+    end
+
+    test "inferred sow is placed in given pen (placement movement)", %{
+      scope: scope,
+      pen: pen,
+      boar: boar
+    } do
+      {:ok, %{sow: sow}} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "PLACED-1",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          pen_id: pen.id,
+          backfill_sow: %{breed: "Duroc"}
+        })
+
+      assert sow.current_pen_id == pen.id
+
+      movements =
+        Peggy.Repo.all(
+          from m in Peggy.Animals.Movement,
+            where: m.animal_id == ^sow.id
+        )
+
+      assert [mv] = movements
+      assert mv.reason == "placement"
+      assert is_nil(mv.from_pen_id)
+      assert mv.to_pen_id == pen.id
+      assert mv.quantity == 1
+    end
+
+    test "no pen_id given → no sow movement", %{scope: scope, boar: boar} do
+      {:ok, %{sow: sow}} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "NOPEN-1",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          backfill_sow: %{breed: "Duroc"}
+        })
+
+      assert is_nil(sow.current_pen_id)
+
+      movements =
+        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+
+      assert movements == []
+    end
+
+    test "existing sow without pen → placement movement when pen_id given", %{
+      scope: scope,
+      pen: pen,
+      sow: sow,
+      boar: boar
+    } do
+      # sow fixture has no current_pen_id
+      assert is_nil(sow.current_pen_id)
+
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: sow.ear_tag,
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          pen_id: pen.id
+        })
+
+      assert result.sow.current_pen_id == pen.id
+
+      movements =
+        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+
+      assert [mv] = movements
+      assert mv.reason == "placement"
+      assert is_nil(mv.from_pen_id)
+      assert mv.to_pen_id == pen.id
+    end
+
+    test "existing sow in same pen → no movement", %{
+      scope: scope,
+      house: house,
+      pen: pen,
+      boar: boar
+    } do
+      _ = house
+      sow = animal_fixture(scope, ear_tag: "SAMEPEN-1", sex: "female", stage: "sow")
+
+      {:ok, _} =
+        sow
+        |> Ecto.Changeset.change(%{current_pen_id: pen.id})
+        |> Peggy.Repo.update()
+
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "SAMEPEN-1",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          pen_id: pen.id
+        })
+
+      assert result.sow.current_pen_id == pen.id
+
+      movements =
+        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+
+      assert movements == []
+    end
+
+    test "existing sow in different pen → pen_transfer movement", %{
+      scope: scope,
+      house: house,
+      pen: pen,
+      boar: boar
+    } do
+      other_pen = pen_fixture(scope, house, code: "F2", capacity: 20)
+      sow = animal_fixture(scope, ear_tag: "MOVEME-1", sex: "female", stage: "sow")
+
+      {:ok, _} =
+        sow
+        |> Ecto.Changeset.change(%{current_pen_id: other_pen.id})
+        |> Peggy.Repo.update()
+
+      {:ok, result} =
+        Breeding.record_service_with_backfill(scope, %{
+          sow_ear_tag: "MOVEME-1",
+          boar_id: boar.id,
+          service_type: "natural",
+          served_at: ~D[2026-02-01],
+          pen_id: pen.id
+        })
+
+      assert result.sow.current_pen_id == pen.id
+
+      movements =
+        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+
+      assert [mv] = movements
+      assert mv.reason == "pen_transfer"
+      assert mv.from_pen_id == other_pen.id
+      assert mv.to_pen_id == pen.id
+    end
+  end
+
+  describe "Animals.similar_ear_tags/3" do
+    test "returns ordered near-matches on the same farm", %{scope: scope} do
+      import Peggy.AnimalsFixtures
+      animal_fixture(scope, ear_tag: "PIG001", sex: "female", stage: "sow")
+      animal_fixture(scope, ear_tag: "PIG002", sex: "female", stage: "sow")
+      animal_fixture(scope, ear_tag: "COMPLETELY-UNRELATED", sex: "female", stage: "sow")
+
+      # Exact input tag is excluded from results regardless of threshold.
+      assert [] == Peggy.Animals.similar_ear_tags(scope, "PIG001", 0)
+
+      results = Peggy.Animals.similar_ear_tags(scope, "PIG00X", 2)
+      assert "PIG001" in results
+      assert "PIG002" in results
+      refute "COMPLETELY-UNRELATED" in results
+    end
+
+    test "does not return the input tag itself", %{scope: scope, sow: sow} do
+      refute sow.ear_tag in Peggy.Animals.similar_ear_tags(scope, sow.ear_tag, 2)
+    end
+
+    test "ignores departed animals", %{scope: scope} do
+      import Peggy.AnimalsFixtures
+
+      departed =
+        animal_fixture(scope,
+          ear_tag: "GONE01",
+          sex: "female",
+          stage: "sow",
+          status: "sold"
+        )
+
+      refute departed.ear_tag in Peggy.Animals.similar_ear_tags(scope, "GONE02", 2)
+    end
+  end
 end

@@ -23,9 +23,10 @@ defmodule Peggy.Breeding do
 
   import Ecto.Query
   alias Ecto.Multi
-  alias Peggy.{Repo, Audit}
+  alias Peggy.{Animals, Repo, Audit}
   alias Peggy.Accounts.Scope
   alias Peggy.Animals.Animal
+  alias Peggy.Audit.AuditLog
   alias Peggy.Breeding.{Service, Farrowing, Weaning}
   alias Peggy.Animals.{Movement, Placement}
 
@@ -116,6 +117,236 @@ defmodule Peggy.Breeding do
   end
 
   def record_batch_services(_scope, []), do: {:error, :no_entries}
+
+  @doc """
+  Records a service, optionally back-filling the sow when no animal
+  with the given ear tag exists on the farm. First hop of the PR 5
+  back-fill cascade; see design notes.
+
+  Routing:
+
+    * `:sow_id` set, or `:sow_ear_tag` resolves to a present animal →
+      delegates to `record_service/2`.
+    * `:sow_ear_tag` missing, no `:backfill_sow` map → returns
+      `{:error, :sow_not_found}`.
+    * Tag does not match any present animal but a similar tag exists
+      (Levenshtein ≤ 2) → hard-blocks with
+      `{:error, {:similar_tag, [tag, ...]}}`. Caller must pick one of
+      the suggested tags or set `force_create: true` inside the
+      `:backfill_sow` map to override.
+    * Otherwise creates sow + service atomically. The inferred sow is
+      marked `inferred: true`, `needs_review: true`,
+      `created_via: "back_fill_from_service"` and has `origin_audit_id`
+      pointing at its `animal.created.inferred` audit row.
+
+  Returns `{:ok, %{sow: sow, service: service, inferred?: bool}}` on
+  success, `{:error, reason}` otherwise.
+  """
+  def record_service_with_backfill(%Scope{} = scope, attrs) do
+    attrs = stringify_keys(attrs)
+    ear_tag = attrs["sow_ear_tag"]
+    has_sow_id? = not is_nil(to_int(attrs["sow_id"]))
+
+    cond do
+      has_sow_id? -> delegate_to_record_service(scope, attrs)
+      is_nil(ear_tag) or ear_tag == "" -> delegate_to_record_service(scope, attrs)
+      true -> resolve_sow_for_backfill(scope, ear_tag, attrs)
+    end
+  end
+
+  defp delegate_to_record_service(scope, attrs) do
+    pen_id = to_int(attrs["pen_id"])
+
+    cleaned =
+      attrs
+      |> Map.delete("sow_ear_tag")
+      |> Map.delete("backfill_sow")
+      |> Map.delete("pen_id")
+
+    Repo.transaction(fn ->
+      case record_service(scope, cleaned) do
+        {:ok, service} ->
+          sow = Repo.get!(Animal, service.sow_id)
+
+          case move_existing_sow_for_service(scope.farm.id, sow, pen_id, service.served_at) do
+            {:ok, sow} -> %{sow: sow, service: service, inferred?: false}
+            {:error, cs} -> Repo.rollback(cs)
+          end
+
+        {:error, reason} ->
+          Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp move_existing_sow_for_service(_farm_id, sow, nil, _date), do: {:ok, sow}
+
+  defp move_existing_sow_for_service(_farm_id, %{current_pen_id: cur} = sow, pen_id, _date)
+       when cur == pen_id,
+       do: {:ok, sow}
+
+  defp move_existing_sow_for_service(farm_id, sow, pen_id, served_at) do
+    reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
+    moved_at = served_at || Date.utc_today()
+
+    multi =
+      Multi.new()
+      |> Multi.insert(
+        :sow_movement,
+        Movement.changeset(%Movement{}, %{
+          "farm_id" => farm_id,
+          "animal_id" => sow.id,
+          "from_pen_id" => sow.current_pen_id,
+          "to_pen_id" => pen_id,
+          "reason" => reason,
+          "quantity" => 1,
+          "moved_at" => moved_at
+        })
+      )
+      |> Multi.update(:sow_pen, Ecto.Changeset.change(sow, %{current_pen_id: pen_id}))
+
+    case Repo.transaction(multi) do
+      {:ok, %{sow_pen: sow}} -> {:ok, sow}
+      {:error, _step, cs, _} -> {:error, cs}
+    end
+  end
+
+  defp resolve_sow_for_backfill(scope, ear_tag, attrs) do
+    case Animals.find_by_ear_tag(scope, ear_tag) do
+      %Animal{id: id} ->
+        attrs
+        |> Map.put("sow_id", id)
+        |> Map.delete("sow_ear_tag")
+        |> then(&delegate_to_record_service(scope, &1))
+
+      nil ->
+        backfill = Map.get(attrs, "backfill_sow")
+        similars = Animals.similar_ear_tags(scope, ear_tag)
+
+        force? =
+          truthy?(
+            backfill && (Map.get(backfill, :force_create) || Map.get(backfill, "force_create"))
+          )
+
+        cond do
+          similars != [] and not force? -> {:error, {:similar_tag, similars}}
+          is_nil(backfill) -> {:error, :sow_not_found}
+          true -> do_inferred_sow_and_service(scope, ear_tag, backfill, attrs)
+        end
+    end
+  end
+
+  defp truthy?(true), do: true
+  defp truthy?("true"), do: true
+  defp truthy?(_), do: false
+
+  defp do_inferred_sow_and_service(%Scope{} = scope, ear_tag, backfill_attrs, service_attrs) do
+    farm = scope.farm
+    pen_id = to_int(service_attrs["pen_id"])
+
+    service_attrs =
+      service_attrs
+      |> Map.delete("sow_ear_tag")
+      |> Map.delete("backfill_sow")
+      |> Map.delete("pen_id")
+      |> Map.put("farm_id", farm.id)
+
+    served_at = parse_date(service_attrs["served_at"]) || Date.utc_today()
+
+    sow_changeset = build_inferred_sow_changeset(farm, ear_tag, backfill_attrs, service_attrs)
+
+    multi =
+      Multi.new()
+      |> Multi.insert(:sow, sow_changeset)
+      |> Multi.insert(:sow_audit, fn %{sow: sow} -> inferred_sow_audit(scope, sow) end)
+      |> Multi.update(:sow_with_origin, fn %{sow: sow, sow_audit: audit} ->
+        Ecto.Changeset.change(sow, origin_audit_id: audit.id)
+      end)
+      |> Multi.insert(:service, fn %{sow_with_origin: sow} ->
+        Service.changeset(%Service{}, Map.put(service_attrs, "sow_id", sow.id))
+      end)
+      |> Multi.run(:sow_served, fn _repo, %{sow_with_origin: sow} ->
+        changes = %{status: "served"}
+        changes = if pen_id, do: Map.put(changes, :current_pen_id, pen_id), else: changes
+        sow |> Ecto.Changeset.change(changes) |> Repo.update()
+      end)
+      |> maybe_insert_inferred_sow_placement(farm.id, pen_id, served_at)
+      |> audit_after(scope, "service.created", :service)
+
+    case Repo.transaction(multi) do
+      {:ok, %{service: service, sow_served: sow}} ->
+        {:ok, %{sow: sow, service: service, inferred?: true}}
+
+      {:error, :sow, cs, _} ->
+        {:error, cs}
+
+      {:error, :service, cs, _} ->
+        {:error, cs}
+
+      {:error, step, cs, _} ->
+        {:error, {step, cs}}
+    end
+  end
+
+  defp maybe_insert_inferred_sow_placement(multi, _farm_id, nil, _moved_at), do: multi
+
+  defp maybe_insert_inferred_sow_placement(multi, farm_id, pen_id, moved_at) do
+    Multi.insert(multi, :sow_placement, fn %{sow_with_origin: sow} ->
+      Movement.changeset(%Movement{}, %{
+        "farm_id" => farm_id,
+        "animal_id" => sow.id,
+        "from_pen_id" => nil,
+        "to_pen_id" => pen_id,
+        "reason" => "placement",
+        "quantity" => 1,
+        "moved_at" => moved_at
+      })
+    end)
+  end
+
+  defp build_inferred_sow_changeset(farm, ear_tag, backfill_attrs, service_attrs) do
+    backfill_attrs = stringify_keys(backfill_attrs || %{})
+    served_at = parse_date(service_attrs["served_at"]) || Date.utc_today()
+    default_dob = Date.add(served_at, -@minimum_sow_age_days)
+
+    Animal.changeset(%Animal{}, %{
+      "tracking_type" => "individual",
+      "ear_tag" => ear_tag,
+      "sex" => "female",
+      "stage" => "sow",
+      "status" => "open",
+      "dob" => backfill_attrs["dob"] || default_dob,
+      "breed" => backfill_attrs["breed"],
+      "notes" => backfill_attrs["notes"],
+      "inferred" => true,
+      "needs_review" => true,
+      "created_via" => "back_fill_from_service",
+      "farm_id" => farm.id
+    })
+  end
+
+  defp inferred_sow_audit(scope, %Animal{} = sow) do
+    %AuditLog{
+      farm_id: scope.farm.id,
+      actor_user_id: scope.user && scope.user.id,
+      action: "animal.created.inferred",
+      entity_type: "animal",
+      entity_id: to_string(sow.id),
+      changes: %{"ear_tag" => sow.ear_tag, "created_via" => sow.created_via},
+      inserted_at: DateTime.utc_now(:second)
+    }
+  end
+
+  defp parse_date(%Date{} = d), do: d
+
+  defp parse_date(s) when is_binary(s) do
+    case Date.from_iso8601(s) do
+      {:ok, d} -> d
+      _ -> nil
+    end
+  end
+
+  defp parse_date(_), do: nil
 
   # Reject services for sows that aren't biologically eligible:
   # only `active`, `open`, `dry`, or `served` (re-service via auto-close)

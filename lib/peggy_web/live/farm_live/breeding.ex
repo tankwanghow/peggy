@@ -20,6 +20,13 @@ defmodule PeggyWeb.FarmLive.Breeding do
             >
               {gettext("Batch Service")}
             </.link>
+            <.link
+              :if={@can_record}
+              navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/batch-farrowing"}
+              class="btn btn-sm"
+            >
+              {gettext("Batch Farrowing")}
+            </.link>
             <.button :if={@can_record} phx-click="new_service" class="btn btn-primary btn-sm">
               {gettext("Record Service")}
             </.button>
@@ -600,66 +607,216 @@ defmodule PeggyWeb.FarmLive.Breeding do
           </div>
         </section>
 
-        <%!-- Service form modal --%>
+        <%!-- Service form modal (with back-fill cascade) --%>
         <.modal
           :if={@form_mode == :service}
           title={gettext("Record Service")}
           on_cancel="cancel"
         >
-          <.form
-            for={@form}
+          <form
             id="service-form"
-            phx-submit="save_service"
             phx-change="validate_service"
-            class="grid grid-cols-2 gap-x-4 gap-y-1"
+            phx-submit="save_service"
+            phx-debounce="300"
+            class="grid grid-cols-2 gap-x-4 gap-y-3"
           >
-            <.autocomplete
-              id="service-sow-picker"
-              label={gettext("Sow")}
-              name="service[sow_id]"
-              value={fv(@form, :sow_id)}
-              items={@ac.sow_items}
-              selected_label={@ac.sow_label}
-              class="w-full input font-mono"
-              placeholder={gettext("Search by ear tag...")}
-            />
-            <.input
-              field={@form[:service_type]}
-              type="select"
-              label={gettext("Service type")}
-              options={[
-                {gettext("Natural"), "natural"},
-                {gettext("AI"), "ai"}
-              ]}
-            />
-            <.autocomplete
-              :if={fv(@form, :service_type) == "natural"}
-              id="service-boar-picker"
-              label={gettext("Boar")}
-              name="service[boar_id]"
-              value={fv(@form, :boar_id)}
-              items={@ac.boar_items}
-              selected_label={@ac.boar_label}
-              class="w-full input font-mono"
-              placeholder={gettext("Search by ear tag...")}
-            />
-            <.input
-              field={@form[:served_at]}
-              type="date"
-              label={gettext("Served at")}
-            />
             <div class="col-span-2">
-              <.input field={@form[:notes]} type="textarea" label={gettext("Notes")} />
+              <label class="label" for="service-sow-ear-tag">
+                <span class="label-text">{gettext("Sow ear tag")}</span>
+              </label>
+              <input
+                type="text"
+                id="service-sow-ear-tag"
+                name="sow_ear_tag"
+                value={@svc.sow_ear_tag}
+                phx-debounce="300"
+                autocomplete="off"
+                spellcheck="false"
+                class={[
+                  "input input-bordered w-full font-mono",
+                  sow_input_class(@svc.sow_state)
+                ]}
+                placeholder={gettext("e.g. SOW1234")}
+              />
+              <p class={[
+                "mt-1 text-xs",
+                @svc.sow_state == :existing && "text-success",
+                @svc.sow_state == :new && "text-warning",
+                @svc.sow_state == :similar && "text-error",
+                @svc.sow_state == :similar_overridable && "text-warning",
+                @svc.sow_state == :empty && "text-base-content/40"
+              ]}>
+                {sow_state_text(@svc.sow_state)}
+              </p>
             </div>
-            <div class="col-span-2 flex gap-2 justify-end">
+
+            <%!-- New-sow back-fill panel --%>
+            <div
+              :if={@svc.sow_state == :new or @svc.sow_state == :similar_overridable}
+              class="col-span-2 rounded border border-warning/40 bg-warning/5 p-3"
+            >
+              <p class="text-sm font-semibold text-warning mb-2">
+                {gettext("New sow — will be registered on save")}
+              </p>
+              <div class="grid grid-cols-2 gap-x-3 gap-y-2">
+                <div>
+                  <label class="label">
+                    <span class="label-text">{gettext("Breed")}</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="backfill_sow[breed]"
+                    value={@svc.backfill[:breed]}
+                    class="input input-bordered w-full"
+                    placeholder={gettext("e.g. Large White")}
+                  />
+                </div>
+                <div>
+                  <label class="label">
+                    <span class="label-text">{gettext("Date of birth")}</span>
+                  </label>
+                  <input
+                    type="date"
+                    name="backfill_sow[dob]"
+                    value={@svc.backfill[:dob] || @svc.default_dob}
+                    class="input input-bordered w-full"
+                  />
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-base-content/60">
+                {gettext(
+                  "Defaults to female sow, status open, DOB = served_at − 1 year. Marked needs-review."
+                )}
+              </p>
+            </div>
+
+            <%!-- Similar-tag warning + override --%>
+            <div
+              :if={@svc.sow_state in [:similar, :similar_overridable]}
+              class={[
+                "col-span-2 rounded border p-3",
+                @svc.sow_state == :similar && "border-error/40 bg-error/5",
+                @svc.sow_state == :similar_overridable && "border-warning/40 bg-warning/5"
+              ]}
+            >
+              <p class={[
+                "text-sm font-semibold",
+                @svc.sow_state == :similar && "text-error",
+                @svc.sow_state == :similar_overridable && "text-warning"
+              ]}>
+                {gettext("Did you mean one of these?")}
+              </p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <button
+                  :for={tag <- @svc.similar_tags}
+                  type="button"
+                  phx-click="pick_similar_tag"
+                  phx-value-tag={tag}
+                  class="btn btn-xs btn-outline btn-error font-mono"
+                >
+                  {tag}
+                </button>
+              </div>
+              <label class="mt-3 flex items-center gap-2 cursor-pointer">
+                <input type="hidden" name="backfill_sow[force_create]" value="false" />
+                <input
+                  type="checkbox"
+                  name="backfill_sow[force_create]"
+                  value="true"
+                  checked={@svc.force_create}
+                  class="checkbox checkbox-sm"
+                />
+                <span class="text-sm">
+                  {gettext("Create anyway — this is a different sow")}
+                </span>
+              </label>
+            </div>
+
+            <div>
+              <label class="label">
+                <span class="label-text">{gettext("Service type")}</span>
+              </label>
+              <select name="service_type" class="select select-bordered w-full">
+                <option value="natural" selected={@svc.service_type == "natural"}>
+                  {gettext("Natural")}
+                </option>
+                <option value="ai" selected={@svc.service_type == "ai"}>
+                  {gettext("AI")}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">
+                <span class="label-text">{gettext("Served at")}</span>
+              </label>
+              <input
+                type="date"
+                name="served_at"
+                value={@svc.served_at}
+                class="input input-bordered w-full"
+              />
+            </div>
+
+            <div :if={@svc.service_type == "natural"} class="col-span-2">
+              <.autocomplete
+                id="service-boar-picker"
+                label={gettext("Boar")}
+                name="boar_id"
+                value={@svc.boar_id}
+                items={@ac.boar_items}
+                selected_label={@ac.boar_label}
+                class="w-full input font-mono"
+                placeholder={gettext("Search by ear tag...")}
+              />
+            </div>
+
+            <div class="col-span-2">
+              <.autocomplete
+                id="service-pen-picker"
+                label={gettext("Service pen (optional)")}
+                name="pen_id"
+                value={@svc.pen_id}
+                items={@ac.pen_items}
+                selected_label={@ac.pen_label}
+                class="w-full input font-mono"
+                placeholder={gettext("Search pens...")}
+              />
+              <p class="mt-1 text-xs text-base-content/60">
+                {gettext(
+                  "If set: new sow placed, or existing sow transferred when different from current pen."
+                )}
+              </p>
+            </div>
+
+            <div class="col-span-2">
+              <label class="label">
+                <span class="label-text">{gettext("Notes")}</span>
+              </label>
+              <textarea
+                name="notes"
+                rows="2"
+                class="textarea textarea-bordered w-full"
+              >{@svc.notes}</textarea>
+            </div>
+
+            <p :if={@svc.error_message} class="col-span-2 text-sm text-error">
+              {@svc.error_message}
+            </p>
+
+            <div class="col-span-2 flex gap-2 justify-end pt-2">
               <button type="button" phx-click="cancel" class="btn btn-ghost">
                 {gettext("Cancel")}
               </button>
-              <.button class="btn btn-primary" phx-disable-with={gettext("Saving...")}>
-                {gettext("Save")}
+              <.button
+                class="btn btn-primary"
+                phx-disable-with={gettext("Saving...")}
+                disabled={not service_save_enabled?(@svc)}
+              >
+                {service_save_label(@svc)}
               </.button>
             </div>
-          </.form>
+          </form>
         </.modal>
 
         <%!-- Farrowing form modal --%>
@@ -891,6 +1048,7 @@ defmodule PeggyWeb.FarmLive.Breeding do
        form_sow_tag: nil,
        form_born_alive: nil,
        form_surviving: nil,
+       svc: nil,
        ac: default_ac(scope),
        pens: Locations.list_all_pens(scope),
        per_page: @per_page
@@ -933,40 +1091,48 @@ defmodule PeggyWeb.FarmLive.Breeding do
 
   @impl true
   def handle_event("new_service", _, socket) do
-    cs =
-      Breeding.change_service(%Service{
-        service_type: "natural",
-        served_at: Date.utc_today()
-      })
+    today = Date.utc_today()
 
     {:noreply,
      socket
      |> assign(
        form_mode: :service,
-       form: to_form(cs, as: :service),
        form_target: nil,
-       ac: default_ac(socket.assigns.current_scope)
+       ac: default_ac(socket.assigns.current_scope),
+       svc: %{
+         sow_ear_tag: "",
+         sow_state: :empty,
+         similar_tags: [],
+         resolved_sow_id: nil,
+         force_create: false,
+         backfill: %{},
+         service_type: "natural",
+         served_at: to_string(today),
+         boar_id: nil,
+         pen_id: nil,
+         notes: nil,
+         default_dob: to_string(Date.add(today, -Breeding.minimum_sow_age_days())),
+         error_message: nil
+       }
      )}
   end
 
-  def handle_event("validate_service", %{"service" => params}, socket) do
-    cs = Breeding.change_service(%Service{}, params) |> Map.put(:action, :validate)
-    {:noreply, assign(socket, :form, to_form(cs, as: :service))}
+  def handle_event("validate_service", params, socket) do
+    {:noreply,
+     socket
+     |> update_svc_from_params(params)
+     |> resolve_svc_sow()}
   end
 
-  def handle_event("save_service", %{"service" => params}, socket) do
-    if socket.assigns.can_record do
-      case Breeding.record_service(socket.assigns.current_scope, params) do
-        {:ok, _} ->
-          {:noreply,
-           socket
-           |> close_form()
-           |> load_tab()
-           |> put_flash(:info, gettext("Service recorded."))}
+  def handle_event("pick_similar_tag", %{"tag" => tag}, socket) do
+    svc = %{socket.assigns.svc | sow_ear_tag: tag, force_create: false}
+    {:noreply, socket |> assign(svc: svc) |> resolve_svc_sow()}
+  end
 
-        {:error, cs} ->
-          {:noreply, assign(socket, :form, to_form(cs, as: :service))}
-      end
+  def handle_event("save_service", params, socket) do
+    if socket.assigns.can_record do
+      socket = socket |> update_svc_from_params(params) |> resolve_svc_sow()
+      do_save_service(socket)
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
     end
@@ -1399,6 +1565,220 @@ defmodule PeggyWeb.FarmLive.Breeding do
 
   # ── Helpers ────────────────────────────────────────────────────────
 
+  defp do_save_service(socket) do
+    svc = socket.assigns.svc
+    scope = socket.assigns.current_scope
+
+    cond do
+      svc.sow_state == :empty ->
+        {:noreply,
+         assign(socket, svc: %{svc | error_message: gettext("Sow ear tag is required.")})}
+
+      svc.sow_state == :similar ->
+        {:noreply,
+         assign(socket,
+           svc: %{
+             svc
+             | error_message:
+                 gettext("Pick an existing tag or tick \"Create anyway\" to override.")
+           }
+         )}
+
+      true ->
+        attrs = build_service_attrs(svc)
+
+        case Breeding.record_service_with_backfill(scope, attrs) do
+          {:ok, %{inferred?: inferred?, sow: sow}} ->
+            msg =
+              if inferred?,
+                do: gettext("Service recorded — new sow %{tag} registered.", tag: sow.ear_tag),
+                else: gettext("Service recorded for %{tag}.", tag: sow.ear_tag)
+
+            {:noreply,
+             socket
+             |> close_form()
+             |> load_tab()
+             |> put_flash(:info, msg)}
+
+          {:error, {:similar_tag, tags}} ->
+            {:noreply,
+             assign(socket,
+               svc: %{
+                 svc
+                 | sow_state: :similar,
+                   similar_tags: tags,
+                   error_message: gettext("Tag is too similar to an existing sow.")
+               }
+             )}
+
+          {:error, :sow_not_found} ->
+            {:noreply, assign(socket, svc: %{svc | error_message: gettext("Sow tag not found.")})}
+
+          {:error, %Ecto.Changeset{} = cs} ->
+            {:noreply, assign(socket, svc: %{svc | error_message: format_cs_error(cs)})}
+
+          {:error, other} ->
+            {:noreply, assign(socket, svc: %{svc | error_message: inspect(other)})}
+        end
+    end
+  end
+
+  defp update_svc_from_params(socket, params) do
+    svc = socket.assigns.svc
+    backfill_params = Map.get(params, "backfill_sow", %{})
+
+    backfill = %{
+      breed: presence(Map.get(backfill_params, "breed")),
+      dob: presence(Map.get(backfill_params, "dob"))
+    }
+
+    force_create = truthy?(Map.get(backfill_params, "force_create"))
+    service_type = Map.get(params, "service_type", svc.service_type)
+
+    boar_id =
+      case Integer.parse(Map.get(params, "boar_id", "") || "") do
+        {i, ""} -> i
+        _ -> nil
+      end
+
+    pen_id =
+      case Integer.parse(Map.get(params, "pen_id", "") || "") do
+        {i, ""} -> i
+        _ -> nil
+      end
+
+    svc = %{
+      svc
+      | sow_ear_tag:
+          params |> Map.get("sow_ear_tag", svc.sow_ear_tag) |> to_string() |> String.trim(),
+        service_type: service_type,
+        served_at: Map.get(params, "served_at", svc.served_at),
+        boar_id: if(service_type == "natural", do: boar_id, else: nil),
+        pen_id: pen_id,
+        notes: presence(Map.get(params, "notes")),
+        backfill: backfill,
+        force_create: force_create,
+        error_message: nil
+    }
+
+    assign(socket, svc: svc)
+  end
+
+  defp resolve_svc_sow(socket) do
+    svc = socket.assigns.svc
+    scope = socket.assigns.current_scope
+    tag = svc.sow_ear_tag
+
+    svc =
+      cond do
+        tag in [nil, ""] ->
+          %{svc | sow_state: :empty, similar_tags: [], resolved_sow_id: nil}
+
+        true ->
+          case Animals.find_by_ear_tag(scope, tag) do
+            %{id: id} ->
+              %{svc | sow_state: :existing, similar_tags: [], resolved_sow_id: id}
+
+            nil ->
+              case Animals.similar_ear_tags(scope, tag) do
+                [] ->
+                  %{svc | sow_state: :new, similar_tags: [], resolved_sow_id: nil}
+
+                tags ->
+                  state = if svc.force_create, do: :similar_overridable, else: :similar
+                  %{svc | sow_state: state, similar_tags: tags, resolved_sow_id: nil}
+              end
+          end
+      end
+
+    assign(socket, svc: svc)
+  end
+
+  defp build_service_attrs(svc) do
+    base = %{
+      sow_ear_tag: svc.sow_ear_tag,
+      service_type: svc.service_type,
+      served_at: svc.served_at,
+      notes: svc.notes
+    }
+
+    base =
+      if svc.service_type == "natural" and svc.boar_id,
+        do: Map.put(base, :boar_id, svc.boar_id),
+        else: base
+
+    base = if svc.pen_id, do: Map.put(base, :pen_id, svc.pen_id), else: base
+
+    case svc.sow_state do
+      :existing ->
+        Map.put(base, :sow_id, svc.resolved_sow_id)
+
+      :new ->
+        Map.put(base, :backfill_sow, %{
+          breed: svc.backfill[:breed],
+          dob: svc.backfill[:dob] || svc.default_dob
+        })
+
+      :similar_overridable ->
+        Map.put(base, :backfill_sow, %{
+          breed: svc.backfill[:breed],
+          dob: svc.backfill[:dob] || svc.default_dob,
+          force_create: true
+        })
+
+      _ ->
+        base
+    end
+  end
+
+  defp service_save_enabled?(%{sow_state: state, service_type: type, boar_id: boar_id}) do
+    has_sow? = state in [:existing, :new, :similar_overridable]
+    boar_ok? = type != "natural" or not is_nil(boar_id)
+    has_sow? and boar_ok?
+  end
+
+  defp service_save_label(%{sow_state: state})
+       when state in [:new, :similar_overridable],
+       do: gettext("Save service + register sow")
+
+  defp service_save_label(_), do: gettext("Save service")
+
+  defp sow_input_class(:existing), do: "border-success focus:border-success"
+  defp sow_input_class(:new), do: "border-warning focus:border-warning"
+  defp sow_input_class(:similar_overridable), do: "border-warning focus:border-warning"
+  defp sow_input_class(:similar), do: "border-error focus:border-error"
+  defp sow_input_class(_), do: ""
+
+  defp sow_state_text(:existing), do: gettext("✓ Existing sow on file")
+  defp sow_state_text(:new), do: gettext("+ New tag — will register on save")
+  defp sow_state_text(:similar), do: gettext("⚠ Looks similar to an existing tag")
+
+  defp sow_state_text(:similar_overridable),
+    do: gettext("⚠ Override active — will create as new sow")
+
+  defp sow_state_text(_), do: gettext("Type a tag to begin")
+
+  defp presence(nil), do: nil
+  defp presence(""), do: nil
+
+  defp presence(s) when is_binary(s) do
+    case String.trim(s) do
+      "" -> nil
+      v -> v
+    end
+  end
+
+  defp truthy?("true"), do: true
+  defp truthy?(true), do: true
+  defp truthy?(_), do: false
+
+  defp format_cs_error(%Ecto.Changeset{errors: errors}) do
+    case errors do
+      [{field, {msg, _}} | _] -> "#{field}: #{msg}"
+      _ -> gettext("Validation failed")
+    end
+  end
+
   defp load_tab(%{assigns: %{tab: "gestating"}} = socket) do
     scope = socket.assigns.current_scope
     filters = socket.assigns.filters
@@ -1587,6 +1967,7 @@ defmodule PeggyWeb.FarmLive.Breeding do
       form_sow_tag: nil,
       form_born_alive: nil,
       form_surviving: nil,
+      svc: nil,
       ac: default_ac(socket.assigns.current_scope)
     )
   end

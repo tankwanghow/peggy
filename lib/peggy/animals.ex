@@ -125,6 +125,57 @@ defmodule Peggy.Animals do
     individuals + batched
   end
 
+  @doc """
+  Finds the present (non-departed) animal with an exact ear-tag match
+  on the given farm, or `nil`. Used by back-fill to decide whether the
+  caller's tag refers to an existing sow or needs to be inferred.
+  """
+  def find_by_ear_tag(%Scope{farm: farm}, ear_tag) when is_binary(ear_tag) do
+    present = Animal.present_statuses()
+
+    Repo.one(
+      from a in Animal,
+        where:
+          a.farm_id == ^farm.id and a.status in ^present and
+            a.ear_tag == ^ear_tag
+    )
+  end
+
+  def find_by_ear_tag(_scope, _), do: nil
+
+  @doc """
+  Returns ear tags on the same farm within Levenshtein distance
+  `threshold` of `ear_tag` (excluding the tag itself), ordered by
+  closeness, capped at 5 suggestions. Only considers present
+  (non-departed) animals.
+
+  Used by the back-fill cascade to hard-block creating an inferred
+  animal whose tag is suspiciously close to an existing one (typo
+  protection). Requires the postgres `fuzzystrmatch` extension.
+  """
+  def similar_ear_tags(scope, ear_tag, threshold \\ 2)
+
+  def similar_ear_tags(%Scope{farm: farm}, ear_tag, threshold)
+      when is_binary(ear_tag) and is_integer(threshold) and threshold >= 0 do
+    present = Animal.present_statuses()
+    len = String.length(ear_tag)
+
+    Repo.all(
+      from a in Animal,
+        where:
+          a.farm_id == ^farm.id and a.status in ^present and
+            not is_nil(a.ear_tag) and a.ear_tag != ^ear_tag and
+            fragment("abs(length(?) - ?) <= ?", a.ear_tag, ^len, ^threshold) and
+            fragment("levenshtein(?, ?) <= ?", a.ear_tag, ^ear_tag, ^threshold),
+        select: a.ear_tag,
+        order_by: [
+          asc: fragment("levenshtein(?, ?)", a.ear_tag, ^ear_tag),
+          asc: a.ear_tag
+        ],
+        limit: 5
+    )
+  end
+
   def change_animal(%Animal{} = a, attrs \\ %{}), do: Animal.changeset(a, attrs)
   def change_movement(%Movement{} = m, attrs \\ %{}), do: Movement.changeset(m, attrs)
 
