@@ -1189,6 +1189,22 @@ defmodule PeggyWeb.FarmLive.Breeding do
            |> load_tab()
            |> put_flash(:error, gettext("Service is already closed."))}
 
+        {:error, :sow_not_served} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Sow status must be \"served\" to record farrowing.")
+           )}
+
+        {:error, :gestation_out_of_range} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             gettext("Farrowed date must be within 3 days of the 114-day gestation.")
+           )}
+
         {:error, cs} ->
           {:noreply, assign(socket, :form, to_form(cs, as: :farrowing))}
       end

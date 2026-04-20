@@ -1225,10 +1225,38 @@ defmodule Peggy.Breeding do
   piglets are created unplaced (`current_pen_id = nil`).
   """
   def record_farrowing(%Scope{} = scope, %Service{} = service, attrs) do
-    if service.result do
-      {:error, :service_already_closed}
-    else
-      do_record_farrowing(scope, service, stringify_keys(attrs))
+    attrs = stringify_keys(attrs)
+
+    with :ok <- ensure_service_open(service),
+         :ok <- ensure_sow_served(service),
+         :ok <- ensure_gestation_in_range(service, attrs) do
+      do_record_farrowing(scope, service, attrs)
+    end
+  end
+
+  defp ensure_service_open(%Service{result: nil}), do: :ok
+  defp ensure_service_open(_), do: {:error, :service_already_closed}
+
+  defp ensure_sow_served(%Service{sow_id: sow_id}) do
+    case Repo.get(Animal, sow_id) do
+      %Animal{status: "served"} -> :ok
+      _ -> {:error, :sow_not_served}
+    end
+  end
+
+  @gestation_tolerance_days 3
+
+  defp ensure_gestation_in_range(%Service{served_at: served_at}, attrs) do
+    case parse_date(attrs["farrowed_at"]) do
+      nil ->
+        :ok
+
+      %Date{} = farrowed_at ->
+        diff = abs(Date.diff(farrowed_at, served_at) - @gestation_days)
+
+        if diff <= @gestation_tolerance_days,
+          do: :ok,
+          else: {:error, :gestation_out_of_range}
     end
   end
 
@@ -1320,6 +1348,246 @@ defmodule Peggy.Breeding do
   end
 
   def record_batch_farrowings(_scope, []), do: {:error, :no_entries}
+
+  @doc """
+  Batch farrowing entry with back-fill cascade.
+
+  Each entry is a map. Sow is resolved via either `:service_id`
+  (an existing open service) or `:sow_ear_tag` plus optional
+  `:backfill_sow` map for the new-sow case.
+
+  Resolution per row:
+
+    * `:service_id` → use that open service directly.
+    * `:sow_ear_tag` resolves to an existing sow with an open service
+      → use that service.
+    * `:sow_ear_tag` resolves to an existing sow with no open service
+      → insert an inferred service (`inferred: true`,
+      `created_via: "back_fill_from_farrowing"`, service_type: "ai",
+      served_at = farrowed_at − gestation_days), then farrow.
+    * `:sow_ear_tag` does not resolve and a similar tag exists → hard
+      blocks with `{:error, {i, {:similar_tag, tags}}}` unless
+      `backfill_sow.force_create` is true.
+    * `:sow_ear_tag` does not resolve and no similar tag → creates
+      inferred sow + inferred service + farrowing.
+
+  Duplicate unknown ear tags within the same grid are rejected with
+  `{:error, {i, :duplicate_ear_tag}}`.
+
+  Returns `{:ok, [farrowing, ...]}` or `{:error, {row_index, reason}}`.
+  Any failure rolls back the entire batch.
+  """
+  def record_batch_farrowings_with_backfill(%Scope{}, []), do: {:error, :no_entries}
+
+  def record_batch_farrowings_with_backfill(%Scope{} = scope, entries)
+      when is_list(entries) do
+    Repo.transaction(fn ->
+      with {:ok, classified} <- classify_batch_farrowing_entries(scope, entries) do
+        classified
+        |> Enum.with_index()
+        |> Enum.reduce([], fn {row, i}, acc ->
+          case process_farrowing_row(scope, row) do
+            {:ok, farrowing} -> [farrowing | acc]
+            {:error, reason} -> Repo.rollback({i, reason})
+          end
+        end)
+        |> Enum.reverse()
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp classify_batch_farrowing_entries(scope, entries) do
+    entries
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn {entry, i}, {:ok, acc, seen_new} ->
+      case classify_farrowing_one(scope, entry, seen_new) do
+        {:ok, row} ->
+          seen_new =
+            case row do
+              %{kind: :inferred_sow, ear_tag: tag} -> MapSet.put(seen_new, tag)
+              _ -> seen_new
+            end
+
+          {:cont, {:ok, [row | acc], seen_new}}
+
+        {:error, reason} ->
+          {:halt, {:error, {i, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, acc, _} -> {:ok, Enum.reverse(acc)}
+      {:error, _} = err -> err
+    end
+  end
+
+  defp classify_farrowing_one(scope, entry, seen_new) do
+    attrs = stringify_keys(entry)
+    service_id = to_int(attrs["service_id"])
+    ear_tag = attrs["sow_ear_tag"]
+
+    cond do
+      not is_nil(service_id) ->
+        {:ok, %{kind: :service_id, service_id: service_id, attrs: attrs}}
+
+      is_nil(ear_tag) or ear_tag == "" ->
+        {:error, :sow_not_found}
+
+      true ->
+        case Animals.find_by_ear_tag(scope, ear_tag) do
+          %Animal{} = sow ->
+            {:ok, %{kind: :existing_sow, sow: sow, attrs: attrs}}
+
+          nil ->
+            classify_new_farrowing_tag(scope, ear_tag, attrs, seen_new)
+        end
+    end
+  end
+
+  defp classify_new_farrowing_tag(scope, ear_tag, attrs, seen_new) do
+    backfill = Map.get(attrs, "backfill_sow")
+
+    force? =
+      truthy?(backfill && (Map.get(backfill, :force_create) || Map.get(backfill, "force_create")))
+
+    cond do
+      MapSet.member?(seen_new, ear_tag) ->
+        {:error, :duplicate_ear_tag}
+
+      true ->
+        similars = Animals.similar_ear_tags(scope, ear_tag)
+
+        cond do
+          similars != [] and not force? ->
+            {:error, {:similar_tag, similars}}
+
+          is_nil(backfill) ->
+            {:error, :sow_not_found}
+
+          true ->
+            {:ok,
+             %{
+               kind: :inferred_sow,
+               ear_tag: ear_tag,
+               backfill: backfill,
+               attrs: attrs
+             }}
+        end
+    end
+  end
+
+  defp process_farrowing_row(scope, %{kind: :service_id, service_id: sid, attrs: attrs}) do
+    case Repo.get(Service, sid) do
+      %Service{farm_id: fid} = service when fid == scope.farm.id ->
+        farrow_via(scope, service, attrs)
+
+      _ ->
+        {:error, :service_not_found}
+    end
+  end
+
+  defp process_farrowing_row(scope, %{kind: :existing_sow, sow: sow, attrs: attrs}) do
+    case current_service(scope, sow.id) do
+      %Service{} = service ->
+        farrow_via(scope, service, attrs)
+
+      nil ->
+        with {:ok, service} <- insert_inferred_service(scope, sow, attrs) do
+          farrow_via(scope, service, attrs)
+        end
+    end
+  end
+
+  defp process_farrowing_row(scope, %{
+         kind: :inferred_sow,
+         ear_tag: tag,
+         backfill: backfill,
+         attrs: attrs
+       }) do
+    with {:ok, sow} <- insert_inferred_sow_for_farrowing(scope, tag, backfill, attrs),
+         {:ok, service} <- insert_inferred_service(scope, sow, attrs) do
+      farrow_via(scope, service, attrs)
+    end
+  end
+
+  defp farrow_via(scope, service, attrs) do
+    attrs =
+      attrs
+      |> Map.drop(["service_id", "sow_ear_tag", "backfill_sow"])
+
+    case record_farrowing(scope, service, attrs) do
+      {:ok, farrowing, _piglets} -> {:ok, farrowing}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp insert_inferred_sow_for_farrowing(scope, ear_tag, backfill, attrs) do
+    farm = scope.farm
+    farrowed_at = parse_date(attrs["farrowed_at"]) || Date.utc_today()
+    served_at = Date.add(farrowed_at, -@gestation_days)
+
+    # Reuse the service-flavored sow changeset but override created_via.
+    service_like_attrs = Map.put(attrs, "served_at", served_at)
+    sow_cs = build_inferred_sow_changeset(farm, ear_tag, backfill, service_like_attrs)
+
+    sow_cs =
+      Ecto.Changeset.put_change(sow_cs, :created_via, "back_fill_from_farrowing")
+
+    multi =
+      Multi.new()
+      |> Multi.insert(:sow, sow_cs)
+      |> Multi.insert(:sow_audit, fn %{sow: sow} -> inferred_sow_audit(scope, sow) end)
+      |> Multi.update(:sow_with_origin, fn %{sow: sow, sow_audit: audit} ->
+        Ecto.Changeset.change(sow, origin_audit_id: audit.id)
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, %{sow_with_origin: sow}} -> {:ok, sow}
+      {:error, :sow, cs, _} -> {:error, cs}
+      {:error, step, cs, _} -> {:error, {step, cs}}
+    end
+  end
+
+  defp insert_inferred_service(scope, sow, attrs) do
+    farm = scope.farm
+    farrowed_at = parse_date(attrs["farrowed_at"]) || Date.utc_today()
+    served_at = Date.add(farrowed_at, -@gestation_days)
+
+    service_attrs = %{
+      "farm_id" => farm.id,
+      "sow_id" => sow.id,
+      "service_type" => "ai",
+      "served_at" => served_at,
+      "inferred" => true,
+      "created_via" => "back_fill_from_farrowing"
+    }
+
+    multi =
+      Multi.new()
+      |> Multi.insert(:service, Service.changeset(%Service{}, service_attrs))
+      |> Multi.insert(:service_audit, fn %{service: service} ->
+        %AuditLog{
+          farm_id: farm.id,
+          actor_user_id: scope.user && scope.user.id,
+          action: "service.created.inferred",
+          entity_type: "service",
+          entity_id: to_string(service.id),
+          changes: %{"created_via" => service.created_via, "served_at" => to_string(served_at)},
+          inserted_at: DateTime.utc_now(:second)
+        }
+      end)
+      |> Multi.update(:service_with_origin, fn %{service: service, service_audit: audit} ->
+        Ecto.Changeset.change(service, origin_audit_id: audit.id)
+      end)
+      |> Multi.update(:sow_served, Ecto.Changeset.change(sow, status: "served"))
+
+    case Repo.transaction(multi) do
+      {:ok, %{service_with_origin: service}} -> {:ok, service}
+      {:error, :service, cs, _} -> {:error, cs}
+      {:error, step, cs, _} -> {:error, {step, cs}}
+    end
+  end
 
   defp insert_piglets(multi, _farm_id, _sow, _boar_id, _pen_id, 0, _farrowed_at), do: multi
 

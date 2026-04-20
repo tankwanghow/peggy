@@ -19,7 +19,7 @@ defmodule Peggy.Breeding.Service do
     belongs_to :sow, Peggy.Animals.Animal
     belongs_to :boar, Peggy.Animals.Animal
     belongs_to :technician_user, Peggy.Accounts.User
-    has_one :farrowing, Peggy.Breeding.Farrowing
+    has_one :farrowing, Peggy.Breeding.Farrowing, where: [deleted_at: nil]
     field :deleted_at, :utc_datetime
     belongs_to :deleted_by, Peggy.Accounts.User
     timestamps(type: :utc_datetime)

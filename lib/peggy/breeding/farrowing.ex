@@ -41,10 +41,12 @@ defmodule Peggy.Breeding.Farrowing do
       :farm_id
     ])
     |> validate_required([:farrowed_at, :born_alive, :service_id, :sow_id, :farm_id, :pen_id])
-    |> validate_number(:born_alive, greater_than_or_equal_to: 0)
-    |> validate_number(:stillborn, greater_than_or_equal_to: 0)
-    |> validate_number(:mummified, greater_than_or_equal_to: 0)
+    |> validate_number(:born_alive, greater_than_or_equal_to: 0, less_than_or_equal_to: 20)
+    |> validate_number(:stillborn, greater_than_or_equal_to: 0, less_than_or_equal_to: 20)
+    |> validate_number(:mummified, greater_than_or_equal_to: 0, less_than_or_equal_to: 20)
     |> validate_number(:total_birth_weight_g, greater_than: 0)
-    |> unique_constraint(:service_id)
+    |> unique_constraint(:service_id,
+      name: :breeding_farrowings_service_id_active_index
+    )
   end
 end

@@ -33,7 +33,7 @@ defmodule Peggy.Breeding.Weaning do
       :farm_id
     ])
     |> validate_required([:weaned_at, :weaned_count, :farrowing_id, :farm_id])
-    |> validate_number(:weaned_count, greater_than_or_equal_to: 0)
+    |> validate_number(:weaned_count, greater_than_or_equal_to: 0, less_than_or_equal_to: 15)
     |> validate_number(:avg_wean_weight_g, greater_than: 0)
     |> unique_constraint(:farrowing_id,
       name: :breeding_weanings_farrowing_id_active_index

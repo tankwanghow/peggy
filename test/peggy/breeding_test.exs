@@ -433,6 +433,183 @@ defmodule Peggy.BreedingTest do
     end
   end
 
+  describe "record_batch_farrowings_with_backfill/2" do
+    test "service_id path farrows an existing open service", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
+
+      {:ok, [farrowing]} =
+        Breeding.record_batch_farrowings_with_backfill(scope, [
+          %{
+            service_id: service.id,
+            farrowed_at: ~D[2026-04-25],
+            born_alive: 9,
+            stillborn: 1,
+            pen_id: pen.id
+          }
+        ])
+
+      assert farrowing.service_id == service.id
+      assert farrowing.sow_id == sow.id
+      assert farrowing.born_alive == 9
+
+      closed = Breeding.get_service!(scope, service.id)
+      assert closed.result == "farrowing"
+    end
+
+    test "existing sow with open service farrows via ear_tag", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
+
+      {:ok, [farrowing]} =
+        Breeding.record_batch_farrowings_with_backfill(scope, [
+          %{
+            sow_ear_tag: sow.ear_tag,
+            farrowed_at: ~D[2026-04-25],
+            born_alive: 8,
+            pen_id: pen.id
+          }
+        ])
+
+      assert farrowing.service_id == service.id
+      assert farrowing.sow_id == sow.id
+    end
+
+    test "existing sow without open service creates inferred service then farrows",
+         %{scope: scope, pen: pen} do
+      sow = animal_fixture(scope, ear_tag: "BF-NOSVC", sex: "female", stage: "sow")
+
+      {:ok, [farrowing]} =
+        Breeding.record_batch_farrowings_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BF-NOSVC",
+            farrowed_at: ~D[2026-04-25],
+            born_alive: 7,
+            pen_id: pen.id
+          }
+        ])
+
+      assert farrowing.sow_id == sow.id
+
+      service = Breeding.get_service!(scope, farrowing.service_id)
+      assert service.inferred == true
+      assert service.created_via == "back_fill_from_farrowing"
+      assert service.service_type == "ai"
+      assert service.served_at == Date.add(~D[2026-04-25], -114)
+      assert service.result == "farrowing"
+
+      logs = Audit.list(scope, entity_type: "service", action: "service.created.inferred")
+      assert Enum.any?(logs, &(&1.entity_id == to_string(service.id)))
+    end
+
+    test "unknown ear tag with backfill_sow creates inferred sow + service + farrowing",
+         %{scope: scope, pen: pen} do
+      {:ok, [farrowing]} =
+        Breeding.record_batch_farrowings_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BF-NEWSOW-1",
+            farrowed_at: ~D[2026-04-25],
+            born_alive: 6,
+            pen_id: pen.id,
+            backfill_sow: %{breed: "Duroc"}
+          }
+        ])
+
+      new_sow = Peggy.Animals.find_by_ear_tag(scope, "BF-NEWSOW-1")
+      assert new_sow
+      assert new_sow.inferred == true
+      assert new_sow.created_via == "back_fill_from_farrowing"
+      assert farrowing.sow_id == new_sow.id
+
+      service = Breeding.get_service!(scope, farrowing.service_id)
+      assert service.inferred == true
+      assert service.created_via == "back_fill_from_farrowing"
+    end
+
+    test "hard-blocks on similar tag without force_create", %{scope: scope, pen: pen} do
+      # fixture "SOW1" → "SOW2" is Levenshtein 1 away
+      assert {:error, {0, {:similar_tag, tags}}} =
+               Breeding.record_batch_farrowings_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "SOW2",
+                   farrowed_at: ~D[2026-04-25],
+                   born_alive: 5,
+                   pen_id: pen.id,
+                   backfill_sow: %{breed: "Duroc"}
+                 }
+               ])
+
+      assert "SOW1" in tags
+    end
+
+    test "returns :sow_not_found when tag unknown and no backfill_sow",
+         %{scope: scope, pen: pen} do
+      assert {:error, {0, :sow_not_found}} =
+               Breeding.record_batch_farrowings_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "UNKNOWN-XYZ",
+                   farrowed_at: ~D[2026-04-25],
+                   born_alive: 5,
+                   pen_id: pen.id
+                 }
+               ])
+    end
+
+    test "rejects duplicate new ear tags within the grid", %{scope: scope, pen: pen} do
+      assert {:error, {1, :duplicate_ear_tag}} =
+               Breeding.record_batch_farrowings_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "BF-DUPE-1",
+                   farrowed_at: ~D[2026-04-25],
+                   born_alive: 5,
+                   pen_id: pen.id,
+                   backfill_sow: %{breed: "Duroc"}
+                 },
+                 %{
+                   sow_ear_tag: "BF-DUPE-1",
+                   farrowed_at: ~D[2026-04-25],
+                   born_alive: 5,
+                   pen_id: pen.id,
+                   backfill_sow: %{breed: "Duroc"}
+                 }
+               ])
+    end
+
+    test "rolls back all rows when any row fails validation", %{scope: scope, pen: pen} do
+      result =
+        Breeding.record_batch_farrowings_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BF-ROLLBACK-1",
+            farrowed_at: ~D[2026-04-25],
+            born_alive: 4,
+            pen_id: pen.id,
+            backfill_sow: %{breed: "Duroc"}
+          },
+          # Second row: no service_id and no sow_ear_tag → classification error
+          %{
+            farrowed_at: ~D[2026-04-25],
+            born_alive: 2,
+            pen_id: pen.id
+          }
+        ])
+
+      assert {:error, {1, :sow_not_found}} = result
+      assert is_nil(Peggy.Animals.find_by_ear_tag(scope, "BF-ROLLBACK-1"))
+    end
+
+    test "rejects empty list", %{scope: scope} do
+      assert {:error, :no_entries} = Breeding.record_batch_farrowings_with_backfill(scope, [])
+    end
+  end
+
   describe "close_service/4" do
     test "closes an open service with abortion", %{scope: scope, sow: sow, boar: boar} do
       service = service_fixture(scope, sow, boar_id: boar.id)
@@ -1113,6 +1290,38 @@ defmodule Peggy.BreedingTest do
       assert is_nil(Peggy.Repo.get!(Peggy.Breeding.Service, service.id).result)
     end
 
+    test "soft-deleted farrowing does not block re-recording for the same service", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
+
+      {:ok, f1, _} =
+        Breeding.record_farrowing(scope, service, %{
+          farrowed_at: ~D[2026-04-25],
+          born_alive: 3,
+          pen_id: pen.id
+        })
+
+      {:ok, _} = Breeding.delete_farrowing(scope, f1)
+
+      # Service is reopened after delete — record a fresh farrowing against it.
+      reopened = Breeding.get_service!(scope, service.id)
+      assert is_nil(reopened.farrowing)
+
+      {:ok, f2, _} =
+        Breeding.record_farrowing(scope, reopened, %{
+          farrowed_at: ~D[2026-04-25],
+          born_alive: 4,
+          pen_id: pen.id
+        })
+
+      assert f2.id != f1.id
+      assert f2.service_id == service.id
+    end
+
     test "deleted farrowing excluded from list_lactating_sows and list_farrowings", %{
       scope: scope,
       sow: sow,
@@ -1539,6 +1748,54 @@ defmodule Peggy.BreedingTest do
 
       logs = Audit.list(scope, entity_type: "farrowing", action: "farrowing.created")
       assert length(logs) == 1
+    end
+
+    test "rejects when sow status is not served", %{scope: scope, sow: sow, boar: boar, pen: pen} do
+      service = service_fixture(scope, sow, boar_id: boar.id)
+
+      # Manually flip the sow off "served" after service was recorded.
+      {:ok, _} =
+        sow |> Ecto.Changeset.change(%{status: "open"}) |> Peggy.Repo.update()
+
+      assert {:error, :sow_not_served} =
+               Breeding.record_farrowing(scope, service, %{
+                 farrowed_at: ~D[2026-04-25],
+                 born_alive: 3,
+                 pen_id: pen.id
+               })
+    end
+
+    test "accepts gestation within 3 days of 114", %{scope: scope, sow: sow, boar: boar, pen: pen} do
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
+
+      # 114 − 3 = 111 days → 2026-04-22
+      {:ok, _, _} =
+        Breeding.record_farrowing(scope, service, %{
+          farrowed_at: ~D[2026-04-22],
+          born_alive: 4,
+          pen_id: pen.id
+        })
+    end
+
+    test "rejects gestation more than 3 days off 114",
+         %{scope: scope, sow: sow, boar: boar, pen: pen} do
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
+
+      # 110 days (114 − 4) → too early
+      assert {:error, :gestation_out_of_range} =
+               Breeding.record_farrowing(scope, service, %{
+                 farrowed_at: ~D[2026-04-21],
+                 born_alive: 4,
+                 pen_id: pen.id
+               })
+
+      # 118 days (114 + 4) → too late
+      assert {:error, :gestation_out_of_range} =
+               Breeding.record_farrowing(scope, service, %{
+                 farrowed_at: ~D[2026-04-29],
+                 born_alive: 4,
+                 pen_id: pen.id
+               })
     end
 
     test "AI service litter has nil sire_id", %{scope: scope, sow: sow, pen: pen} do
