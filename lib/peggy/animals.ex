@@ -465,7 +465,7 @@ defmodule Peggy.Animals do
     end
   end
 
-  defp insert_lactating_history(multi, scope, farm, row, i) do
+  defp insert_lactating_history(multi, _scope, farm, row, i) do
     served_at = row["last_served_at"]
     farrowed_at = row["last_farrowed_at"]
     born_alive = parse_int(row["born_alive"]) || 0
@@ -514,30 +514,7 @@ defmodule Peggy.Animals do
           })
           |> repo.insert()
         end)
-        |> maybe_insert_litter(scope, farm, row, i, born_alive)
     end
-  end
-
-  defp maybe_insert_litter(multi, _scope, _farm, _row, _i, 0), do: multi
-
-  defp maybe_insert_litter(multi, _scope, farm, row, i, born_alive) do
-    Multi.run(multi, {:litter, i}, fn repo, changes ->
-      sow = Map.fetch!(changes, {:animal, i})
-      farrowing = Map.fetch!(changes, {:farrowing, i})
-
-      Animal.piglet_changeset(%Animal{}, %{
-        "tracking_type" => "batch",
-        "stage" => "piglet",
-        "status" => "active",
-        "quantity" => born_alive,
-        "dob" => row["last_farrowed_at"],
-        "dam_id" => sow.id,
-        "sire_id" => row["boar_id"],
-        "farrowing_id" => farrowing.id,
-        "farm_id" => farm.id
-      })
-      |> repo.insert()
-    end)
   end
 
   ## Movements
@@ -686,13 +663,6 @@ defmodule Peggy.Animals do
      |> Ecto.Changeset.add_error(:reason, "adjustments are only valid for batch animals")}
   end
 
-  defp record_individual_movement(_scope, %Animal{} = _animal, %{"reason" => reason} = attrs)
-       when reason in ["foster_on", "foster_off"] do
-    {:error,
-     Movement.changeset(%Movement{}, attrs)
-     |> Ecto.Changeset.add_error(:reason, "fostering is only valid for piglet batches")}
-  end
-
   defp record_individual_movement(scope, %Animal{} = animal, attrs) do
     reason = Map.get(attrs, "reason")
     to_pen_id = Map.get(attrs, "to_pen_id")
@@ -728,19 +698,7 @@ defmodule Peggy.Animals do
   end
 
   defp record_batch_movement(scope, %Animal{} = animal, attrs) do
-    reason = Map.get(attrs, "reason")
-
-    # Foster events don't take a user-supplied pen — the batch's current
-    # active placement is the pen. Resolve it and rewrite attrs so the
-    # movement row carries the correct to_pen_id / from_pen_id, then fall
-    # through to the same pipelines as adjustment_gain / adjustment_loss.
-    case maybe_resolve_foster_pen(animal, reason, attrs) do
-      {:error, cs} ->
-        {:error, cs}
-
-      {:ok, attrs} ->
-        do_record_batch_movement_dispatch(scope, animal, attrs)
-    end
+    do_record_batch_movement_dispatch(scope, animal, attrs)
   end
 
   defp do_record_batch_movement_dispatch(scope, %Animal{} = animal, attrs) do
@@ -765,11 +723,7 @@ defmodule Peggy.Animals do
       # "adjustment_gain" — upward correction (miscounted at arrival,
       # unlogged births, etc.). Adds to a destination pen AND increments
       # the batch total. No source pen.
-      #
-      # "foster_on" shares this pipeline: same mechanics (destination pen +
-      # quantity increment, no source pen), different reason tag so audit
-      # history separates fostering from miscount corrections.
-      reason in ["adjustment_gain", "foster_on"] ->
+      reason == "adjustment_gain" ->
         record_batch_adjustment_gain(scope, animal, %{
           attrs: attrs,
           to_pen_id: to_pen_id,
@@ -797,49 +751,6 @@ defmodule Peggy.Animals do
         })
     end
   end
-
-  # Piglet batches have exactly one active placement (a litter stays with
-  # its dam). Foster events don't ask the user for a pen — we look it up.
-  # Reject 0 placements (batch not placed) and >1 placements (ambiguous;
-  # not a normal piglet-litter shape) with a clear error.
-  defp maybe_resolve_foster_pen(%Animal{} = animal, reason, attrs)
-       when reason in ["foster_on", "foster_off"] do
-    cond do
-      animal.stage != "piglet" ->
-        {:error,
-         Movement.changeset(%Movement{}, attrs)
-         |> Ecto.Changeset.add_error(:reason, "fostering is only valid for piglet batches")}
-
-      true ->
-        case Repo.all(
-               from p in Placement,
-                 where: p.animal_id == ^animal.id and is_nil(p.removed_at),
-                 select: p.pen_id
-             ) do
-          [pen_id] ->
-            key = if reason == "foster_on", do: "to_pen_id", else: "from_pen_id"
-            {:ok, Map.put(attrs, key, pen_id)}
-
-          [] ->
-            {:error,
-             Movement.changeset(%Movement{}, attrs)
-             |> Ecto.Changeset.add_error(
-               :reason,
-               "cannot foster — batch has no active placement"
-             )}
-
-          _many ->
-            {:error,
-             Movement.changeset(%Movement{}, attrs)
-             |> Ecto.Changeset.add_error(
-               :reason,
-               "cannot foster — batch is split across multiple pens"
-             )}
-        end
-    end
-  end
-
-  defp maybe_resolve_foster_pen(_animal, _reason, attrs), do: {:ok, attrs}
 
   defp record_batch_adjustment_gain(scope, %Animal{} = animal, ctx) do
     %{attrs: attrs, to_pen_id: to_pen_id, qty: qty, moved_at: moved_at} = ctx
@@ -943,7 +854,7 @@ defmodule Peggy.Animals do
   end
 
   defp maybe_upsert_destination(multi, reason, animal_id, to_pen_id, qty, moved_at)
-       when reason in ["pen_transfer", "placement", "adjustment_gain", "foster_on"] do
+       when reason in ["pen_transfer", "placement", "adjustment_gain"] do
     Multi.run(multi, :destination, fn _repo, _ ->
       case active_placement(animal_id, to_pen_id) do
         nil ->
@@ -989,12 +900,7 @@ defmodule Peggy.Animals do
   # adjustment_loss corrects the batch total downward (unrecorded death,
   # miscount, escape). It decrements `quantity` but never flips status —
   # status changes belong to real departure events.
-  #
-  # foster_off follows the same mechanics: the piglet leaves this batch to
-  # be fostered onto another dam's litter, so quantity drops at the source
-  # pen with no destination within this batch.
-  defp maybe_decrement_batch_total(multi, reason, %Animal{} = animal, qty)
-       when reason in ["adjustment_loss", "foster_off"] do
+  defp maybe_decrement_batch_total(multi, "adjustment_loss", %Animal{} = animal, qty) do
     Multi.run(multi, :animal, fn _repo, _ ->
       animal
       |> Animal.changeset(%{quantity: max(animal.quantity - qty, 0)})
@@ -1396,8 +1302,8 @@ defmodule Peggy.Animals do
   For batch animals:
   * `placement` → decrements/removes destination placement
   * `pen_transfer` → reverses source + destination placements
-  * `adjustment_gain` / `foster_on` → decrements quantity + destination placement
-  * `adjustment_loss` / `foster_off` → increments quantity + source placement
+  * `adjustment_gain` → decrements quantity + destination placement
+  * `adjustment_loss` → increments quantity + source placement
   * Departure → increments quantity, restores `status` to `active` if
     the batch was fully departed, re-adds source placement
 
@@ -1527,11 +1433,10 @@ defmodule Peggy.Animals do
   end
 
   defp reverse_batch(multi, animal, %{
-         reason: reason,
+         reason: "adjustment_gain",
          to_pen_id: to_pen_id,
          quantity: qty
-       })
-       when reason in ["adjustment_gain", "foster_on"] do
+       }) do
     Multi.run(multi, :batch, fn repo, _ ->
       decrement_or_remove_placement(repo, animal.id, to_pen_id, qty)
       new_qty = max(animal.quantity - qty, 0)
@@ -1545,11 +1450,10 @@ defmodule Peggy.Animals do
   end
 
   defp reverse_batch(multi, animal, %{
-         reason: reason,
+         reason: "adjustment_loss",
          from_pen_id: from_pen_id,
          quantity: qty
-       })
-       when reason in ["adjustment_loss", "foster_off"] do
+       }) do
     Multi.run(multi, :batch, fn repo, _ ->
       if from_pen_id, do: upsert_placement_qty(repo, animal.id, from_pen_id, qty)
 

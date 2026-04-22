@@ -43,7 +43,7 @@ defmodule Peggy.BreedingFixtures do
       |> then(fn a -> Map.merge(%{farrowed_at: farrowed_at, born_alive: 10}, a) end)
       |> ensure_pen_id(scope, sow)
 
-    {:ok, farrowing, _piglets} = Breeding.record_farrowing(scope, service, farrowing_attrs)
+    {:ok, farrowing} = Breeding.record_farrowing(scope, service, farrowing_attrs)
     farrowing
   end
 

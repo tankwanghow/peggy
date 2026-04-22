@@ -327,6 +327,10 @@ defmodule PeggyWeb.CoreComponents do
   attr :class, :string, default: nil
   attr :placeholder, :string, default: nil
 
+  attr :empty_text, :string,
+    default: nil,
+    doc: "Shown inside the results dropdown when there are no matching items."
+
   def autocomplete(assigns) do
     assigns = assign(assigns, :has_label?, is_binary(assigns.label) and assigns.label != "")
 
@@ -348,6 +352,7 @@ defmodule PeggyWeb.CoreComponents do
           class={@class || "w-full input"}
           phx-hook="AutoComplete"
           data-ac-items={Jason.encode!(@items)}
+          data-ac-empty-text={@empty_text || ""}
         />
       </label>
     </div>

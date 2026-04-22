@@ -76,6 +76,10 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/animals/:id", FarmLive.AnimalDetail, :show
       live "/farms/:farm_slug/animals/:id/batch-entry", FarmLive.BatchEntry, :show
       live "/farms/:farm_slug/breeding", FarmLive.Breeding, :index
+      live "/farms/:farm_slug/breeding/gestating", FarmLive.Breeding.Gestating, :index
+      live "/farms/:farm_slug/breeding/lactating", FarmLive.Breeding.Lactating, :index
+      live "/farms/:farm_slug/breeding/weaned", FarmLive.Breeding.Weaned, :index
+      live "/farms/:farm_slug/breeding/deleted", FarmLive.Breeding.Deleted, :index
       live "/farms/:farm_slug/breeding/batch-service", FarmLive.BatchService, :show
       live "/farms/:farm_slug/breeding/batch-farrowing", FarmLive.BatchFarrowing, :show
       live "/farms/:farm_slug/audit", FarmLive.Audit, :index

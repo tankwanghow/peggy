@@ -42,6 +42,7 @@ import autoComplete from "../vendor/autoComplete"
 const AutoComplete = {
   mounted() {
     const items = JSON.parse(this.el.dataset.acItems || "[]")
+    const emptyText = this.el.dataset.acEmptyText || ""
     const hiddenId = this.el.id.replace(/-input$/, "-value")
     const hidden = document.getElementById(hiddenId)
     const hook = this
@@ -90,7 +91,15 @@ const AutoComplete = {
         tabSelect: true,
         class:
           "ac-results absolute top-full left-0 z-50 mt-1 w-full max-h-48 overflow-y-auto rounded border border-base-300 bg-base-100 shadow-lg text-sm",
-        noResults: true
+        noResults: (list, _query) => {
+          if (!emptyText) return
+          const msg = document.createElement("li")
+          msg.setAttribute("role", "presentation")
+          msg.className =
+            "px-3 py-1.5 text-sm text-base-content/60 italic cursor-default select-none"
+          msg.textContent = emptyText
+          list.appendChild(msg)
+        }
       },
       resultItem: {
         class: "ac-result px-3 py-1.5 cursor-pointer hover:bg-base-200",

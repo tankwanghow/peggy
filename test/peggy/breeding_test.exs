@@ -913,7 +913,7 @@ defmodule Peggy.BreedingTest do
     test "false for closed outcomes", %{scope: scope, sow: sow, boar: boar, pen: pen} do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, _, _} =
+      {:ok, _} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 5,
@@ -971,7 +971,7 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, _, _} =
+      {:ok, _} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 5,
@@ -1063,51 +1063,6 @@ defmodule Peggy.BreedingTest do
     end
   end
 
-  describe "restore_service/2" do
-    test "restores a soft-deleted open service and re-serves sow", %{
-      scope: scope,
-      sow: sow,
-      boar: boar
-    } do
-      s = service_fixture(scope, sow, boar_id: boar.id)
-      {:ok, deleted} = Breeding.delete_service(scope, s)
-      assert Peggy.Animals.get_animal!(scope, sow.id).status == "open"
-
-      {:ok, restored} = Breeding.restore_service(scope, deleted)
-
-      assert is_nil(restored.deleted_at)
-      assert is_nil(restored.deleted_by_id)
-      assert Peggy.Animals.get_animal!(scope, sow.id).status == "served"
-    end
-
-    test "rejects restore when another open service exists for the sow", %{
-      scope: scope,
-      sow: sow,
-      boar: boar
-    } do
-      s1 = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
-      {:ok, deleted} = Breeding.delete_service(scope, s1)
-
-      _s2 = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-02-01])
-
-      assert {:error, :conflicting_open_service} = Breeding.restore_service(scope, deleted)
-    end
-
-    test "rejects restore on non-deleted service", %{scope: scope, sow: sow, boar: boar} do
-      s = service_fixture(scope, sow, boar_id: boar.id)
-      assert {:error, :not_deleted} = Breeding.restore_service(scope, s)
-    end
-
-    test "writes audit log", %{scope: scope, sow: sow, boar: boar} do
-      s = service_fixture(scope, sow, boar_id: boar.id)
-      {:ok, deleted} = Breeding.delete_service(scope, s)
-      {:ok, _} = Breeding.restore_service(scope, deleted)
-
-      logs = Audit.list(scope, entity_type: "service", action: "service.restored")
-      assert length(logs) == 1
-    end
-  end
-
   describe "farrowing_deletable?/2" do
     test "true for a fresh farrowing", %{scope: scope, sow: sow, boar: boar, pen: pen} do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
@@ -1123,25 +1078,18 @@ defmodule Peggy.BreedingTest do
       refute Breeding.farrowing_deletable?(scope, f)
     end
 
-    test "false when litter has been moved", %{
+    test "false when litter has activity (litter event recorded)", %{
       scope: scope,
       sow: sow,
       boar: boar,
-      house: house,
       pen: pen
     } do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
-      dest = pen_fixture(scope, house, code: "NURS1", capacity: 30)
-
-      [batch] = Peggy.Repo.all(from a in Peggy.Animals.Animal, where: a.farrowing_id == ^f.id)
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
 
       {:ok, _} =
-        Peggy.Animals.record_movement(scope, batch, %{
-          reason: "pen_transfer",
-          from_pen_id: pen.id,
-          to_pen_id: dest.id,
-          quantity: batch.quantity,
-          moved_at: Date.utc_today()
+        Breeding.record_pre_wean_death(scope, f, %{
+          "quantity" => 1,
+          "occurred_at" => Date.utc_today()
         })
 
       refute Breeding.farrowing_deletable?(scope, f)
@@ -1155,7 +1103,7 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "delete_farrowing/2" do
-    test "soft-deletes farrowing and cleans up litter + reverts sow + reopens service", %{
+    test "soft-deletes farrowing, reverts sow, reopens service", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -1163,14 +1111,12 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, farrowing, batch} =
+      {:ok, farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 6,
           pen_id: pen.id
         })
-
-      batch_id = batch.id
 
       assert Peggy.Animals.get_animal!(scope, sow.id).status == "lactating"
       assert Peggy.Repo.get!(Peggy.Breeding.Service, service.id).result == "farrowing"
@@ -1179,21 +1125,6 @@ defmodule Peggy.BreedingTest do
 
       assert deleted.deleted_at
       assert deleted.deleted_by_id == scope.user.id
-
-      # Litter batch + placement + movements removed
-      assert is_nil(Peggy.Repo.get(Peggy.Animals.Animal, batch_id))
-
-      assert Peggy.Repo.aggregate(
-               from(p in Peggy.Animals.Placement, where: p.animal_id == ^batch_id),
-               :count,
-               :id
-             ) == 0
-
-      assert Peggy.Repo.aggregate(
-               from(m in Peggy.Animals.Movement, where: m.animal_id == ^batch_id),
-               :count,
-               :id
-             ) == 0
 
       # Sow state reverted
       reverted_sow = Peggy.Animals.get_animal!(scope, sow.id)
@@ -1217,7 +1148,7 @@ defmodule Peggy.BreedingTest do
       sow = Peggy.Animals.get_animal!(scope, sow.id)
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, f, _} =
+      {:ok, f} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 4,
@@ -1240,24 +1171,18 @@ defmodule Peggy.BreedingTest do
       assert {:error, :farrowing_has_weaning} = Breeding.delete_farrowing(scope, f)
     end
 
-    test "rejects when litter has activity", %{
+    test "rejects when litter has activity (litter event recorded)", %{
       scope: scope,
       sow: sow,
       boar: boar,
-      house: house,
       pen: pen
     } do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
-      dest = pen_fixture(scope, house, code: "ACT1", capacity: 30)
-      [batch] = Peggy.Repo.all(from a in Peggy.Animals.Animal, where: a.farrowing_id == ^f.id)
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
 
       {:ok, _} =
-        Peggy.Animals.record_movement(scope, batch, %{
-          reason: "pen_transfer",
-          from_pen_id: pen.id,
-          to_pen_id: dest.id,
-          quantity: batch.quantity,
-          moved_at: Date.utc_today()
+        Breeding.record_pre_wean_death(scope, f, %{
+          "quantity" => 1,
+          "occurred_at" => Date.utc_today()
         })
 
       assert {:error, :farrowing_has_activity} = Breeding.delete_farrowing(scope, f)
@@ -1277,7 +1202,7 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, f, nil} =
+      {:ok, f} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 0,
@@ -1298,7 +1223,7 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
 
-      {:ok, f1, _} =
+      {:ok, f1} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 3,
@@ -1311,7 +1236,7 @@ defmodule Peggy.BreedingTest do
       reopened = Breeding.get_service!(scope, service.id)
       assert is_nil(reopened.farrowing)
 
-      {:ok, f2, _} =
+      {:ok, f2} =
         Breeding.record_farrowing(scope, reopened, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 4,
@@ -1367,91 +1292,6 @@ defmodule Peggy.BreedingTest do
     end
   end
 
-  describe "restore_farrowing/2" do
-    test "restores farrowing and reapplies all side effects", %{
-      scope: scope,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      service = service_fixture(scope, sow, boar_id: boar.id)
-
-      {:ok, f, _batch} =
-        Breeding.record_farrowing(scope, service, %{
-          farrowed_at: ~D[2026-04-25],
-          born_alive: 4,
-          pen_id: pen.id
-        })
-
-      {:ok, deleted} = Breeding.delete_farrowing(scope, f)
-      {:ok, restored} = Breeding.restore_farrowing(scope, deleted)
-
-      assert is_nil(restored.deleted_at)
-
-      # Sow back to lactating
-      assert Peggy.Animals.get_animal!(scope, sow.id).status == "lactating"
-
-      # Service re-closed
-      closed = Peggy.Repo.get!(Peggy.Breeding.Service, service.id)
-      assert closed.result == "farrowing"
-
-      # Litter batch recreated (new id, same farrowing_id)
-      batches =
-        Peggy.Repo.all(from a in Peggy.Animals.Animal, where: a.farrowing_id == ^f.id)
-
-      assert [batch] = batches
-      assert batch.quantity == 4
-
-      # list_lactating_sows sees it again
-      assert [reloaded] = Breeding.list_lactating_sows(scope)
-      assert reloaded.id == f.id
-    end
-
-    test "rejects restore of non-deleted farrowing", %{
-      scope: scope,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
-      assert {:error, :not_deleted} = Breeding.restore_farrowing(scope, f)
-    end
-
-    test "rejects restore when service has been closed again", %{
-      scope: scope,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      service = service_fixture(scope, sow, boar_id: boar.id)
-
-      {:ok, f, _} =
-        Breeding.record_farrowing(scope, service, %{
-          farrowed_at: ~D[2026-04-25],
-          born_alive: 3,
-          pen_id: pen.id
-        })
-
-      {:ok, deleted} = Breeding.delete_farrowing(scope, f)
-
-      reopened = Peggy.Repo.get!(Peggy.Breeding.Service, service.id)
-
-      {:ok, _} =
-        Breeding.close_service(scope, reopened, "abortion", %{result_at: Date.utc_today()})
-
-      assert {:error, :service_reclosed} = Breeding.restore_farrowing(scope, deleted)
-    end
-
-    test "writes audit log", %{scope: scope, sow: sow, boar: boar, pen: pen} do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
-      {:ok, deleted} = Breeding.delete_farrowing(scope, f)
-      {:ok, _} = Breeding.restore_farrowing(scope, deleted)
-
-      logs = Audit.list(scope, entity_type: "farrowing", action: "farrowing.restored")
-      assert length(logs) == 1
-    end
-  end
-
   describe "list_deleted_farrowings/2" do
     test "returns deleted farrowings newest-first", %{scope: scope, boar: boar, pen: pen} do
       s1 = animal_fixture(scope, ear_tag: "DF1", sex: "female", stage: "sow")
@@ -1498,7 +1338,7 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "record_farrowing/3" do
-    test "creates farrowing, litter batch, and closes service", %{
+    test "creates farrowing and closes service", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -1506,7 +1346,7 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
 
-      {:ok, farrowing, litter} =
+      {:ok, farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 10,
@@ -1521,20 +1361,9 @@ defmodule Peggy.BreedingTest do
       assert farrowing.service_id == service.id
       assert farrowing.pen_id == pen.id
 
-      # One litter batch created
-      assert litter.tracking_type == "batch"
-      assert litter.stage == "piglet"
-      assert litter.quantity == 10
-      assert litter.dam_id == sow.id
-      assert litter.sire_id == boar.id
-      assert litter.dob == ~D[2026-04-25]
-      assert litter.farrowing_id == farrowing.id
-
-      # Batch placed in pen via placement
-      placements = Peggy.Animals.list_placements(scope, litter)
-      assert length(placements) == 1
-      assert hd(placements).pen_id == pen.id
-      assert hd(placements).quantity == 10
+      # No piglet Animal rows are created — surviving count comes from the
+      # litter event ledger (see surviving_piglet_count/1).
+      assert Breeding.surviving_piglet_count(farrowing) == 10
 
       # Service closed with farrowing result
       closed = Breeding.get_service!(scope, service.id)
@@ -1544,9 +1373,12 @@ defmodule Peggy.BreedingTest do
       # Sow status updated to lactating
       updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
       assert updated_sow.status == "lactating"
+
+      # Boar reference (sire) is implicit on the service, not a piglet animal.
+      _ = boar
     end
 
-    test "litter placed via sow's current_pen when no pen_id given", %{
+    test "uses sow's current_pen when no pen_id given", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -1558,17 +1390,13 @@ defmodule Peggy.BreedingTest do
       sow = Peggy.Animals.get_animal!(scope, sow.id)
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, farrowing, litter} =
+      {:ok, farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 3
         })
 
       assert farrowing.pen_id == pen.id
-
-      placements = Peggy.Animals.list_placements(scope, litter)
-      assert length(placements) == 1
-      assert hd(placements).pen_id == pen.id
     end
 
     test "rejects farrowing when no pen_id given and sow has no current pen", %{
@@ -1599,7 +1427,7 @@ defmodule Peggy.BreedingTest do
       sow = Peggy.Animals.get_animal!(scope, sow.id)
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, farrowing, _litter} =
+      {:ok, farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 5,
@@ -1634,7 +1462,7 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, _farrowing, _litter} =
+      {:ok, _farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 3,
@@ -1668,7 +1496,7 @@ defmodule Peggy.BreedingTest do
       sow = Peggy.Animals.get_animal!(scope, sow.id)
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, _farrowing, _litter} =
+      {:ok, _farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 4,
@@ -1681,7 +1509,7 @@ defmodule Peggy.BreedingTest do
       assert moves == []
     end
 
-    test "born_alive=0 creates no litter batch", %{
+    test "born_alive=0 still records the farrowing", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -1689,7 +1517,7 @@ defmodule Peggy.BreedingTest do
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, farrowing, litter} =
+      {:ok, farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 0,
@@ -1698,14 +1526,14 @@ defmodule Peggy.BreedingTest do
         })
 
       assert farrowing.born_alive == 0
-      assert is_nil(litter)
+      assert Breeding.surviving_piglet_count(farrowing) == 0
     end
 
     test "auto-promotes sow stage if not already sow", %{scope: scope, boar: boar, pen: pen} do
       gilt = animal_fixture(scope, ear_tag: "GILT1", sex: "female", stage: "grower")
       service = service_fixture(scope, gilt, boar_id: boar.id)
 
-      {:ok, _farrowing, _litter} =
+      {:ok, _farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 5,
@@ -1739,7 +1567,7 @@ defmodule Peggy.BreedingTest do
     test "writes audit log", %{scope: scope, sow: sow, boar: boar, pen: pen} do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      {:ok, _, _} =
+      {:ok, _} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 3,
@@ -1769,7 +1597,7 @@ defmodule Peggy.BreedingTest do
       service = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
 
       # 114 − 3 = 111 days → 2026-04-22
-      {:ok, _, _} =
+      {:ok, _} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-22],
           born_alive: 4,
@@ -1798,7 +1626,7 @@ defmodule Peggy.BreedingTest do
                })
     end
 
-    test "AI service litter has nil sire_id", %{scope: scope, sow: sow, pen: pen} do
+    test "AI service farrows with nil boar_id on the service", %{scope: scope, sow: sow, pen: pen} do
       {:ok, service} =
         Breeding.record_service(scope, %{
           sow_id: sow.id,
@@ -1806,14 +1634,16 @@ defmodule Peggy.BreedingTest do
           served_at: ~D[2026-01-01]
         })
 
-      {:ok, _farrowing, litter} =
+      {:ok, farrowing} =
         Breeding.record_farrowing(scope, service, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 4,
           pen_id: pen.id
         })
 
-      assert is_nil(litter.sire_id)
+      closed = Breeding.get_service!(scope, service.id)
+      assert is_nil(closed.boar_id)
+      assert farrowing.service_id == service.id
     end
   end
 
@@ -1828,7 +1658,7 @@ defmodule Peggy.BreedingTest do
 
       s1 = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
 
-      {:ok, f1, _} =
+      {:ok, f1} =
         Breeding.record_farrowing(scope, s1, %{
           farrowed_at: ~D[2026-04-25],
           born_alive: 5,
@@ -1854,7 +1684,7 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "record_weaning/3" do
-    test "promotes litter batch to weaner and moves to destination pen", %{
+    test "creates weaner batch and places it in destination pen", %{
       scope: scope,
       house: house,
       sow: sow,
@@ -1880,12 +1710,13 @@ defmodule Peggy.BreedingTest do
       assert weaning.weaned_count == 8
       assert weaning.farrowing_id == farrowing.id
 
-      # Litter batch promoted to weaner with updated quantity
+      # Fresh weaner batch created at weaning time
       assert batch.tracking_type == "batch"
       assert batch.stage == "weaner"
       assert batch.quantity == 8
+      assert batch.farrowing_id == farrowing.id
 
-      # Old placement closed, new placement in nursery pen
+      # Placement in nursery pen
       placements = Peggy.Animals.list_placements(scope, batch)
       assert length(placements) == 1
       assert hd(placements).pen_id == nursery_pen.id
@@ -1896,7 +1727,7 @@ defmodule Peggy.BreedingTest do
       assert updated_sow.status == "dry"
     end
 
-    test "weaned_count == 1 promotes batch to weaner", %{
+    test "weaned_count == 1 creates weaner batch", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -1921,7 +1752,7 @@ defmodule Peggy.BreedingTest do
       assert batch.tracking_type == "batch"
     end
 
-    test "weaned_count == 0 marks batch as deceased", %{
+    test "weaned_count == 0 creates no weaner batch", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -1941,8 +1772,7 @@ defmodule Peggy.BreedingTest do
         })
 
       assert weaning.weaned_count == 0
-      assert batch.status == "deceased"
-      assert batch.quantity == 0
+      assert is_nil(batch)
     end
 
     test "weaned_count == 0 with born_alive == 0 returns nil", %{
@@ -2088,7 +1918,7 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "delete_weaning/2" do
-    test "reverts batch, reopens prior placement, removes wean move/placement, sow back to lactating",
+    test "hard-deletes weaner batch, removes wean placement/movement, sow back to lactating",
          %{scope: scope, house: house, sow: sow, boar: boar, pen: pen} do
       dest = pen_fixture(scope, house, code: "N1", capacity: 40)
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 6, pen_id: pen.id)
@@ -2100,34 +1930,32 @@ defmodule Peggy.BreedingTest do
           destination_pen_id: dest.id
         })
 
+      batch_id = batch.id
+
       {:ok, deleted} = Breeding.delete_weaning(scope, w)
       assert deleted.deleted_at
 
-      # Batch reverted
-      reloaded_batch = Peggy.Repo.get!(Peggy.Animals.Animal, batch.id)
-      assert reloaded_batch.stage == "piglet"
-      assert reloaded_batch.status == "active"
-      assert reloaded_batch.quantity == 6
+      # Weaner batch Animal is hard-deleted along with its placement + movements
+      assert is_nil(Peggy.Repo.get(Peggy.Animals.Animal, batch_id))
 
-      # Wean placement/movement gone; prior placement reopened
-      placements = Peggy.Animals.list_placements(scope, reloaded_batch)
-      assert length(placements) == 1
-      assert hd(placements).pen_id == pen.id
-      assert is_nil(hd(placements).removed_at)
+      assert Peggy.Repo.aggregate(
+               from(p in Peggy.Animals.Placement, where: p.animal_id == ^batch_id),
+               :count,
+               :id
+             ) == 0
 
-      movements =
-        Peggy.Repo.all(from m in Peggy.Animals.Movement, where: m.animal_id == ^reloaded_batch.id)
-
-      # Only the original placement-movement remains
-      assert length(movements) == 1
-      assert hd(movements).reason == "placement"
+      assert Peggy.Repo.aggregate(
+               from(m in Peggy.Animals.Movement, where: m.animal_id == ^batch_id),
+               :count,
+               :id
+             ) == 0
 
       # Sow back to lactating
       updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
       assert updated_sow.status == "lactating"
     end
 
-    test "handles weaned_count == 0 (batch was deceased)", %{
+    test "handles weaned_count == 0 (no batch was created)", %{
       scope: scope,
       sow: sow,
       boar: boar,
@@ -2135,14 +1963,17 @@ defmodule Peggy.BreedingTest do
     } do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 4, pen_id: pen.id)
 
-      {:ok, w, _} =
+      {:ok, w, nil} =
         Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 0})
 
       {:ok, _} = Breeding.delete_weaning(scope, w)
 
-      [batch] = Breeding.list_litter(scope, f)
-      assert batch.status == "active"
-      assert batch.quantity == 4
+      # No weaner batch existed, so none should exist now either
+      assert [] =
+               Peggy.Repo.all(from a in Peggy.Animals.Animal, where: a.farrowing_id == ^f.id)
+
+      # Sow back to lactating
+      assert Peggy.Animals.get_animal!(scope, sow.id).status == "lactating"
     end
 
     test "rejects when already deleted", %{scope: scope, sow: sow, boar: boar, pen: pen} do
@@ -2222,81 +2053,6 @@ defmodule Peggy.BreedingTest do
     end
   end
 
-  describe "restore_weaning/2" do
-    test "reapplies batch promotion, movement, and sow transition", %{
-      scope: scope,
-      house: house,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      dest = pen_fixture(scope, house, code: "N1", capacity: 40)
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
-
-      {:ok, w, batch} =
-        Breeding.record_weaning(scope, f, %{
-          weaned_at: ~D[2026-04-17],
-          weaned_count: 5,
-          destination_pen_id: dest.id
-        })
-
-      {:ok, deleted} = Breeding.delete_weaning(scope, w)
-      {:ok, restored} = Breeding.restore_weaning(scope, deleted)
-      assert is_nil(restored.deleted_at)
-
-      reloaded = Peggy.Repo.get!(Peggy.Animals.Animal, batch.id)
-      assert reloaded.stage == "weaner"
-      assert reloaded.quantity == 5
-
-      placements = Peggy.Animals.list_placements(scope, reloaded)
-      assert length(placements) == 1
-      assert hd(placements).pen_id == dest.id
-
-      updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
-      assert updated_sow.status == "dry"
-    end
-
-    test "rejects non-deleted weaning", %{scope: scope, sow: sow, boar: boar, pen: pen} do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 2, pen_id: pen.id)
-
-      {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 2})
-
-      assert {:error, :not_deleted} = Breeding.restore_weaning(scope, w)
-    end
-
-    test "rejects when a conflicting weaning exists", %{
-      scope: scope,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 3, pen_id: pen.id)
-
-      {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 3})
-
-      {:ok, deleted} = Breeding.delete_weaning(scope, w)
-
-      {:ok, _, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-18], weaned_count: 3})
-
-      assert {:error, :conflicting_weaning} = Breeding.restore_weaning(scope, deleted)
-    end
-
-    test "writes audit log", %{scope: scope, sow: sow, boar: boar, pen: pen} do
-      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 3, pen_id: pen.id)
-
-      {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 3})
-
-      {:ok, deleted} = Breeding.delete_weaning(scope, w)
-      {:ok, _} = Breeding.restore_weaning(scope, deleted)
-
-      [_] = Audit.list(scope, entity_type: "weaning", action: "weaning.restored")
-    end
-  end
-
   describe "list_deleted_weanings/2" do
     test "returns deleted weanings newest-first and excludes live ones", %{
       scope: scope,
@@ -2333,7 +2089,12 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "surviving_piglet_count/1" do
-    test "returns litter batch quantity", %{scope: scope, sow: sow, boar: boar, pen: pen} do
+    test "starts at born_alive on a fresh farrowing", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
       farrowing =
         farrowing_fixture(scope, sow,
           boar_id: boar.id,
@@ -2342,12 +2103,62 @@ defmodule Peggy.BreedingTest do
         )
 
       assert Breeding.surviving_piglet_count(farrowing) == 10
+      _ = scope
+    end
 
-      # Decrement batch quantity (simulating piglet death)
-      [litter] = Breeding.list_litter(scope, farrowing)
-      Peggy.Repo.update!(Ecto.Changeset.change(litter, quantity: 9))
+    test "applies death/foster_in/foster_out ledger deltas", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen,
+      house: house
+    } do
+      farrowing =
+        farrowing_fixture(scope, sow,
+          boar_id: boar.id,
+          born_alive: 10,
+          pen_id: pen.id
+        )
+
+      # Death: -1
+      {:ok, _} =
+        Breeding.record_pre_wean_death(scope, farrowing, %{
+          "quantity" => 1,
+          "occurred_at" => Date.utc_today()
+        })
 
       assert Breeding.surviving_piglet_count(farrowing) == 9
+
+      # Fostering setup: second farrowing to be the counterpart.
+      other_sow = animal_fixture(scope, ear_tag: "SOWFOSTER", sex: "female", stage: "sow")
+      other_pen = pen_fixture(scope, house, code: "FOSP", capacity: 20)
+
+      other_f =
+        farrowing_fixture(scope, other_sow,
+          boar_id: boar.id,
+          born_alive: 8,
+          pen_id: other_pen.id
+        )
+
+      # foster_out 2 from farrowing: -2 (now 7); +2 on other (now 10)
+      {:ok, {_out, _in}} =
+        Breeding.record_fostering(scope, farrowing, other_f, %{
+          "quantity" => 2,
+          "occurred_at" => Date.utc_today()
+        })
+
+      assert Breeding.surviving_piglet_count(farrowing) == 7
+      assert Breeding.surviving_piglet_count(other_f) == 10
+
+      # foster_in 3 into farrowing (from other): -3 on other (7), +3 on farrowing (10)
+      {:ok, {_out, _in}} =
+        Breeding.record_fostering(scope, other_f, farrowing, %{
+          "quantity" => 3,
+          "occurred_at" => Date.utc_today()
+        })
+
+      assert Breeding.surviving_piglet_count(farrowing) == 10
+      assert Breeding.surviving_piglet_count(other_f) == 7
     end
   end
 
@@ -2814,6 +2625,170 @@ defmodule Peggy.BreedingTest do
         )
 
       refute departed.ear_tag in Peggy.Animals.similar_ear_tags(scope, "GONE02", 2)
+    end
+  end
+
+  describe "record_pre_wean_death/3" do
+    alias Peggy.Breeding.LitterEvent
+
+    test "inserts a :death LitterEvent and decrements surviving count", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
+      assert Breeding.surviving_piglet_count(f) == 10
+
+      {:ok, event} =
+        Breeding.record_pre_wean_death(scope, f, %{
+          "quantity" => 2,
+          "occurred_at" => ~D[2026-04-26],
+          "notes" => "chilled"
+        })
+
+      assert %LitterEvent{} = event
+      assert event.kind == "death"
+      assert event.quantity == 2
+      assert event.occurred_at == ~D[2026-04-26]
+      assert event.farrowing_id == f.id
+      assert is_nil(event.counterpart_farrowing_id)
+
+      assert Breeding.surviving_piglet_count(f) == 8
+
+      events = Breeding.list_litter_events(scope, f)
+      assert [%LitterEvent{kind: "death", quantity: 2}] = events
+    end
+
+    test "rejects quantity <= 0 with :invalid_quantity", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
+
+      assert {:error, :invalid_quantity} =
+               Breeding.record_pre_wean_death(scope, f, %{
+                 "quantity" => 0,
+                 "occurred_at" => Date.utc_today()
+               })
+
+      assert {:error, :invalid_quantity} =
+               Breeding.record_pre_wean_death(scope, f, %{
+                 "quantity" => -3,
+                 "occurred_at" => Date.utc_today()
+               })
+    end
+
+    test "rejects overdraw with :insufficient_surviving", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 3, pen_id: pen.id)
+
+      assert {:error, :insufficient_surviving} =
+               Breeding.record_pre_wean_death(scope, f, %{
+                 "quantity" => 4,
+                 "occurred_at" => Date.utc_today()
+               })
+
+      # Boundary: exactly the surviving count is allowed
+      {:ok, _} =
+        Breeding.record_pre_wean_death(scope, f, %{
+          "quantity" => 3,
+          "occurred_at" => Date.utc_today()
+        })
+
+      assert Breeding.surviving_piglet_count(f) == 0
+    end
+  end
+
+  describe "record_fostering/4" do
+    alias Peggy.Breeding.LitterEvent
+
+    setup %{scope: scope, boar: boar, house: house, pen: pen} do
+      sow_a = animal_fixture(scope, ear_tag: "FOSTER-A", sex: "female", stage: "sow")
+      sow_b = animal_fixture(scope, ear_tag: "FOSTER-B", sex: "female", stage: "sow")
+      pen_b = pen_fixture(scope, house, code: "FP-B", capacity: 20)
+
+      fa = farrowing_fixture(scope, sow_a, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
+      fb = farrowing_fixture(scope, sow_b, boar_id: boar.id, born_alive: 8, pen_id: pen_b.id)
+
+      %{fa: fa, fb: fb}
+    end
+
+    test "inserts paired foster_out + foster_in events with cross-references", %{
+      scope: scope,
+      fa: fa,
+      fb: fb
+    } do
+      {:ok, {out_ev, in_ev}} =
+        Breeding.record_fostering(scope, fa, fb, %{
+          "quantity" => 3,
+          "occurred_at" => ~D[2026-04-26],
+          "notes" => "balance litter sizes"
+        })
+
+      assert %LitterEvent{} = out_ev
+      assert %LitterEvent{} = in_ev
+
+      assert out_ev.kind == "foster_out"
+      assert out_ev.farrowing_id == fa.id
+      assert out_ev.counterpart_farrowing_id == fb.id
+      assert out_ev.quantity == 3
+
+      assert in_ev.kind == "foster_in"
+      assert in_ev.farrowing_id == fb.id
+      assert in_ev.counterpart_farrowing_id == fa.id
+      assert in_ev.quantity == 3
+
+      assert Breeding.surviving_piglet_count(fa) == 7
+      assert Breeding.surviving_piglet_count(fb) == 11
+    end
+
+    test "rejects fostering to the same farrowing with :same_farrowing", %{
+      scope: scope,
+      fa: fa
+    } do
+      assert {:error, :same_farrowing} =
+               Breeding.record_fostering(scope, fa, fa, %{
+                 "quantity" => 1,
+                 "occurred_at" => Date.utc_today()
+               })
+    end
+
+    test "rejects quantity <= 0 with :invalid_quantity", %{
+      scope: scope,
+      fa: fa,
+      fb: fb
+    } do
+      assert {:error, :invalid_quantity} =
+               Breeding.record_fostering(scope, fa, fb, %{
+                 "quantity" => 0,
+                 "occurred_at" => Date.utc_today()
+               })
+
+      assert {:error, :invalid_quantity} =
+               Breeding.record_fostering(scope, fa, fb, %{
+                 "quantity" => -2,
+                 "occurred_at" => Date.utc_today()
+               })
+    end
+
+    test "rejects overdraw of source with :insufficient_surviving", %{
+      scope: scope,
+      fa: fa,
+      fb: fb
+    } do
+      # fa has 10 surviving
+      assert {:error, :insufficient_surviving} =
+               Breeding.record_fostering(scope, fa, fb, %{
+                 "quantity" => 11,
+                 "occurred_at" => Date.utc_today()
+               })
     end
   end
 end

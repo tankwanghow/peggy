@@ -2,7 +2,7 @@ defmodule Peggy.Animals.Movement do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @reasons ~w(placement pen_transfer foster_on foster_off sale slaughter death farm_transfer adjustment_loss adjustment_gain)
+  @reasons ~w(placement pen_transfer sale slaughter death farm_transfer adjustment_loss adjustment_gain)
 
   schema "movements" do
     field :reason, :string

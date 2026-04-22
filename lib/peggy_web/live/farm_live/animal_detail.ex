@@ -148,9 +148,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 @animal.tracking_type == "batch" and
                   Phoenix.HTML.Form.input_value(@move_form, :reason) not in [
                     "placement",
-                    "adjustment_gain",
-                    "foster_on",
-                    "foster_off"
+                    "adjustment_gain"
                   ]
               }
               id="move-from-pen-picker"
@@ -411,7 +409,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         "move-pen-picker"
       )
       |> maybe_reset_picker(
-        reason in ["placement", "adjustment_gain", "foster_on", "foster_off"],
+        reason in ["placement", "adjustment_gain"],
         "move-from-pen-picker"
       )
 
@@ -621,18 +619,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   # individuals since the count is always 1.
   defp reason_options(%Animal{tracking_type: "individual"}) do
     Movement.reasons()
-    |> Enum.reject(&(&1 in ["adjustment_loss", "adjustment_gain", "foster_on", "foster_off"]))
+    |> Enum.reject(&(&1 in ["adjustment_loss", "adjustment_gain"]))
     |> Enum.map(&{humanize_reason(&1), &1})
-  end
-
-  defp reason_options(%Animal{tracking_type: "batch", stage: "piglet"}) do
-    Enum.map(Movement.reasons(), &{humanize_reason(&1), &1})
   end
 
   defp reason_options(_) do
-    Movement.reasons()
-    |> Enum.reject(&(&1 in ["foster_on", "foster_off"]))
-    |> Enum.map(&{humanize_reason(&1), &1})
+    Enum.map(Movement.reasons(), &{humanize_reason(&1), &1})
   end
 
   defp humanize_reason(r), do: r |> String.replace("_", " ") |> String.capitalize()
