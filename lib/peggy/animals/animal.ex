@@ -197,9 +197,13 @@ defmodule Peggy.Animals.Animal do
   @doc """
   Changeset for a weaner batch created at weaning time.
 
-  Creates a batch animal with `quantity = weaned_count`. Does not
-  require ear_tag (weaner batches are untagged) or sex (mixed litter).
-  Skips the normal batch quantity > 1 check since a litter of 1 is valid.
+  Requires an `ear_tag` — the free-text searchable batch id that
+  operators type at weaning. Uniqueness is enforced per-farm so two
+  active batches cannot share a tag; reuse of a tag for pooling is
+  done by updating the existing row, not by inserting a second.
+
+  Skips the normal batch `quantity > 1` check since a litter of 1 is
+  valid. Does not require sex (mixed litter).
   """
   def piglet_changeset(animal, attrs) do
     animal
@@ -207,19 +211,24 @@ defmodule Peggy.Animals.Animal do
       :tracking_type,
       :stage,
       :sex,
+      :ear_tag,
       :dob,
       :quantity,
       :status,
       :sire_id,
       :dam_id,
       :farrowing_id,
+      :current_pen_id,
       :farm_id
     ])
-    |> validate_required([:tracking_type, :stage, :quantity, :status, :farm_id])
+    |> validate_required([:tracking_type, :stage, :ear_tag, :quantity, :status, :farm_id])
     |> validate_inclusion(:tracking_type, @tracking_types)
     |> validate_inclusion(:stage, @stages)
     |> validate_inclusion(:status, @statuses)
-    |> validate_number(:quantity, greater_than: 0)
+    |> validate_length(:ear_tag, min: 1, max: 40)
+    |> validate_number(:quantity, greater_than_or_equal_to: 0)
+    |> unsafe_validate_unique([:farm_id, :ear_tag], Peggy.Repo, error_key: :ear_tag)
+    |> unique_constraint(:ear_tag, name: :animals_farm_id_ear_tag_index)
   end
 
   defp validate_type_specific(cs) do

@@ -5,7 +5,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Breeding, Locations, Policy}
+  alias Peggy.{Animals, Breeding, Locations, Policy}
   alias Peggy.Breeding.{Weaning, LitterEvent}
   alias PeggyWeb.FarmLive.Breeding.Shared
 
@@ -350,7 +350,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
           title={gettext("Record Weaning")}
           on_cancel="cancel"
         >
-          <div class="mb-3 text-sm">
+          <div :if={@wn && @wn.locked} class="mb-3 text-sm">
             <span class="text-base-content/60">{gettext("Sow:")}</span>
             <span class="font-mono font-semibold">{@form_sow_tag}</span>
             <span class="text-base-content/60 ml-2">{gettext("Born alive:")}</span>
@@ -365,6 +365,160 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
             phx-change="validate_weaning"
             class="grid grid-cols-2 gap-x-4 gap-y-1"
           >
+            <%!-- Editable sow tag (top-level entry) --%>
+            <div :if={@wn && not @wn.locked} class="col-span-2">
+              <label class="form-control w-full">
+                <div class="label py-1">
+                  <span class="label-text">{gettext("Sow ear tag")}</span>
+                </div>
+                <input
+                  type="text"
+                  name="sow_tag"
+                  value={@wn.sow_tag}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  placeholder={gettext("Type sow ear tag…")}
+                  class={[
+                    "input input-bordered font-mono",
+                    @wn.sow_state == :resolved && "border-success focus:border-success",
+                    @wn.sow_state in [:not_found, :no_open_farrowing] &&
+                      "border-error focus:border-error"
+                  ]}
+                />
+                <p class={[
+                  "label pt-1 text-xs",
+                  @wn.sow_state == :resolved && "text-success",
+                  @wn.sow_state in [:not_found, :no_open_farrowing] && "text-error",
+                  @wn.sow_state == :empty && "text-base-content/40"
+                ]}>
+                  {wn_state_text(@wn.sow_state)}
+                </p>
+              </label>
+            </div>
+
+            <%!-- Backfill panel (no open farrowing, or sow unknown) --%>
+            <div
+              :if={@wn && @wn.sow_state in [:not_found, :no_open_farrowing]}
+              class="col-span-2 mb-2 rounded border border-warning/40 bg-warning/5 p-3 text-sm"
+            >
+              <div class="font-semibold text-warning mb-1">
+                {if @wn.sow_state == :not_found,
+                  do: gettext("Register new sow + backfill service & farrowing"),
+                  else: gettext("Backfill service + farrowing")}
+              </div>
+              <p class="text-xs text-base-content/70 mb-2">
+                {gettext(
+                  "This will create an inferred AI service and farrowing (and sow, if unknown) flagged for review."
+                )}
+              </p>
+
+              <div :if={@wn.sow_state == :not_found} class="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
+                <label class="form-control">
+                  <div class="label py-1">
+                    <span class="label-text text-xs">{gettext("Breed (optional)")}</span>
+                  </div>
+                  <input
+                    type="text"
+                    name="sow_breed"
+                    value={@wn.backfill.breed}
+                    class="input input-sm input-bordered"
+                  />
+                </label>
+                <label class="form-control">
+                  <div class="label py-1">
+                    <span class="label-text text-xs">{gettext("Sow DOB")}</span>
+                  </div>
+                  <input
+                    type="date"
+                    name="sow_dob"
+                    value={@wn.backfill.dob}
+                    class="input input-sm input-bordered"
+                  />
+                </label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 mb-2">
+                <label class="form-control">
+                  <div class="label py-1">
+                    <span class="label-text text-xs">
+                      {gettext("Farrowed at (defaults to weaned − %{n}d)",
+                        n: Peggy.Breeding.lactation_days()
+                      )}
+                    </span>
+                  </div>
+                  <input
+                    type="date"
+                    name="farrowed_at"
+                    value={@wn.backfill.farrowed_at}
+                    class="input input-sm input-bordered"
+                  />
+                </label>
+                <label class="form-control">
+                  <div class="label py-1">
+                    <span class="label-text text-xs">
+                      {gettext("Served at (defaults to farrowed − %{n}d)",
+                        n: Peggy.Breeding.gestation_days()
+                      )}
+                    </span>
+                  </div>
+                  <input
+                    type="date"
+                    name="served_at"
+                    value={@wn.backfill.served_at}
+                    class="input input-sm input-bordered"
+                  />
+                </label>
+              </div>
+
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+                <label class="form-control">
+                  <div class="label py-1">
+                    <span class="label-text text-xs">
+                      {gettext("Born alive (for backfilled farrowing)")}
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    name="born_alive"
+                    min="0"
+                    value={@wn.backfill.born_alive}
+                    class="input input-sm input-bordered"
+                  />
+                </label>
+                <label class="form-control">
+                  <div class="label py-1">
+                    <span class="label-text text-xs">{gettext("Boar ear tag (optional)")}</span>
+                  </div>
+                  <input
+                    type="text"
+                    name="boar_tag"
+                    value={@wn.backfill.boar_tag}
+                    class="input input-sm input-bordered font-mono"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <%!-- Resolved farrowing summary --%>
+            <div
+              :if={@wn && @wn.resolved_farrowing}
+              class="col-span-2 mb-2 rounded border border-base-300 bg-base-200/50 p-3 text-sm"
+            >
+              <div class="font-semibold mb-1">{gettext("Open farrowing to wean")}</div>
+              <dl class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                <dt class="text-base-content/60">{gettext("Farrowed at")}</dt>
+                <dd class="font-mono">{@wn.resolved_farrowing.farrowed_at}</dd>
+                <dt class="text-base-content/60">{gettext("Born alive")}</dt>
+                <dd class="font-mono">{@wn.resolved_farrowing.born_alive}</dd>
+                <dt class="text-base-content/60">{gettext("Surviving")}</dt>
+                <dd class="font-mono">{@form_surviving}</dd>
+                <dt class="text-base-content/60">{gettext("Pen")}</dt>
+                <dd class="font-mono">
+                  {@wn.resolved_farrowing.pen &&
+                    "#{@wn.resolved_farrowing.pen.house.code}/#{@wn.resolved_farrowing.pen.code}"}
+                </dd>
+              </dl>
+            </div>
             <.input
               field={@form[:weaned_at]}
               type="date"
@@ -382,15 +536,32 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
               label={gettext("Avg wean weight (g)")}
               min="0"
             />
+            <div>
+              <.input
+                field={@form[:batch_tag]}
+                type="text"
+                label={gettext("Weaner batch id")}
+                list="weaning-batch-tags"
+                placeholder={gettext("e.g. W2026-04-17")}
+              />
+              <datalist id="weaning-batch-tags">
+                <option :for={b <- @weaner_batches} value={b.ear_tag}>
+                  {b.ear_tag} ({b.quantity})
+                </option>
+              </datalist>
+              <p class="text-xs text-base-content/60 mt-0.5">
+                {@batch_tag_hint}
+              </p>
+            </div>
             <.autocomplete
               id="weaning-dest-pen-picker"
-              label={gettext("Destination pen")}
+              label={gettext("Sow destination pen")}
               name="weaning[destination_pen_id]"
               value={Shared.fv(@form, :destination_pen_id)}
               items={@ac.pen_items}
               selected_label={@ac.dest_pen_label}
               class="w-full input font-mono"
-              placeholder={gettext("Search pens...")}
+              placeholder={gettext("Where the sow goes (dry housing)...")}
             />
             <div class="col-span-2">
               <.input field={@form[:notes]} type="textarea" label={gettext("Notes")} />
@@ -399,8 +570,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
               <button type="button" phx-click="cancel" class="btn btn-ghost">
                 {gettext("Cancel")}
               </button>
-              <.button class="btn btn-primary" phx-disable-with={gettext("Saving...")}>
-                {gettext("Save")}
+              <.button
+                class="btn btn-primary"
+                phx-disable-with={gettext("Saving...")}
+                disabled={not weaning_save_enabled?(@wn)}
+              >
+                {weaning_save_label(@wn)}
               </.button>
             </div>
           </.form>
@@ -429,6 +604,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
        ledger_events: [],
        ac: Shared.default_ac(scope),
        pens: Locations.list_all_pens(scope),
+       weaner_batches: [],
+       batch_tag_hint: "",
+       wn: nil,
        per_page: @per_page
      )
      |> stream_configure(:lactating, dom_id: &"farrowing-#{&1.farrowing.id}")
@@ -448,8 +626,20 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     {:noreply,
      socket
      |> assign(filters: filters, page: page)
-     |> load_rows()}
+     |> load_rows()
+     |> maybe_open_from_params(params)}
   end
+
+  defp maybe_open_from_params(socket, %{"new" => "weaning"}) do
+    if socket.assigns.can_record do
+      {:noreply, s} = handle_event("new_top_weaning", %{}, socket)
+      s
+    else
+      socket
+    end
+  end
+
+  defp maybe_open_from_params(socket, _), do: socket
 
   # ── Events ─────────────────────────────────────────────────────────
 
@@ -465,6 +655,16 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
         weaned_count: surviving
       })
 
+    weaner_batches = Breeding.list_active_weaner_batches(scope)
+
+    wn = %{
+      locked: true,
+      sow_tag: farrowing.sow.ear_tag,
+      sow_state: :resolved,
+      resolved_farrowing: farrowing,
+      backfill: default_wn_backfill(nil)
+    }
+
     {:noreply,
      assign(socket,
        form_mode: :weaning,
@@ -473,36 +673,100 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
        form_sow_tag: farrowing.sow.ear_tag,
        form_born_alive: farrowing.born_alive,
        form_surviving: surviving,
-       ac: Shared.default_ac(scope)
+       ac: Shared.default_ac(scope),
+       weaner_batches: weaner_batches,
+       batch_tag_hint: batch_tag_hint(scope, nil),
+       wn: wn
      )}
   end
 
-  def handle_event("validate_weaning", %{"weaning" => params}, socket) do
-    cs = Breeding.change_weaning(%Weaning{}, params) |> Map.put(:action, :validate)
-    {:noreply, assign(socket, :form, to_form(cs, as: :weaning))}
+  def handle_event("new_top_weaning", _, socket) do
+    scope = socket.assigns.current_scope
+
+    cs =
+      Breeding.change_weaning(%Weaning{
+        weaned_at: Date.utc_today()
+      })
+
+    wn = %{
+      locked: false,
+      sow_tag: "",
+      sow_state: :empty,
+      resolved_farrowing: nil,
+      backfill: default_wn_backfill(Date.utc_today())
+    }
+
+    {:noreply,
+     assign(socket,
+       form_mode: :weaning,
+       form: to_form(cs, as: :weaning),
+       form_target: nil,
+       form_sow_tag: nil,
+       form_born_alive: nil,
+       form_surviving: nil,
+       ac: Shared.default_ac(scope),
+       weaner_batches: Breeding.list_active_weaner_batches(scope),
+       batch_tag_hint: batch_tag_hint(scope, nil),
+       wn: wn
+     )}
   end
 
-  def handle_event("save_weaning", %{"weaning" => params}, socket) do
+  def handle_event("validate_weaning", %{"weaning" => params} = all, socket) do
+    cs = Breeding.change_weaning(%Weaning{}, params) |> Map.put(:action, :validate)
+    sow_tag = all["sow_tag"]
+
+    socket =
+      socket
+      |> assign(:form, to_form(cs, as: :weaning))
+      |> assign(
+        :batch_tag_hint,
+        batch_tag_hint(socket.assigns.current_scope, params["batch_tag"])
+      )
+      |> merge_wn_backfill_params(all, params)
+
+    socket =
+      if (socket.assigns.wn && not socket.assigns.wn.locked) and not is_nil(sow_tag) do
+        resolve_wn_sow(socket, sow_tag)
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("save_weaning", %{"weaning" => params} = all, socket) do
     if socket.assigns.can_record do
-      farrowing = socket.assigns.form_target
+      wn = socket.assigns.wn
 
-      case Breeding.record_weaning(socket.assigns.current_scope, farrowing, params) do
-        {:ok, _weaning, _batch} ->
-          {:noreply,
-           socket
-           |> close_form()
-           |> load_rows()
-           |> put_flash(:info, gettext("Weaning recorded."))}
+      socket =
+        socket
+        |> then(fn s ->
+          if wn && not wn.locked && not is_nil(all["sow_tag"]),
+            do: resolve_wn_sow(s, all["sow_tag"]),
+            else: s
+        end)
+        |> merge_wn_backfill_params(all, params)
 
-        {:error, :already_weaned} ->
-          {:noreply,
-           socket
-           |> close_form()
-           |> load_rows()
-           |> put_flash(:error, gettext("Already weaned."))}
+      wn = socket.assigns.wn
 
-        {:error, cs} ->
-          {:noreply, assign(socket, :form, to_form(cs, as: :weaning))}
+      cond do
+        is_nil(wn) ->
+          {:noreply, put_flash(socket, :error, gettext("Form state lost; please retry."))}
+
+        wn.locked ->
+          do_save_weaning(socket, socket.assigns.form_target, params)
+
+        wn.sow_state == :resolved ->
+          do_save_weaning(socket, wn.resolved_farrowing, params)
+
+        wn.sow_state == :not_found ->
+          do_save_weaning_backfill(socket, :new_sow, params)
+
+        wn.sow_state == :no_open_farrowing ->
+          do_save_weaning_backfill(socket, :existing_sow, params)
+
+        true ->
+          {:noreply, put_flash(socket, :error, gettext("Type a sow ear tag before saving."))}
       end
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
@@ -777,6 +1041,35 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
 
   # ── Helpers ────────────────────────────────────────────────────────
 
+  defp do_save_weaning(socket, farrowing, params) do
+    case Breeding.record_weaning(socket.assigns.current_scope, farrowing, params) do
+      {:ok, _weaning, _batch} ->
+        {:noreply,
+         socket
+         |> close_form()
+         |> load_rows()
+         |> put_flash(:info, gettext("Weaning recorded."))}
+
+      {:error, :already_weaned} ->
+        {:noreply,
+         socket
+         |> close_form()
+         |> load_rows()
+         |> put_flash(:error, gettext("Already weaned."))}
+
+      {:error, :batch_tag_required} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Enter a weaner batch id to pool into (or a new id for a fresh batch).")
+         )}
+
+      {:error, cs} ->
+        {:noreply, assign(socket, :form, to_form(cs, as: :weaning))}
+    end
+  end
+
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
     filters = socket.assigns.filters
@@ -851,4 +1144,349 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   defp humanize_kind("foster_in"), do: gettext("Foster in")
   defp humanize_kind("foster_out"), do: gettext("Foster out")
   defp humanize_kind(other), do: other
+
+  # Shows a live hint below the batch_tag field so the operator knows
+  # whether the tag pools into an existing batch or starts a new one.
+  defp batch_tag_hint(scope, tag) do
+    case Breeding.find_active_weaner_batch(scope, tag || "") do
+      nil ->
+        case (tag || "") |> to_string() |> String.trim() do
+          "" ->
+            gettext("Free-text id. Reuse an existing id to pool; new id creates a fresh batch.")
+
+          _ ->
+            gettext("New batch — will be created with this id.")
+        end
+
+      batch ->
+        gettext("Pooling into existing batch — %{n} head.", n: batch.quantity || 0)
+    end
+  end
+
+  defp wn_state_text(:resolved), do: gettext("✓ Open farrowing found")
+  defp wn_state_text(:not_found), do: gettext("⚠ No sow with this ear tag")
+
+  defp wn_state_text(:no_open_farrowing),
+    do: gettext("⚠ Sow has no open farrowing — record a farrowing first")
+
+  defp wn_state_text(:empty), do: gettext("Type a sow ear tag to begin")
+  defp wn_state_text(_), do: nil
+
+  defp weaning_save_enabled?(nil), do: false
+  defp weaning_save_enabled?(%{locked: true}), do: true
+  defp weaning_save_enabled?(%{sow_state: :resolved}), do: true
+
+  defp weaning_save_enabled?(%{sow_state: :not_found, backfill: bf, sow_tag: tag}) do
+    tag not in [nil, ""] and bf.served_at not in [nil, ""] and
+      bf.farrowed_at not in [nil, ""]
+  end
+
+  defp weaning_save_enabled?(%{sow_state: :no_open_farrowing, backfill: bf}) do
+    bf.served_at not in [nil, ""] and bf.farrowed_at not in [nil, ""]
+  end
+
+  defp weaning_save_enabled?(_), do: false
+
+  defp weaning_save_label(%{sow_state: :not_found}),
+    do: gettext("Save weaning + register sow")
+
+  defp weaning_save_label(%{sow_state: :no_open_farrowing}),
+    do: gettext("Save weaning + backfill farrowing")
+
+  defp weaning_save_label(_), do: gettext("Save")
+
+  defp default_wn_backfill(weaned_at) do
+    case weaned_at do
+      %Date{} = w ->
+        farrowed = Date.add(w, -Breeding.lactation_days())
+        served = Date.add(farrowed, -Breeding.gestation_days())
+        dob = Date.add(served, -Breeding.minimum_sow_age_days())
+
+        %{
+          breed: "",
+          dob: to_string(dob),
+          served_at: to_string(served),
+          farrowed_at: to_string(farrowed),
+          boar_tag: "",
+          born_alive: ""
+        }
+
+      _ ->
+        %{
+          breed: "",
+          dob: "",
+          served_at: "",
+          farrowed_at: "",
+          boar_tag: "",
+          born_alive: ""
+        }
+    end
+  end
+
+  defp merge_wn_backfill_params(socket, all, weaning_params) do
+    wn = socket.assigns.wn
+
+    if is_nil(wn) do
+      socket
+    else
+      existing = wn.backfill || default_wn_backfill(nil)
+      weaned_at_input = Map.get(weaning_params, "weaned_at")
+
+      farrowed_at_input = Map.get(all, "farrowed_at")
+
+      farrowed_at =
+        cond do
+          is_binary(farrowed_at_input) and farrowed_at_input != "" -> farrowed_at_input
+          existing.farrowed_at not in [nil, ""] -> existing.farrowed_at
+          true -> derive_farrowed_from_weaned(weaned_at_input)
+        end
+
+      served_at_input = Map.get(all, "served_at")
+
+      served_at =
+        cond do
+          is_binary(served_at_input) and served_at_input != "" ->
+            served_at_input
+
+          existing.served_at not in [nil, ""] and farrowed_at == existing.farrowed_at ->
+            existing.served_at
+
+          true ->
+            derive_served_from_farrowed(farrowed_at)
+        end
+
+      dob_input = Map.get(all, "sow_dob")
+
+      dob =
+        cond do
+          is_binary(dob_input) and dob_input != "" -> dob_input
+          existing.dob not in [nil, ""] and served_at == existing.served_at -> existing.dob
+          true -> derive_dob_from_served(served_at)
+        end
+
+      backfill = %{
+        breed: Map.get(all, "sow_breed", existing.breed) || "",
+        dob: dob || "",
+        served_at: served_at || "",
+        farrowed_at: farrowed_at || "",
+        boar_tag: Map.get(all, "boar_tag", existing.boar_tag) || "",
+        born_alive: Map.get(all, "born_alive", existing.born_alive) || ""
+      }
+
+      assign(socket, wn: %{wn | backfill: backfill})
+    end
+  end
+
+  defp derive_farrowed_from_weaned(weaned_at) do
+    case parse_date(weaned_at) do
+      %Date{} = d -> to_string(Date.add(d, -Breeding.lactation_days()))
+      _ -> ""
+    end
+  end
+
+  defp derive_served_from_farrowed(farrowed_at) do
+    case parse_date(farrowed_at) do
+      %Date{} = d -> to_string(Date.add(d, -Breeding.gestation_days()))
+      _ -> ""
+    end
+  end
+
+  defp derive_dob_from_served(served_at) do
+    case parse_date(served_at) do
+      %Date{} = d -> to_string(Date.add(d, -Breeding.minimum_sow_age_days()))
+      _ -> ""
+    end
+  end
+
+  defp parse_date(nil), do: nil
+  defp parse_date(%Date{} = d), do: d
+
+  defp parse_date(s) when is_binary(s) do
+    case Date.from_iso8601(s) do
+      {:ok, d} -> d
+      _ -> nil
+    end
+  end
+
+  defp parse_date(_), do: nil
+
+  defp do_save_weaning_backfill(socket, kind, weaning_params) do
+    scope = socket.assigns.current_scope
+    wn = socket.assigns.wn
+    bf = wn.backfill
+
+    # The farrowing happened in the past; default its pen_id to the sow's
+    # destination pen (the operator already picked one for the weaning),
+    # so the cascade has the required pen without forcing extra input.
+    pen_id = presence(weaning_params["destination_pen_id"])
+
+    attrs =
+      weaning_params
+      |> Map.put("served_at", bf.served_at)
+      |> Map.put("farrowed_at", bf.farrowed_at)
+      |> Map.put("pen_id", pen_id)
+      |> Map.put("born_alive", presence(bf.born_alive) || weaning_params["weaned_count"] || "0")
+      |> Map.put("boar_id", resolve_boar_id(scope, bf.boar_tag))
+
+    mode =
+      case kind do
+        :new_sow ->
+          {:new_sow,
+           %{
+             "ear_tag" => wn.sow_tag,
+             "breed" => presence(bf.breed),
+             "dob" => presence(bf.dob)
+           }}
+
+        :existing_sow ->
+          sow = Animals.find_by_ear_tag(scope, wn.sow_tag)
+          {:existing_sow, sow && sow.id}
+      end
+
+    case Breeding.record_weaning_with_backfill(scope, mode, attrs) do
+      {:ok, _weaning, _batch} ->
+        {:noreply,
+         socket
+         |> close_form()
+         |> load_rows()
+         |> put_flash(
+           :info,
+           gettext("Weaning recorded with backfilled farrowing (flagged for review).")
+         )}
+
+      {:error, :weaned_at_required} ->
+        {:noreply, put_flash(socket, :error, gettext("Weaned at is required."))}
+
+      {:error, :served_at_required} ->
+        {:noreply, put_flash(socket, :error, gettext("Service date is required for backfill."))}
+
+      {:error, :farrowed_at_required} ->
+        {:noreply, put_flash(socket, :error, gettext("Farrowed at is required for backfill."))}
+
+      {:error, :gestation_out_of_range} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Farrowed date must be within 3 days of the 114-day gestation.")
+         )}
+
+      {:error, :sow_not_found} ->
+        {:noreply, put_flash(socket, :error, gettext("Sow not found for backfill."))}
+
+      {:error, :batch_tag_required} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Enter a weaner batch id to pool into (or a new id for a fresh batch).")
+         )}
+
+      {:error, {:sow, cs}} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Could not register sow: %{err}", err: Shared.format_cs_error(cs))
+         )}
+
+      {:error, {:service, cs}} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Could not create service: %{err}", err: Shared.format_cs_error(cs))
+         )}
+
+      {:error, %Ecto.Changeset{} = cs} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Could not save backfilled weaning: %{err}",
+             err: Shared.format_cs_error(cs)
+           )
+         )}
+
+      {:error, other} ->
+        {:noreply, put_flash(socket, :error, inspect(other))}
+    end
+  end
+
+  defp resolve_boar_id(_scope, nil), do: nil
+  defp resolve_boar_id(_scope, ""), do: nil
+
+  defp resolve_boar_id(scope, tag) when is_binary(tag) do
+    case Animals.find_by_ear_tag(scope, String.trim(tag)) do
+      %{id: id} -> id
+      _ -> nil
+    end
+  end
+
+  defp presence(nil), do: nil
+  defp presence(""), do: nil
+  defp presence(s) when is_binary(s), do: s
+  defp presence(other), do: other
+
+  defp resolve_wn_sow(socket, sow_tag) do
+    scope = socket.assigns.current_scope
+    wn = socket.assigns.wn
+    tag = (sow_tag || "") |> to_string() |> String.trim()
+
+    cond do
+      tag == "" ->
+        assign(socket,
+          wn: %{wn | sow_tag: "", sow_state: :empty, resolved_farrowing: nil},
+          form_target: nil,
+          form_sow_tag: nil,
+          form_born_alive: nil,
+          form_surviving: nil
+        )
+
+      true ->
+        case Animals.find_by_ear_tag(scope, tag) do
+          nil ->
+            assign(socket,
+              wn: %{wn | sow_tag: tag, sow_state: :not_found, resolved_farrowing: nil},
+              form_target: nil,
+              form_sow_tag: nil,
+              form_born_alive: nil,
+              form_surviving: nil
+            )
+
+          sow ->
+            case Breeding.latest_open_farrowing_for_sow(scope, sow.id) do
+              nil ->
+                assign(socket,
+                  wn: %{
+                    wn
+                    | sow_tag: tag,
+                      sow_state: :no_open_farrowing,
+                      resolved_farrowing: nil
+                  },
+                  form_target: nil,
+                  form_sow_tag: sow.ear_tag,
+                  form_born_alive: nil,
+                  form_surviving: nil
+                )
+
+              farrowing ->
+                surviving = Breeding.surviving_piglet_count(farrowing)
+
+                assign(socket,
+                  wn: %{
+                    wn
+                    | sow_tag: tag,
+                      sow_state: :resolved,
+                      resolved_farrowing: farrowing
+                  },
+                  form_target: farrowing,
+                  form_sow_tag: sow.ear_tag,
+                  form_born_alive: farrowing.born_alive,
+                  form_surviving: surviving
+                )
+            end
+        end
+    end
+  end
 end

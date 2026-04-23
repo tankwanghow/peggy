@@ -168,6 +168,11 @@ defmodule PeggyWeb.Layouts do
               </.link>
             </li>
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/lactating?new=weaning"}>
+                {gettext("Record Weaning")}
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/batch-service"}>
                 {gettext("Batch Service")}
               </.link>

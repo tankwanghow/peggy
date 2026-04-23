@@ -1073,7 +1073,11 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
 
       {:ok, _, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: Date.utc_today(), weaned_count: 5})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: Date.utc_today(),
+          weaned_count: 5,
+          batch_tag: "W1076"
+        })
 
       refute Breeding.farrowing_deletable?(scope, f)
     end
@@ -1166,7 +1170,11 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
 
       {:ok, _, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: Date.utc_today(), weaned_count: 5})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: Date.utc_today(),
+          weaned_count: 5,
+          batch_tag: "W1169"
+        })
 
       assert {:error, :farrowing_has_weaning} = Breeding.delete_farrowing(scope, f)
     end
@@ -1669,7 +1677,11 @@ defmodule Peggy.BreedingTest do
 
       # Wean to return sow to a serviceable state (dry) before next service
       {:ok, _, _} =
-        Breeding.record_weaning(scope, f1, %{weaned_at: ~D[2026-05-20], weaned_count: 5})
+        Breeding.record_weaning(scope, f1, %{
+          weaned_at: ~D[2026-05-20],
+          weaned_count: 5,
+          batch_tag: "W1680"
+        })
 
       s2 = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-06-01])
 
@@ -1684,15 +1696,13 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "record_weaning/3" do
-    test "creates weaner batch and places it in destination pen", %{
-      scope: scope,
-      house: house,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      nursery_pen = pen_fixture(scope, house, code: "N1", capacity: 40)
-
+    test "fresh batch_tag creates a new weaner batch with no placement (user places batch later)",
+         %{
+           scope: scope,
+           sow: sow,
+           boar: boar,
+           pen: pen
+         } do
       farrowing =
         farrowing_fixture(scope, sow,
           boar_id: boar.id,
@@ -1704,27 +1714,166 @@ defmodule Peggy.BreedingTest do
         Breeding.record_weaning(scope, farrowing, %{
           weaned_at: ~D[2026-04-17],
           weaned_count: 8,
-          destination_pen_id: nursery_pen.id
+          batch_tag: "W26-17A"
         })
 
       assert weaning.weaned_count == 8
       assert weaning.farrowing_id == farrowing.id
+      assert weaning.batch_animal_id == batch.id
 
-      # Fresh weaner batch created at weaning time
+      # Fresh weaner batch with the provided tag; no pen placement yet.
       assert batch.tracking_type == "batch"
       assert batch.stage == "weaner"
       assert batch.quantity == 8
       assert batch.farrowing_id == farrowing.id
+      assert batch.ear_tag == "W26-17A"
+      assert is_nil(batch.current_pen_id)
+      assert [] = Peggy.Animals.list_placements(scope, batch)
 
-      # Placement in nursery pen
-      placements = Peggy.Animals.list_placements(scope, batch)
-      assert length(placements) == 1
-      assert hd(placements).pen_id == nursery_pen.id
-      assert hd(placements).quantity == 8
+      # Every wean (including the first) writes one `wean` movement
+      # linked to the weaning via weaning_id.
+      movements =
+        Peggy.Repo.all(
+          from(m in Peggy.Animals.Movement,
+            where: m.animal_id == ^batch.id and m.reason == "wean"
+          )
+        )
+
+      assert length(movements) == 1
+      assert hd(movements).quantity == 8
+      assert hd(movements).weaning_id == weaning.id
 
       # Sow becomes "dry" after weaning (resting before next heat)
       updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
       assert updated_sow.status == "dry"
+    end
+
+    test "existing batch_tag pools the new litter into the same batch",
+         %{scope: scope, pen: pen, boar: boar} do
+      sow1 = animal_fixture(scope, ear_tag: "P-A1", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "P-A2", sex: "female", stage: "sow")
+
+      f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
+      f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
+
+      {:ok, _w1, batch1} =
+        Breeding.record_weaning(scope, f1, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 8,
+          batch_tag: "POOL-1"
+        })
+
+      {:ok, w2, batch2} =
+        Breeding.record_weaning(scope, f2, %{
+          weaned_at: ~D[2026-04-18],
+          weaned_count: 5,
+          batch_tag: "POOL-1"
+        })
+
+      assert batch2.id == batch1.id
+      assert batch2.quantity == 13
+      assert w2.batch_animal_id == batch1.id
+
+      # Every wean writes a `wean` movement — two weanings, two rows.
+      wean_movements =
+        Peggy.Repo.all(
+          from(m in Peggy.Animals.Movement,
+            where: m.animal_id == ^batch1.id and m.reason == "wean",
+            order_by: [asc: m.id]
+          )
+        )
+
+      assert length(wean_movements) == 2
+      assert Enum.map(wean_movements, & &1.quantity) == [8, 5]
+      assert Enum.at(wean_movements, 1).weaning_id == w2.id
+    end
+
+    test "missing batch_tag when weaned_count >= 1 errors with :batch_tag_required",
+         %{scope: scope, sow: sow, boar: boar, pen: pen} do
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
+
+      assert {:error, :batch_tag_required} =
+               Breeding.record_weaning(scope, f, %{
+                 weaned_at: ~D[2026-04-17],
+                 weaned_count: 5
+               })
+
+      assert {:error, :batch_tag_required} =
+               Breeding.record_weaning(scope, f, %{
+                 weaned_at: ~D[2026-04-17],
+                 weaned_count: 5,
+                 batch_tag: "   "
+               })
+    end
+
+    test "batch_tag matching a non-weaner or non-active batch is treated as fresh",
+         %{scope: scope, pen: pen, boar: boar} do
+      sow1 = animal_fixture(scope, ear_tag: "P-B1", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "P-B2", sex: "female", stage: "sow")
+
+      f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 6, pen_id: pen.id)
+
+      {:ok, _, batch1} =
+        Breeding.record_weaning(scope, f1, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 6,
+          batch_tag: "RETIRED"
+        })
+
+      # Promote/retire: status → deceased so it is no longer an active
+      # weaner candidate for pooling.
+      batch1
+      |> Ecto.Changeset.change(%{status: "deceased", quantity: 0})
+      |> Peggy.Repo.update!()
+
+      f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 4, pen_id: pen.id)
+
+      # The old ear_tag conflicts via the partial unique index (ear_tag
+      # is kept even on retired batches). Use a fresh tag instead to
+      # exercise the "not found → fresh" branch.
+      {:ok, _, batch2} =
+        Breeding.record_weaning(scope, f2, %{
+          weaned_at: ~D[2026-04-18],
+          weaned_count: 4,
+          batch_tag: "RETIRED-2"
+        })
+
+      refute batch2.id == batch1.id
+      assert batch2.quantity == 4
+    end
+
+    test "moves the sow to destination_pen (batch stays unplaced)", %{
+      scope: scope,
+      house: house,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      dry_pen = pen_fixture(scope, house, code: "DRY", capacity: 40)
+
+      farrowing =
+        farrowing_fixture(scope, sow,
+          boar_id: boar.id,
+          born_alive: 8,
+          pen_id: pen.id
+        )
+
+      {:ok, _w, batch} =
+        Breeding.record_weaning(scope, farrowing, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 8,
+          destination_pen_id: dry_pen.id,
+          batch_tag: "W26-17B"
+        })
+
+      # Sow has been moved to the dry pen.
+      updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
+      assert updated_sow.current_pen_id == dry_pen.id
+
+      # The batch has no placement — the user will record placement
+      # separately.
+      assert is_nil(batch.current_pen_id)
+      assert [] = Peggy.Animals.list_placements(scope, batch)
     end
 
     test "weaned_count == 1 creates weaner batch", %{
@@ -1743,7 +1892,8 @@ defmodule Peggy.BreedingTest do
       {:ok, weaning, batch} =
         Breeding.record_weaning(scope, farrowing, %{
           weaned_at: ~D[2026-04-17],
-          weaned_count: 1
+          weaned_count: 1,
+          batch_tag: "W1744"
         })
 
       assert weaning.weaned_count == 1
@@ -1809,40 +1959,16 @@ defmodule Peggy.BreedingTest do
       {:ok, _, _} =
         Breeding.record_weaning(scope, farrowing, %{
           weaned_at: ~D[2026-04-17],
-          weaned_count: 5
+          weaned_count: 5,
+          batch_tag: "W1810"
         })
 
       assert {:error, :already_weaned} =
                Breeding.record_weaning(scope, farrowing, %{
                  weaned_at: ~D[2026-04-18],
-                 weaned_count: 5
+                 weaned_count: 5,
+                 batch_tag: "W1810"
                })
-    end
-
-    test "without destination pen keeps litter in farrowing pen", %{
-      scope: scope,
-      sow: sow,
-      boar: boar,
-      pen: pen
-    } do
-      farrowing =
-        farrowing_fixture(scope, sow,
-          boar_id: boar.id,
-          born_alive: 6,
-          pen_id: pen.id
-        )
-
-      {:ok, _weaning, batch} =
-        Breeding.record_weaning(scope, farrowing, %{
-          weaned_at: ~D[2026-04-17],
-          weaned_count: 6
-        })
-
-      assert batch.tracking_type == "batch"
-      # Placement remains in farrowing pen (not moved)
-      placements = Peggy.Animals.list_placements(scope, batch)
-      assert length(placements) == 1
-      assert hd(placements).pen_id == pen.id
     end
 
     test "writes audit log", %{scope: scope, sow: sow, boar: boar, pen: pen} do
@@ -1856,7 +1982,8 @@ defmodule Peggy.BreedingTest do
       {:ok, _, _} =
         Breeding.record_weaning(scope, farrowing, %{
           weaned_at: ~D[2026-04-17],
-          weaned_count: 5
+          weaned_count: 5,
+          batch_tag: "W1857"
         })
 
       logs = Audit.list(scope, entity_type: "weaning", action: "weaning.created")
@@ -1869,39 +1996,33 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
 
       {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 5})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 5,
+          batch_tag: "W1994"
+        })
 
       assert Breeding.weaning_deletable?(scope, w)
     end
 
-    test "false after a later movement", %{
+    test "false once the batch has been retired (sold/slaughtered)", %{
       scope: scope,
-      house: house,
       sow: sow,
       boar: boar,
       pen: pen
     } do
-      dest = pen_fixture(scope, house, code: "N1", capacity: 40)
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 4, pen_id: pen.id)
 
       {:ok, w, batch} =
         Breeding.record_weaning(scope, f, %{
           weaned_at: ~D[2026-04-17],
           weaned_count: 4,
-          destination_pen_id: dest.id
+          batch_tag: "W2010"
         })
 
-      # Add an extra later movement out of the dest pen
-      other = pen_fixture(scope, house, code: "N2", capacity: 40)
-
-      {:ok, _} =
-        Peggy.Animals.record_movement(scope, batch, %{
-          reason: "pen_transfer",
-          from_pen_id: dest.id,
-          to_pen_id: other.id,
-          quantity: 4,
-          moved_at: ~D[2026-04-20]
-        })
+      batch
+      |> Ecto.Changeset.change(%{status: "sold"})
+      |> Peggy.Repo.update!()
 
       refute Breeding.weaning_deletable?(scope, w)
     end
@@ -1910,7 +2031,11 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 3, pen_id: pen.id)
 
       {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 3})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 3,
+          batch_tag: "W2035"
+        })
 
       {:ok, deleted} = Breeding.delete_weaning(scope, w)
       refute Breeding.weaning_deletable?(scope, deleted)
@@ -1918,16 +2043,15 @@ defmodule Peggy.BreedingTest do
   end
 
   describe "delete_weaning/2" do
-    test "hard-deletes weaner batch, removes wean placement/movement, sow back to lactating",
-         %{scope: scope, house: house, sow: sow, boar: boar, pen: pen} do
-      dest = pen_fixture(scope, house, code: "N1", capacity: 40)
+    test "decrements batch.quantity, retires batch when empty, sow back to lactating",
+         %{scope: scope, sow: sow, boar: boar, pen: pen} do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 6, pen_id: pen.id)
 
       {:ok, w, batch} =
         Breeding.record_weaning(scope, f, %{
           weaned_at: ~D[2026-04-17],
           weaned_count: 6,
-          destination_pen_id: dest.id
+          batch_tag: "W2049"
         })
 
       batch_id = batch.id
@@ -1935,24 +2059,56 @@ defmodule Peggy.BreedingTest do
       {:ok, deleted} = Breeding.delete_weaning(scope, w)
       assert deleted.deleted_at
 
-      # Weaner batch Animal is hard-deleted along with its placement + movements
-      assert is_nil(Peggy.Repo.get(Peggy.Animals.Animal, batch_id))
-
-      assert Peggy.Repo.aggregate(
-               from(p in Peggy.Animals.Placement, where: p.animal_id == ^batch_id),
-               :count,
-               :id
-             ) == 0
-
-      assert Peggy.Repo.aggregate(
-               from(m in Peggy.Animals.Movement, where: m.animal_id == ^batch_id),
-               :count,
-               :id
-             ) == 0
+      # Batch shell is kept for audit; quantity zero + status deceased.
+      persisted = Peggy.Repo.get!(Peggy.Animals.Animal, batch_id)
+      assert persisted.quantity == 0
+      assert persisted.status == "deceased"
 
       # Sow back to lactating
       updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
       assert updated_sow.status == "lactating"
+    end
+
+    test "decrements a pooled batch without retiring it, removing the wean movement",
+         %{scope: scope, pen: pen, boar: boar} do
+      sow1 = animal_fixture(scope, ear_tag: "PDEL-A", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "PDEL-B", sex: "female", stage: "sow")
+
+      f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 8, pen_id: pen.id)
+      f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 8, pen_id: pen.id)
+
+      {:ok, w1, batch} =
+        Breeding.record_weaning(scope, f1, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 7,
+          batch_tag: "POOL-DEL"
+        })
+
+      {:ok, w2, _batch2} =
+        Breeding.record_weaning(scope, f2, %{
+          weaned_at: ~D[2026-04-18],
+          weaned_count: 5,
+          batch_tag: "POOL-DEL"
+        })
+
+      assert Peggy.Repo.get!(Peggy.Animals.Animal, batch.id).quantity == 12
+
+      {:ok, _} = Breeding.delete_weaning(scope, w2)
+
+      reloaded = Peggy.Repo.get!(Peggy.Animals.Animal, batch.id)
+      assert reloaded.quantity == 7
+      assert reloaded.status == "active"
+
+      # The wean movement for w2 should be gone; the one for w1 remains.
+      remaining =
+        Peggy.Repo.all(
+          from(m in Peggy.Animals.Movement,
+            where: m.animal_id == ^batch.id and m.reason == "wean"
+          )
+        )
+
+      assert length(remaining) == 1
+      assert hd(remaining).weaning_id == w1.id
     end
 
     test "handles weaned_count == 0 (no batch was created)", %{
@@ -1980,39 +2136,34 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 3, pen_id: pen.id)
 
       {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 3})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 3,
+          batch_tag: "W2105"
+        })
 
       {:ok, deleted} = Breeding.delete_weaning(scope, w)
       assert {:error, :already_deleted} = Breeding.delete_weaning(scope, deleted)
     end
 
-    test "rejects when batch has later activity", %{
+    test "rejects when batch has been retired (status != active)", %{
       scope: scope,
-      house: house,
       sow: sow,
       boar: boar,
       pen: pen
     } do
-      dest = pen_fixture(scope, house, code: "N1", capacity: 40)
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 4, pen_id: pen.id)
 
       {:ok, w, batch} =
         Breeding.record_weaning(scope, f, %{
           weaned_at: ~D[2026-04-17],
           weaned_count: 4,
-          destination_pen_id: dest.id
+          batch_tag: "W2122"
         })
 
-      other = pen_fixture(scope, house, code: "N2", capacity: 40)
-
-      {:ok, _} =
-        Peggy.Animals.record_movement(scope, batch, %{
-          reason: "pen_transfer",
-          from_pen_id: dest.id,
-          to_pen_id: other.id,
-          quantity: 4,
-          moved_at: ~D[2026-04-20]
-        })
+      batch
+      |> Ecto.Changeset.change(%{status: "sold"})
+      |> Peggy.Repo.update!()
 
       assert {:error, :weaning_has_activity} = Breeding.delete_weaning(scope, w)
     end
@@ -2026,7 +2177,11 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
 
       {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 5})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 5,
+          batch_tag: "W2151A"
+        })
 
       {:ok, _} = Breeding.delete_weaning(scope, w)
 
@@ -2036,7 +2191,8 @@ defmodule Peggy.BreedingTest do
       assert {:ok, _, _} =
                Breeding.record_weaning(scope, f, %{
                  weaned_at: ~D[2026-04-18],
-                 weaned_count: 5
+                 weaned_count: 5,
+                 batch_tag: "W2151B"
                })
     end
 
@@ -2044,7 +2200,11 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 3, pen_id: pen.id)
 
       {:ok, w, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 3})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 3,
+          batch_tag: "W2169"
+        })
 
       {:ok, _} = Breeding.delete_weaning(scope, w)
 
@@ -2066,10 +2226,18 @@ defmodule Peggy.BreedingTest do
       f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 2, pen_id: pen.id)
 
       {:ok, w1, _} =
-        Breeding.record_weaning(scope, f1, %{weaned_at: ~D[2026-04-17], weaned_count: 2})
+        Breeding.record_weaning(scope, f1, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 2,
+          batch_tag: "W2191"
+        })
 
       {:ok, w2, _} =
-        Breeding.record_weaning(scope, f2, %{weaned_at: ~D[2026-04-17], weaned_count: 2})
+        Breeding.record_weaning(scope, f2, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 2,
+          batch_tag: "W2194"
+        })
 
       {:ok, _} = Breeding.delete_weaning(scope, w1)
       {:ok, _} = Breeding.delete_weaning(scope, w2)
@@ -2082,7 +2250,11 @@ defmodule Peggy.BreedingTest do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 2, pen_id: pen.id)
 
       {:ok, _, _} =
-        Breeding.record_weaning(scope, f, %{weaned_at: ~D[2026-04-17], weaned_count: 2})
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 2,
+          batch_tag: "W2207"
+        })
 
       assert Breeding.list_deleted_weanings(scope) == []
     end
@@ -2236,7 +2408,8 @@ defmodule Peggy.BreedingTest do
         Breeding.record_weaning(scope, farrowing, %{
           weaned_at: Date.add(farrowing.farrowed_at, Breeding.lactation_days()),
           weaned_count: farrowing.born_alive,
-          destination_pen_id: pen.id
+          destination_pen_id: pen.id,
+          batch_tag: "W2401"
         })
 
       assert weaning.inferred == false
@@ -2789,6 +2962,113 @@ defmodule Peggy.BreedingTest do
                  "quantity" => 11,
                  "occurred_at" => Date.utc_today()
                })
+    end
+  end
+
+  describe "record_weaning_with_backfill/3" do
+    test "existing sow without open farrowing: cascades service + farrowing + weaning",
+         %{scope: scope, pen: pen} do
+      sow =
+        animal_fixture(scope, ear_tag: "WBF-EXIST", sex: "female", stage: "sow", status: "active")
+
+      attrs = %{
+        "weaned_at" => "2026-04-25",
+        "farrowed_at" => "2026-04-01",
+        "served_at" => "2025-12-08",
+        "weaned_count" => 5,
+        "born_alive" => 6,
+        "batch_tag" => "WBF-B1",
+        "pen_id" => pen.id
+      }
+
+      assert {:ok, weaning, batch} =
+               Breeding.record_weaning_with_backfill(
+                 scope,
+                 {:existing_sow, sow.id},
+                 attrs
+               )
+
+      assert weaning.weaned_count == 5
+      assert batch.ear_tag == "WBF-B1"
+      assert batch.quantity == 5
+
+      # sow now dry
+      assert Peggy.Animals.get_animal!(scope, sow.id).status == "dry"
+
+      # farrowing + service exist and are inferred
+      farrowing = Peggy.Repo.get!(Peggy.Breeding.Farrowing, weaning.farrowing_id)
+      assert farrowing.sow_id == sow.id
+      service = Breeding.get_service!(scope, farrowing.service_id)
+      assert service.inferred == true
+    end
+
+    test "unknown sow ear tag: registers sow then cascades", %{scope: scope, pen: pen} do
+      attrs = %{
+        "weaned_at" => "2026-04-25",
+        "farrowed_at" => "2026-04-01",
+        "served_at" => "2025-12-08",
+        "weaned_count" => 4,
+        "born_alive" => 5,
+        "batch_tag" => "WBF-B2",
+        "pen_id" => pen.id
+      }
+
+      assert {:ok, _weaning, batch} =
+               Breeding.record_weaning_with_backfill(
+                 scope,
+                 {:new_sow, %{"ear_tag" => "WBF-NEWSOW", "breed" => "Duroc"}},
+                 attrs
+               )
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "WBF-NEWSOW")
+      assert sow
+      assert sow.inferred == true
+      assert sow.stage == "sow"
+      assert sow.sex == "female"
+      assert sow.status == "dry"
+      assert batch.quantity == 4
+    end
+
+    test "missing weaned_at returns :weaned_at_required", %{scope: scope, sow: sow} do
+      assert {:error, :weaned_at_required} =
+               Breeding.record_weaning_with_backfill(
+                 scope,
+                 {:existing_sow, sow.id},
+                 %{
+                   "farrowed_at" => "2026-04-01",
+                   "served_at" => "2025-12-08",
+                   "weaned_count" => 1,
+                   "batch_tag" => "WBF-B3"
+                 }
+               )
+    end
+
+    test "gestation tolerance violation rolls back the whole cascade",
+         %{scope: scope, pen: pen} do
+      sow =
+        animal_fixture(scope, ear_tag: "WBF-GEST", sex: "female", stage: "sow", status: "active")
+
+      attrs = %{
+        "weaned_at" => "2026-04-25",
+        "farrowed_at" => "2026-04-01",
+        # served_at far outside ±3d gestation tolerance
+        "served_at" => "2026-01-01",
+        "weaned_count" => 1,
+        "born_alive" => 2,
+        "batch_tag" => "WBF-B4",
+        "pen_id" => pen.id
+      }
+
+      assert {:error, :gestation_out_of_range} =
+               Breeding.record_weaning_with_backfill(
+                 scope,
+                 {:existing_sow, sow.id},
+                 attrs
+               )
+
+      # nothing persisted
+      assert Peggy.Animals.get_animal!(scope, sow.id).status == "active"
+      refute Peggy.Animals.find_by_ear_tag(scope, "WBF-B4")
     end
   end
 end

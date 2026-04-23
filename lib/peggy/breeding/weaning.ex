@@ -13,6 +13,7 @@ defmodule Peggy.Breeding.Weaning do
     belongs_to :farm, Peggy.Farms.Farm
     belongs_to :farrowing, Peggy.Breeding.Farrowing
     belongs_to :destination_pen, Peggy.Locations.Pen
+    belongs_to :batch_animal, Peggy.Animals.Animal
     field :deleted_at, :utc_datetime
     belongs_to :deleted_by, Peggy.Accounts.User
     timestamps(type: :utc_datetime)
@@ -30,6 +31,7 @@ defmodule Peggy.Breeding.Weaning do
       :origin_audit_id,
       :farrowing_id,
       :destination_pen_id,
+      :batch_animal_id,
       :farm_id
     ])
     |> validate_required([:weaned_at, :weaned_count, :farrowing_id, :farm_id])

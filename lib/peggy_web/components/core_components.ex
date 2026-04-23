@@ -355,6 +355,14 @@ defmodule PeggyWeb.CoreComponents do
           data-ac-empty-text={@empty_text || ""}
         />
       </label>
+      <p
+        id={"#{@id}-warning"}
+        class="mt-1 hidden text-xs text-warning flex gap-1 items-center"
+        role="alert"
+      >
+        <.icon name="hero-exclamation-triangle" class="size-4" />
+        <span>No matching selection — please pick from the list.</span>
+      </p>
     </div>
     """
   end

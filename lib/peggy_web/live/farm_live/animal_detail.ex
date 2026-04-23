@@ -619,12 +619,14 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   # individuals since the count is always 1.
   defp reason_options(%Animal{tracking_type: "individual"}) do
     Movement.reasons()
-    |> Enum.reject(&(&1 in ["adjustment_loss", "adjustment_gain"]))
+    |> Enum.reject(&(&1 in ["adjustment_loss", "adjustment_gain", "wean"]))
     |> Enum.map(&{humanize_reason(&1), &1})
   end
 
   defp reason_options(_) do
-    Enum.map(Movement.reasons(), &{humanize_reason(&1), &1})
+    Movement.reasons()
+    |> Enum.reject(&(&1 == "wean"))
+    |> Enum.map(&{humanize_reason(&1), &1})
   end
 
   defp humanize_reason(r), do: r |> String.replace("_", " ") |> String.capitalize()

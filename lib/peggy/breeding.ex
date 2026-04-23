@@ -28,7 +28,7 @@ defmodule Peggy.Breeding do
   alias Peggy.Animals.Animal
   alias Peggy.Audit.AuditLog
   alias Peggy.Breeding.{Service, Farrowing, Weaning, LitterEvent}
-  alias Peggy.Animals.{Movement, Placement}
+  alias Peggy.Animals.Movement
 
   @gestation_days 114
   @lactation_days 24
@@ -56,7 +56,7 @@ defmodule Peggy.Breeding do
       |> auto_close_prior_service(scope, attrs)
       |> Multi.insert(:service, Service.changeset(%Service{}, attrs))
       |> update_sow_status(attrs["sow_id"], "served")
-      |> audit_after(scope, "service.created", :service)
+      |> audit_after(scope, "service.created", :service, &service_audit_data/1)
 
     case Repo.transaction(multi) do
       {:ok, %{service: service}} -> {:ok, service}
@@ -94,7 +94,7 @@ defmodule Peggy.Breeding do
         |> auto_close_prior_service_keyed(scope, attrs, i)
         |> Multi.insert({:service, i}, Service.changeset(%Service{}, attrs))
         |> update_sow_status_keyed(attrs["sow_id"], "served", i)
-        |> audit_after_keyed(scope, "service.created", {:service, i}, i)
+        |> audit_after_keyed(scope, "service.created", {:service, i}, i, &service_audit_data/1)
       end)
 
     case Repo.transaction(multi) do
@@ -248,7 +248,13 @@ defmodule Peggy.Breeding do
             |> Multi.insert({:service, i}, Service.changeset(%Service{}, attrs))
             |> update_sow_status_keyed(attrs["sow_id"], "served", i)
             |> maybe_move_existing_sow_keyed(farm.id, attrs["sow_id"], pen_id, served_at, i)
-            |> audit_after_keyed(scope, "service.created", {:service, i}, i)
+            |> audit_after_keyed(
+              scope,
+              "service.created",
+              {:service, i},
+              i,
+              &service_audit_data/1
+            )
 
           {i, :inferred, ear_tag, backfill, attrs} ->
             pen_id = to_int(attrs["pen_id"])
@@ -282,7 +288,13 @@ defmodule Peggy.Breeding do
               sow |> Ecto.Changeset.change(changes_map) |> Repo.update()
             end)
             |> maybe_insert_inferred_placement_keyed(farm.id, pen_id, served_at, i)
-            |> audit_after_keyed(scope, "service.created", {:service, i}, i)
+            |> audit_after_keyed(
+              scope,
+              "service.created",
+              {:service, i},
+              i,
+              &service_audit_data/1
+            )
         end
       end)
 
@@ -531,7 +543,7 @@ defmodule Peggy.Breeding do
         sow |> Ecto.Changeset.change(changes) |> Repo.update()
       end)
       |> maybe_insert_inferred_sow_placement(farm.id, pen_id, served_at)
-      |> audit_after(scope, "service.created", :service)
+      |> audit_after(scope, "service.created", :service, &service_audit_data/1)
 
     case Repo.transaction(multi) do
       {:ok, %{service: service, sow_served: sow}} ->
@@ -716,14 +728,18 @@ defmodule Peggy.Breeding do
     end
   end
 
-  defp audit_after_keyed(multi, scope, action, key, i) do
+  defp audit_after_keyed(multi, scope, action, key, i, change_fn) do
     Multi.run(multi, {:audit, action, i}, fn _repo, changes ->
       row = Map.fetch!(changes, key)
 
-      Audit.log_now!(scope, action,
-        entity_type: :service,
-        entity_id: row.id
-      )
+      opts = [entity_type: :service, entity_id: row.id]
+
+      opts =
+        if change_fn,
+          do: Keyword.put(opts, :changes, stringify_keys(change_fn.(row))),
+          else: opts
+
+      Audit.log_now!(scope, action, opts)
 
       {:ok, :logged}
     end)
@@ -1238,7 +1254,7 @@ defmodule Peggy.Breeding do
       )
       |> maybe_move_sow(farm.id, sow, pen_id, farrowed_at)
       |> update_sow_for_farrowing(sow, pen_id)
-      |> audit_after(scope, "farrowing.created", :farrowing)
+      |> audit_after(scope, "farrowing.created", :farrowing, &farrowing_audit_data/1)
 
     case Repo.transaction(multi) do
       {:ok, %{farrowing: farrowing}} ->
@@ -1285,11 +1301,17 @@ defmodule Peggy.Breeding do
         {:error, :gestation_out_of_range}
 
       true ->
+        farrowing_attrs =
+          Map.merge(attrs, %{
+            "inferred" => true,
+            "created_via" => "farrowing_backfill"
+          })
+
         Repo.transaction(fn ->
           with {:ok, sow} <- resolve_or_create_backfill_sow(scope, mode),
                {:ok, sow} <- ensure_sow_served_for_backfill(sow),
-               {:ok, service} <- insert_backfill_service(farm.id, sow.id, attrs) do
-            case record_farrowing(scope, service, attrs) do
+               {:ok, service} <- insert_backfill_service(scope, farm.id, sow.id, attrs) do
+            case record_farrowing(scope, service, farrowing_attrs) do
               {:ok, farrowing} -> farrowing
               {:error, reason} -> Repo.rollback(reason)
             end
@@ -1307,7 +1329,7 @@ defmodule Peggy.Breeding do
     end
   end
 
-  defp resolve_or_create_backfill_sow(%Scope{farm: farm}, {:new_sow, attrs}) do
+  defp resolve_or_create_backfill_sow(%Scope{farm: farm} = scope, {:new_sow, attrs}) do
     attrs =
       attrs
       |> stringify_keys()
@@ -1323,8 +1345,25 @@ defmodule Peggy.Breeding do
       })
 
     case Animal.changeset(%Animal{}, attrs) |> Repo.insert() do
-      {:ok, sow} -> {:ok, sow}
-      {:error, cs} -> {:error, {:sow, cs}}
+      {:ok, sow} ->
+        Audit.log_now!(scope, "animal.created.inferred",
+          entity_type: :animal,
+          entity_id: sow.id,
+          changes: %{
+            "ear_tag" => sow.ear_tag,
+            "stage" => sow.stage,
+            "sex" => sow.sex,
+            "status" => sow.status,
+            "created_via" => sow.created_via,
+            "inferred" => sow.inferred,
+            "needs_review" => sow.needs_review
+          }
+        )
+
+        {:ok, sow}
+
+      {:error, cs} ->
+        {:error, {:sow, cs}}
     end
   end
 
@@ -1336,7 +1375,7 @@ defmodule Peggy.Breeding do
     |> Repo.update()
   end
 
-  defp insert_backfill_service(farm_id, sow_id, attrs) do
+  defp insert_backfill_service(%Scope{} = scope, farm_id, sow_id, attrs) do
     service_attrs = %{
       "farm_id" => farm_id,
       "sow_id" => sow_id,
@@ -1349,8 +1388,17 @@ defmodule Peggy.Breeding do
     }
 
     case Service.changeset(%Service{}, service_attrs) |> Repo.insert() do
-      {:ok, service} -> {:ok, service}
-      {:error, cs} -> {:error, {:service, cs}}
+      {:ok, service} ->
+        Audit.log_now!(scope, "service.created.inferred",
+          entity_type: :service,
+          entity_id: service.id,
+          changes: stringify_keys(service_audit_data(service))
+        )
+
+        {:ok, service}
+
+      {:error, cs} ->
+        {:error, {:service, cs}}
     end
   end
 
@@ -1695,6 +1743,35 @@ defmodule Peggy.Breeding do
   end
 
   @doc """
+  Latest farrowing for a sow that has not yet been weaned. "Open"
+  means no live (non-deleted) `Weaning` row exists for it.
+
+  Returns the `%Farrowing{}` with `:sow`, `:pen`, and `service: [:boar]`
+  preloaded, or `nil`.
+  """
+  def latest_open_farrowing_for_sow(%Scope{farm: farm}, sow_id) when is_integer(sow_id) do
+    Repo.one(
+      from(f in Farrowing,
+        left_join: w in Weaning,
+        on: w.farrowing_id == f.id and is_nil(w.deleted_at),
+        where:
+          f.farm_id == ^farm.id and
+            f.sow_id == ^sow_id and
+            is_nil(f.deleted_at) and
+            is_nil(w.id),
+        order_by: [desc: f.farrowed_at, desc: f.id],
+        limit: 1
+      )
+    )
+    |> case do
+      nil -> nil
+      f -> Repo.preload(f, [:sow, [pen: :house], service: [:boar]])
+    end
+  end
+
+  def latest_open_farrowing_for_sow(_scope, _), do: nil
+
+  @doc """
   Gets a farrowing by id, scoped to the farm.
   """
   def get_farrowing!(%Scope{farm: farm}, id) do
@@ -1703,7 +1780,7 @@ defmodule Peggy.Breeding do
         where: f.id == ^id and f.farm_id == ^farm.id and is_nil(f.deleted_at)
       )
     )
-    |> Repo.preload([:sow, :pen, :weaning, :piglets, service: [:boar]])
+    |> Repo.preload([:sow, :weaning, :piglets, pen: :house, service: [:boar]])
   end
 
   @doc """
@@ -2033,17 +2110,30 @@ defmodule Peggy.Breeding do
   @doc """
   Records a weaning event for a farrowed litter.
 
+  Weaner-batch pooling (Option A): weaners are tracked as a single
+  `Animal` row per free-text `ear_tag`. Every wean against that tag
+  writes a `wean` `Movement` (linked via `weaning_id`) that carries the
+  count, and increments the batch row's `quantity`. If no active weaner
+  batch with that tag exists yet, a fresh row is inserted first with
+  `quantity: 0` and `current_pen_id: nil`. `batch_tag` is required
+  whenever `weaned_count >= 1`.
+
   In one atomic transaction:
   1. Inserts the weaning row
   2. For `weaned_count >= 1`:
-     - Updates the litter batch: `stage → "weaner"`, `quantity → weaned_count`
-     - If `destination_pen_id` is given, closes old placement and moves batch
-  3. For `weaned_count == 0`:
-     - Marks the litter batch as `status = "deceased"`, `quantity = 0`
-  4. Audits the weaning
+     - Resolves (or inserts at quantity 0) the weaner batch keyed by `batch_tag`
+     - Writes a `wean` `Movement` linked to the weaning (`weaning_id` FK)
+     - Increments `batch.quantity` by the weaned count
+     - Sets `weaning.batch_animal_id` to the resolved batch
+  3. If `destination_pen_id` is given, moves the **sow** (not the
+     batch) into that pen. Batch placement is a separate step.
+  4. Transitions sow `lactating → dry` when applicable
+  5. Audits the weaning
 
-  Returns `{:ok, weaning, batch}` on success.
-  The third element is the updated batch animal, or nil if no litter exists.
+  Returns `{:ok, weaning, batch}` on success. `batch` is `nil` when
+  `weaned_count == 0`.
+
+  Error reasons include `:already_weaned`, `:batch_tag_required`.
   """
   def record_weaning(%Scope{} = scope, %Farrowing{} = farrowing, attrs) do
     if Repo.one(
@@ -2062,110 +2152,253 @@ defmodule Peggy.Breeding do
     weaned_count = to_int(attrs["weaned_count"]) || 0
     dest_pen_id = to_int(attrs["destination_pen_id"])
     weaned_at = attrs["weaned_at"]
+    batch_tag = normalize_batch_tag(attrs["batch_tag"])
     sow = Repo.get!(Animal, farrowing.sow_id)
 
-    weaning_attrs =
-      attrs
-      |> Map.merge(%{
-        "farm_id" => farm.id,
-        "farrowing_id" => farrowing.id
-      })
+    cond do
+      weaned_count >= 1 and is_nil(batch_tag) ->
+        {:error, :batch_tag_required}
 
-    multi =
-      Multi.new()
-      |> Multi.insert(:weaning, Weaning.changeset(%Weaning{}, weaning_attrs))
-      |> consolidate_piglets(farm.id, farrowing, sow, weaned_count, dest_pen_id, weaned_at)
-      |> update_sow_after_weaning(sow)
-      |> audit_after(scope, "weaning.created", :weaning)
+      true ->
+        weaning_attrs =
+          attrs
+          |> Map.drop(["batch_tag"])
+          |> Map.merge(%{
+            "farm_id" => farm.id,
+            "farrowing_id" => farrowing.id
+          })
 
-    case Repo.transaction(multi) do
-      {:ok, %{weaning: weaning} = results} ->
-        batch = Map.get(results, :batch)
-        {:ok, weaning, batch}
+        multi =
+          Multi.new()
+          |> Multi.insert(:weaning, Weaning.changeset(%Weaning{}, weaning_attrs))
+          |> consolidate_piglets(farm.id, farrowing, sow, weaned_count, batch_tag, weaned_at)
+          |> audit_new_batch_animal(scope)
+          |> audit_wean_movement(scope)
+          |> link_weaning_to_batch()
+          |> maybe_move_sow_on_weaning(farm.id, sow, dest_pen_id, weaned_at)
+          |> update_sow_after_weaning(sow)
+          |> audit_after(scope, "weaning.created", :weaning, &weaning_audit_data/1)
 
-      {:error, :weaning, cs, _} ->
-        {:error, cs}
+        case Repo.transaction(multi) do
+          {:ok, results} ->
+            weaning = Map.get(results, :weaning_linked) || Map.fetch!(results, :weaning)
+            batch = Map.get(results, :batch_qty_updated) || Map.get(results, :batch)
+            {:ok, weaning, batch}
 
-      {:error, step, cs, _} ->
-        {:error, {step, cs}}
+          {:error, :weaning, cs, _} ->
+            {:error, cs}
+
+          {:error, step, cs, _} ->
+            {:error, {step, cs}}
+        end
     end
   end
 
-  # weaned_count >= 1: create a fresh weaner batch Animal for the litter,
-  # optionally placed in a destination pen.
-  defp consolidate_piglets(multi, farm_id, farrowing, sow, count, dest_pen_id, weaned_at)
-       when count >= 1 do
-    service = Repo.get!(Service, farrowing.service_id)
-    # When no destination pen is supplied, the weaner stays in the
-    # farrowing pen.
-    place_pen_id = dest_pen_id || farrowing.pen_id
+  @doc """
+  Records a weaning for a sow that has no open farrowing on file by
+  cascading the backfill: creates an inferred service + farrowing
+  (and optionally the sow itself) inline, then records the weaning.
 
-    multi
-    |> Multi.run(:batch, fn repo, _ ->
-      Animal.piglet_changeset(%Animal{}, %{
-        "tracking_type" => "batch",
-        "stage" => "weaner",
-        "status" => "active",
-        "quantity" => count,
-        "dob" => farrowing.farrowed_at,
-        "dam_id" => sow.id,
-        "sire_id" => service.boar_id,
-        "farrowing_id" => farrowing.id,
-        "farm_id" => farm_id,
-        "current_pen_id" => place_pen_id
-      })
-      |> repo.insert()
-    end)
-    |> maybe_place_weaned_batch(farm_id, place_pen_id, weaned_at)
+  `mode` matches `record_farrowing_with_backfill/3`:
+
+    * `{:existing_sow, sow_id}` — sow registered, but no open farrowing.
+    * `{:new_sow, sow_attrs}` — sow unknown.
+
+  `attrs` must include `:weaned_at`, `:served_at`, `:farrowed_at`, and
+  the normal weaning fields (`:weaned_count`, `:batch_tag`, etc).
+  Defaults applied by the caller LV: `farrowed_at = weaned_at − lactation_days`,
+  `served_at = farrowed_at − gestation_days`. Created service/sow carry
+  `inferred: true` and `created_via: "weaning_backfill"` (via the
+  delegated `record_farrowing_with_backfill/3`).
+
+  Returns `{:ok, weaning, batch}` on success — same shape as
+  `record_weaning/3`.
+  """
+  def record_weaning_with_backfill(%Scope{} = scope, mode, attrs) do
+    attrs = stringify_keys(attrs)
+    weaned_at = parse_date(attrs["weaned_at"])
+
+    cond do
+      is_nil(weaned_at) ->
+        {:error, :weaned_at_required}
+
+      true ->
+        Repo.transaction(fn ->
+          case record_farrowing_with_backfill(scope, mode, attrs) do
+            {:ok, farrowing} ->
+              case do_record_weaning(scope, farrowing, attrs) do
+                {:ok, weaning, batch} -> {weaning, batch}
+                {:error, reason} -> Repo.rollback(reason)
+              end
+
+            {:error, reason} ->
+              Repo.rollback(reason)
+          end
+        end)
+        |> case do
+          {:ok, {weaning, batch}} -> {:ok, weaning, batch}
+          {:error, reason} -> {:error, reason}
+        end
+    end
   end
 
-  # weaned_count == 0: no weaner batch is created; all piglets died or
-  # were fostered out. Deaths/fostering are already captured in the
-  # `LitterEvent` ledger.
-  defp consolidate_piglets(multi, _farm_id, _farrowing, _sow, 0, _dest_pen_id, _weaned_at) do
+  defp normalize_batch_tag(nil), do: nil
+
+  defp normalize_batch_tag(tag) when is_binary(tag) do
+    case String.trim(tag) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp normalize_batch_tag(_), do: nil
+
+  # weaned_count == 0: no weaner batch created; deaths/fostering are
+  # already captured in the `LitterEvent` ledger.
+  defp consolidate_piglets(multi, _farm_id, _farrowing, _sow, 0, _tag, _weaned_at) do
     Multi.run(multi, :batch, fn _repo, _ -> {:ok, nil} end)
   end
 
-  defp maybe_place_weaned_batch(multi, _farm_id, nil, _weaned_at), do: multi
-
-  defp maybe_place_weaned_batch(multi, farm_id, dest_pen_id, weaned_at) do
-    moved = weaned_at || Date.utc_today()
+  # weaned_count >= 1: every wean creates a `wean` Movement row (linked
+  # to its `weaning_id`) that adds `count` to the batch's quantity. The
+  # first wean against a new tag inserts the Animal batch with
+  # `quantity: 0` first; subsequent weans reuse the same row. Uniform
+  # write path = uniform delete path.
+  defp consolidate_piglets(multi, farm_id, farrowing, sow, count, batch_tag, weaned_at)
+       when count >= 1 and is_binary(batch_tag) do
+    service = Repo.get!(Service, farrowing.service_id)
 
     multi
-    |> Multi.run(:wean_placement, fn repo, %{batch: batch} ->
+    |> Multi.run(:existing_batch, fn repo, _ ->
+      {:ok, repo.one(active_weaner_batch_query(farm_id, batch_tag))}
+    end)
+    |> Multi.run(:batch, fn repo, %{existing_batch: existing} ->
+      case existing do
+        %Animal{} = existing ->
+          {:ok, existing}
+
+        nil ->
+          Animal.piglet_changeset(%Animal{}, %{
+            "tracking_type" => "batch",
+            "stage" => "weaner",
+            "status" => "active",
+            "ear_tag" => batch_tag,
+            "quantity" => 0,
+            "dob" => farrowing.farrowed_at,
+            "dam_id" => sow.id,
+            "sire_id" => service.boar_id,
+            "farrowing_id" => farrowing.id,
+            "farm_id" => farm_id,
+            "current_pen_id" => nil
+          })
+          |> repo.insert()
+      end
+    end)
+    |> Multi.run(:wean_movement, fn repo, %{weaning: weaning, batch: batch} ->
+      Movement.changeset(%Movement{}, %{
+        "farm_id" => farm_id,
+        "animal_id" => batch.id,
+        "weaning_id" => weaning.id,
+        "reason" => "wean",
+        "from_pen_id" => farrowing.pen_id,
+        "to_pen_id" => batch.current_pen_id,
+        "quantity" => count,
+        "moved_at" => weaned_at || Date.utc_today()
+      })
+      |> repo.insert()
+    end)
+    |> Multi.run(:batch_qty_updated, fn repo, %{batch: batch} ->
+      batch
+      |> Ecto.Changeset.change(%{quantity: (batch.quantity || 0) + count})
+      |> repo.update()
+    end)
+  end
+
+  # Stamps weaning.batch_animal_id with the resolved batch id, so each
+  # weaning keeps provenance on which pool it contributed to.
+  defp link_weaning_to_batch(multi) do
+    Multi.run(multi, :weaning_linked, fn repo, %{weaning: weaning, batch: batch} ->
       case batch do
         nil ->
           {:ok, nil}
 
-        batch ->
-          repo.insert(
-            Placement.changeset(%Placement{}, %{
-              animal_id: batch.id,
-              pen_id: dest_pen_id,
-              quantity: batch.quantity,
-              placed_at: moved
-            })
-          )
+        %Animal{} = b ->
+          weaning
+          |> Ecto.Changeset.change(%{batch_animal_id: b.id})
+          |> repo.update()
       end
     end)
-    |> Multi.run(:wean_movement, fn repo, %{batch: batch} ->
-      case batch do
-        nil ->
-          {:ok, nil}
+  end
 
-        batch ->
-          repo.insert(
-            Movement.changeset(%Movement{}, %{
-              "farm_id" => farm_id,
-              "animal_id" => batch.id,
-              "reason" => "placement",
-              "to_pen_id" => dest_pen_id,
-              "quantity" => batch.quantity,
-              "moved_at" => moved
-            })
-          )
-      end
-    end)
+  # Weaning's destination_pen_id is the **sow's** destination (dry-sow
+  # housing). The weaner batch is placed separately. No-op when nil or
+  # when the sow is already in that pen.
+  defp maybe_move_sow_on_weaning(multi, _farm_id, _sow, nil, _weaned_at), do: multi
+
+  defp maybe_move_sow_on_weaning(multi, farm_id, sow, dest_pen_id, weaned_at)
+       when is_integer(dest_pen_id) do
+    if sow.current_pen_id == dest_pen_id do
+      multi
+    else
+      moved = weaned_at || Date.utc_today()
+      reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
+
+      multi
+      |> Multi.run(:sow_movement, fn repo, _ ->
+        Movement.changeset(%Movement{}, %{
+          "farm_id" => farm_id,
+          "animal_id" => sow.id,
+          "from_pen_id" => sow.current_pen_id,
+          "to_pen_id" => dest_pen_id,
+          "reason" => reason,
+          "quantity" => 1,
+          "moved_at" => moved
+        })
+        |> repo.insert()
+      end)
+      |> Multi.run(:sow_pen_updated, fn repo, _ ->
+        sow |> Ecto.Changeset.change(%{current_pen_id: dest_pen_id}) |> repo.update()
+      end)
+    end
+  end
+
+  defp active_weaner_batch_query(farm_id, tag) do
+    from(a in Animal,
+      where:
+        a.farm_id == ^farm_id and
+          a.tracking_type == "batch" and
+          a.stage == "weaner" and
+          a.status == "active" and
+          a.ear_tag == ^tag,
+      limit: 1
+    )
+  end
+
+  @doc """
+  Lists active weaner batches for the farm, ordered by `ear_tag`.
+  Used by the weaning form's batch_tag autocomplete.
+  """
+  def list_active_weaner_batches(%Scope{farm: farm}) do
+    from(a in Animal,
+      where:
+        a.farm_id == ^farm.id and
+          a.tracking_type == "batch" and
+          a.stage == "weaner" and
+          a.status == "active",
+      order_by: [asc: a.ear_tag]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Finds the active weaner batch with this `ear_tag` on the farm, or
+  `nil`. Tag whitespace is trimmed; blank → `nil`.
+  """
+  def find_active_weaner_batch(%Scope{farm: farm}, tag) do
+    case normalize_batch_tag(tag) do
+      nil -> nil
+      clean -> Repo.one(active_weaner_batch_query(farm.id, clean))
+    end
   end
 
   @doc """
@@ -2237,41 +2470,43 @@ defmodule Peggy.Breeding do
   end
 
   defp post_weaning_clean?(%Scope{farm: farm}, %Weaning{} = w) do
-    farrowing = Repo.get!(Farrowing, w.farrowing_id)
     count = w.weaned_count || 0
-
-    batch =
-      Repo.one(
-        from(a in Animal,
-          where:
-            a.farm_id == ^farm.id and
-              a.farrowing_id == ^farrowing.id and
-              a.tracking_type == "batch"
-        )
-      )
 
     cond do
       count == 0 ->
-        # No weaner batch should exist.
-        is_nil(batch)
+        # No weaner batch was created; nothing to validate on the
+        # batch side.
+        true
 
-      is_nil(batch) ->
-        false
+      is_nil(w.batch_animal_id) ->
+        # Legacy weanings predating the batch_animal_id backfill —
+        # fall back to the per-farrowing lookup so we at least ensure
+        # the litter batch is still present and serviceable.
+        farrowing = Repo.get!(Farrowing, w.farrowing_id)
 
-      true ->
-        later_moves =
-          Repo.aggregate(
-            from(m in Movement,
-              where: m.animal_id == ^batch.id and m.moved_at > ^w.weaned_at
-            ),
-            :count,
-            :id
+        batch =
+          Repo.one(
+            from(a in Animal,
+              where:
+                a.farm_id == ^farm.id and
+                  a.farrowing_id == ^farrowing.id and
+                  a.tracking_type == "batch"
+            )
           )
 
-        later_moves == 0 and
-          batch.quantity == count and
+        not is_nil(batch) and
           batch.status == "active" and
-          batch.stage == "weaner"
+          batch.stage == "weaner" and
+          (batch.quantity || 0) >= count
+
+      true ->
+        batch = Repo.get(Animal, w.batch_animal_id)
+
+        not is_nil(batch) and
+          batch.farm_id == farm.id and
+          batch.status == "active" and
+          batch.stage == "weaner" and
+          (batch.quantity || 0) >= count
     end
   end
 
@@ -2279,11 +2514,17 @@ defmodule Peggy.Breeding do
   Soft-deletes a weaning and reverses its side-effects atomically.
 
   Cascade (in one transaction):
-    * hard-delete the weaner batch Animal created at weaning, along
-      with its placement and movement rows
+    * decrement `batch.quantity` by the weaned count on the linked
+      weaner batch. When the result hits zero, transition the batch
+      to `status = "deceased"` (the batch shell is kept for audit).
+    * delete the `wean` movement row written for this weaning
+      (linked via `weaning_id`).
     * revert sow status `"dry"` → `"lactating"` (if applicable)
     * stamp `deleted_at` / `deleted_by_id` on the weaning row
     * write `weaning.deleted` audit with a row snapshot
+
+  The sow's pen-transfer at weaning (if any) is **not** reversed —
+  same policy as farrowing pen moves.
 
   Error reasons: `:already_deleted`, `:weaning_has_activity`.
   """
@@ -2304,44 +2545,66 @@ defmodule Peggy.Breeding do
     now = DateTime.utc_now(:second)
     user_id = scope.user && scope.user.id
     farrowing = Repo.get!(Farrowing, w.farrowing_id)
+    count = w.weaned_count || 0
 
     multi =
       Multi.new()
-      |> Multi.run(:load, fn repo, _ ->
+      |> Multi.run(:load_batch, fn repo, _ ->
         batch =
-          repo.one(
-            from(a in Animal,
-              where:
-                a.farm_id == ^scope.farm.id and
-                  a.farrowing_id == ^farrowing.id and
-                  a.tracking_type == "batch"
-            )
-          )
+          cond do
+            count == 0 ->
+              nil
 
-        {:ok, %{batch: batch}}
+            w.batch_animal_id ->
+              repo.get(Animal, w.batch_animal_id)
+
+            true ->
+              # Legacy fallback: locate the batch via farrowing_id.
+              repo.one(
+                from(a in Animal,
+                  where:
+                    a.farm_id == ^scope.farm.id and
+                      a.farrowing_id == ^farrowing.id and
+                      a.tracking_type == "batch"
+                )
+              )
+          end
+
+        {:ok, batch}
       end)
-      |> Multi.run(:delete_batch_movements, fn repo, %{load: %{batch: batch}} ->
-        if batch do
-          {count, _} =
-            repo.delete_all(from(m in Movement, where: m.animal_id == ^batch.id))
+      |> Multi.run(:delete_wean_movement, fn repo, %{load_batch: batch} ->
+        case batch do
+          nil ->
+            {:ok, 0}
 
-          {:ok, count}
-        else
-          {:ok, 0}
+          %Animal{} ->
+            {n, _} =
+              repo.delete_all(
+                from(m in Movement,
+                  where: m.weaning_id == ^w.id and m.reason == "wean"
+                )
+              )
+
+            {:ok, n}
         end
       end)
-      |> Multi.run(:delete_batch_placements, fn repo, %{load: %{batch: batch}} ->
-        if batch do
-          {count, _} =
-            repo.delete_all(from(p in Placement, where: p.animal_id == ^batch.id))
+      |> Multi.run(:decrement_batch, fn repo, %{load_batch: batch} ->
+        case batch do
+          nil ->
+            {:ok, nil}
 
-          {:ok, count}
-        else
-          {:ok, 0}
+          %Animal{} = b ->
+            new_qty = max((b.quantity || 0) - count, 0)
+
+            changes =
+              if new_qty == 0 do
+                %{quantity: 0, status: "deceased"}
+              else
+                %{quantity: new_qty}
+              end
+
+            b |> Ecto.Changeset.change(changes) |> repo.update()
         end
-      end)
-      |> Multi.run(:delete_batch, fn repo, %{load: %{batch: batch}} ->
-        if batch, do: repo.delete(batch), else: {:ok, nil}
       end)
       |> Multi.run(:revert_sow, fn repo, _ ->
         sow = repo.get!(Animal, farrowing.sow_id)
@@ -2745,17 +3008,110 @@ defmodule Peggy.Breeding do
   defp maybe_filter_service(query, :result, val),
     do: where(query, [s], s.result == ^to_string(val))
 
-  defp audit_after(multi, scope, action, key) do
+  defp audit_after(multi, scope, action, key, change_fn \\ nil) do
     Multi.run(multi, {:audit, action}, fn _repo, changes ->
       row = Map.fetch!(changes, key)
 
-      Audit.log_now!(scope, action,
-        entity_type: key,
-        entity_id: row.id
-      )
+      opts = [entity_type: key, entity_id: row.id]
+
+      opts =
+        if change_fn,
+          do: Keyword.put(opts, :changes, stringify_keys(change_fn.(row))),
+          else: opts
+
+      Audit.log_now!(scope, action, opts)
 
       {:ok, :logged}
     end)
+  end
+
+  defp audit_new_batch_animal(multi, scope) do
+    Multi.run(multi, {:audit, :batch_animal_created}, fn _repo, changes ->
+      case {Map.get(changes, :existing_batch), Map.get(changes, :batch)} do
+        {nil, %Animal{} = batch} ->
+          Audit.log_now!(scope, "animal.created",
+            entity_type: :animal,
+            entity_id: batch.id,
+            changes: %{
+              ear_tag: batch.ear_tag,
+              tracking_type: batch.tracking_type,
+              stage: batch.stage,
+              dob: batch.dob,
+              dam_id: batch.dam_id,
+              sire_id: batch.sire_id,
+              farrowing_id: batch.farrowing_id
+            }
+          )
+
+          {:ok, :logged}
+
+        _ ->
+          {:ok, :skipped}
+      end
+    end)
+  end
+
+  defp audit_wean_movement(multi, scope) do
+    Multi.run(multi, {:audit, :wean_movement}, fn _repo, changes ->
+      case Map.get(changes, :wean_movement) do
+        nil ->
+          {:ok, :skipped}
+
+        %Movement{} = m ->
+          Audit.log_now!(scope, "movement.recorded",
+            entity_type: :animal,
+            entity_id: m.animal_id,
+            changes: %{
+              reason: m.reason,
+              from_pen_id: m.from_pen_id,
+              to_pen_id: m.to_pen_id,
+              quantity: m.quantity,
+              weaning_id: m.weaning_id
+            }
+          )
+
+          {:ok, :logged}
+      end
+    end)
+  end
+
+  defp service_audit_data(%Service{} = s) do
+    %{
+      sow_id: s.sow_id,
+      boar_id: s.boar_id,
+      service_type: s.service_type,
+      served_at: s.served_at,
+      technician_user_id: s.technician_user_id,
+      inferred: s.inferred,
+      created_via: s.created_via
+    }
+  end
+
+  defp farrowing_audit_data(%Farrowing{} = f) do
+    %{
+      service_id: f.service_id,
+      sow_id: f.sow_id,
+      pen_id: f.pen_id,
+      farrowed_at: f.farrowed_at,
+      born_alive: f.born_alive,
+      stillborn: f.stillborn,
+      mummified: f.mummified,
+      total_birth_weight_g: f.total_birth_weight_g,
+      inferred: f.inferred,
+      created_via: f.created_via
+    }
+  end
+
+  defp weaning_audit_data(%Weaning{} = w) do
+    %{
+      farrowing_id: w.farrowing_id,
+      weaned_at: w.weaned_at,
+      weaned_count: w.weaned_count,
+      avg_wean_weight_g: w.avg_wean_weight_g,
+      destination_pen_id: w.destination_pen_id,
+      inferred: w.inferred,
+      created_via: w.created_via
+    }
   end
 
   defp stringify_keys(map) when is_map(map) do

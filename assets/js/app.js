@@ -45,7 +45,13 @@ const AutoComplete = {
     const emptyText = this.el.dataset.acEmptyText || ""
     const hiddenId = this.el.id.replace(/-input$/, "-value")
     const hidden = document.getElementById(hiddenId)
+    const warningId = this.el.id.replace(/-input$/, "-warning")
+    const warning = document.getElementById(warningId)
     const hook = this
+    const showWarning = (on) => {
+      if (!warning) return
+      warning.classList.toggle("hidden", !on)
+    }
     // Results <ul> is attached to the fieldset div so it sits outside the
     // <label> (clicks on the label re-focus the input, which would fight
     // the library's selection logic) and so `absolute top-full` resolves
@@ -57,6 +63,7 @@ const AutoComplete = {
     // When the user starts typing, treat any prior selection as
     // invalidated until they pick a new one.
     this.onInput = () => {
+      showWarning(false)
       if (hidden && hidden.value) {
         hidden.value = ""
         hidden.dispatchEvent(new Event("input", {bubbles: true}))
@@ -71,6 +78,7 @@ const AutoComplete = {
       const wrapperId = hook.el.id.replace(/-input$/, "")
       if (id !== wrapperId) return
       hook.el.value = ""
+      showWarning(false)
       if (hidden) {
         hidden.value = ""
         hidden.dispatchEvent(new Event("input", {bubbles: true}))
@@ -110,14 +118,49 @@ const AutoComplete = {
         input: {
           // Show the full list as soon as the field gets focus — users
           // shouldn't have to type to discover what's available.
-          focus: () => hook.ac.start(),
+          focus: () => {
+            showWarning(false)
+            hook.ac.start()
+          },
           selection: (event) => {
             const sel = event.detail.selection.value
             hook.el.value = sel.label
+            showWarning(false)
             if (hidden) {
               hidden.value = sel.id
               // Let the form's phx-change handler run.
               hidden.dispatchEvent(new Event("input", {bubbles: true}))
+            }
+          },
+          // If the user leaves the field with text that uniquely
+          // identifies one item (exact label match, or a substring that
+          // matches only one item), auto-commit that item's id. Prevents
+          // typing "Sow-123" and submitting a form with a nil id.
+          blur: () => {
+            if (!hidden) return
+            if (hidden.value) {
+              showWarning(false)
+              hook.ac.close()
+              return
+            }
+            const q = hook.el.value.trim().toLowerCase()
+            if (!q) {
+              showWarning(false)
+              return
+            }
+            const exact = items.filter(i => i.label.toLowerCase() === q)
+            const matches =
+              exact.length === 1
+                ? exact
+                : items.filter(i => i.label.toLowerCase().includes(q))
+            if (matches.length === 1) {
+              hook.el.value = matches[0].label
+              hidden.value = matches[0].id
+              hidden.dispatchEvent(new Event("input", {bubbles: true}))
+              showWarning(false)
+              hook.ac.close()
+            } else {
+              showWarning(true)
             }
           }
         }
