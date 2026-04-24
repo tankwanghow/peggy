@@ -647,7 +647,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
          |> put_flash(:info, gettext("Movement recorded."))}
 
       {:error, cs} ->
-        {:noreply, assign(socket, :move_form, to_form(cs, as: :movement))}
+        cs = Map.put(cs, :action, :insert)
+
+        {:noreply,
+         socket
+         |> assign(:move_form, to_form(cs, as: :movement))
+         |> put_flash(:error, movement_error_flash(cs))}
     end
   end
 
@@ -1055,6 +1060,13 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     placed = Enum.reduce(placements, 0, fn p, acc -> acc + p.quantity end)
     total - placed
   end
+
+  defp movement_error_flash(%Ecto.Changeset{errors: [{field, {msg, opts}} | _]}) do
+    humanized = field |> to_string() |> String.replace("_", " ") |> String.capitalize()
+    "#{humanized}: #{PeggyWeb.CoreComponents.translate_error({msg, opts})}"
+  end
+
+  defp movement_error_flash(_), do: gettext("Could not record movement.")
 
   # Seed a blank Movement for the form. Default to "placement" only when
   # there's still quantity in the batch that isn't placed anywhere yet —

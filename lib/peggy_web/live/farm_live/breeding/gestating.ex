@@ -196,9 +196,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                 @svc.sow_state == :new && "text-warning",
                 @svc.sow_state == :similar && "text-error",
                 @svc.sow_state == :similar_overridable && "text-warning",
+                @svc.sow_state == :not_serviceable && "text-error",
                 @svc.sow_state == :empty && "text-base-content/40"
               ]}>
-                {sow_state_text(@svc.sow_state)}
+                {sow_state_text(@svc)}
               </p>
             </div>
 
@@ -693,6 +694,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
        svc: %{
          sow_ear_tag: "",
          sow_state: :empty,
+         not_serviceable_status: nil,
          similar_tags: [],
          resolved_sow_id: nil,
          force_create: false,
@@ -1227,6 +1229,18 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
            }
          )}
 
+      svc.sow_state == :not_serviceable ->
+        {:noreply,
+         assign(socket,
+           svc: %{
+             svc
+             | error_message:
+                 gettext("Sow is %{status} — cannot record a new service.",
+                   status: svc.not_serviceable_status
+                 )
+           }
+         )}
+
       true ->
         attrs = build_service_attrs(svc)
 
@@ -1316,13 +1330,27 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     {svc, ac} =
       cond do
         tag in [nil, ""] ->
-          {%{svc | sow_state: :empty, similar_tags: [], resolved_sow_id: nil},
-           %{ac | pen_label: nil}}
+          {%{
+             svc
+             | sow_state: :empty,
+               not_serviceable_status: nil,
+               similar_tags: [],
+               resolved_sow_id: nil
+           }, %{ac | pen_label: nil}}
 
         true ->
           case Animals.find_by_ear_tag(scope, tag) do
             %{id: id} = sow ->
-              svc = %{svc | sow_state: :existing, similar_tags: [], resolved_sow_id: id}
+              state = if sow_serviceable_status?(sow.status), do: :existing, else: :not_serviceable
+
+              svc = %{
+                svc
+                | sow_state: state,
+                  not_serviceable_status: if(state == :not_serviceable, do: sow.status),
+                  similar_tags: [],
+                  resolved_sow_id: id
+              }
+
               svc = if is_nil(svc.pen_id), do: %{svc | pen_id: sow.current_pen_id}, else: svc
               {svc, Shared.maybe_preselect_pen(%{ac | pen_label: nil}, scope, sow)}
 
@@ -1331,11 +1359,24 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
 
               case Animals.similar_ear_tags(scope, tag) do
                 [] ->
-                  {%{svc | sow_state: :new, similar_tags: [], resolved_sow_id: nil}, ac}
+                  {%{
+                     svc
+                     | sow_state: :new,
+                       not_serviceable_status: nil,
+                       similar_tags: [],
+                       resolved_sow_id: nil
+                   }, ac}
 
                 tags ->
                   state = if svc.force_create, do: :similar_overridable, else: :similar
-                  {%{svc | sow_state: state, similar_tags: tags, resolved_sow_id: nil}, ac}
+
+                  {%{
+                     svc
+                     | sow_state: state,
+                       not_serviceable_status: nil,
+                       similar_tags: tags,
+                       resolved_sow_id: nil
+                   }, ac}
               end
           end
       end
@@ -1380,6 +1421,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     end
   end
 
+  defp service_save_enabled?(%{sow_state: :not_serviceable}), do: false
+
   defp service_save_enabled?(%{sow_state: state, service_type: type, boar_id: boar_id}) do
     has_sow? = state in [:existing, :new, :similar_overridable]
     boar_ok? = type != "natural" or not is_nil(boar_id)
@@ -1396,8 +1439,13 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
   defp sow_input_class(:new), do: "border-warning focus:border-warning"
   defp sow_input_class(:similar_overridable), do: "border-warning focus:border-warning"
   defp sow_input_class(:similar), do: "border-error focus:border-error"
+  defp sow_input_class(:not_serviceable), do: "border-error focus:border-error"
   defp sow_input_class(_), do: ""
 
+  defp sow_state_text(%{sow_state: :not_serviceable, not_serviceable_status: status}),
+    do: gettext("✗ Sow is %{status} — cannot record service", status: status)
+
+  defp sow_state_text(%{sow_state: state}), do: sow_state_text(state)
   defp sow_state_text(:existing), do: gettext("✓ Existing sow on file")
   defp sow_state_text(:new), do: gettext("+ New tag — will register on save")
   defp sow_state_text(:similar), do: gettext("⚠ Looks similar to an existing tag")
@@ -1406,6 +1454,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     do: gettext("⚠ Override active — will create as new sow")
 
   defp sow_state_text(_), do: gettext("Type a tag to begin")
+
+  @serviceable_statuses ~w(active open dry served)
+  defp sow_serviceable_status?(status), do: status in @serviceable_statuses
 
   defp frw_state_text(:resolved), do: gettext("✓ Open service found")
   defp frw_state_text(:not_found), do: gettext("⚠ No sow with that tag")
