@@ -112,12 +112,45 @@ defmodule PeggyWeb.Layouts do
           icon="hero-map-pin-micro"
           label={gettext("Locations")}
         />
-        <.farm_nav_link
+        <div
           :if={Peggy.Policy.can?(@current_scope, :view_animals)}
-          href={~p"/farms/#{@current_scope.farm.slug}/animals"}
-          icon="hero-identification-micro"
-          label={gettext("Animals")}
-        />
+          class="dropdown dropdown-bottom"
+        >
+          <div
+            tabindex="0"
+            role="button"
+            class="flex items-center gap-1.5 px-3 py-2.5 rounded-md text-base-content/70 hover:text-base-content hover:bg-base-300/50 transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <.icon name="hero-identification-micro" class="size-4" />
+            {gettext("Animals")}
+            <.icon name="hero-chevron-down-micro" class="size-3" />
+          </div>
+          <ul
+            tabindex="0"
+            class="dropdown-content menu z-50 mt-1 w-56 rounded-md border border-base-300 bg-base-100 p-1 shadow-lg"
+          >
+            <li>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/animals"}>
+                {gettext("All Animals")}
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :manage_animals)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/animals?new=1"}>
+                {gettext("Register animal")}
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :manage_animals)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/animals/batch-register"}>
+                {gettext("Batch Register Sire/Dam")}
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :record_movement)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/animals/bulk-move"}>
+                {gettext("Bulk Move Sire/Dam")}
+              </.link>
+            </li>
+          </ul>
+        </div>
         <div
           :if={Peggy.Policy.can?(@current_scope, :read_breeding)}
           class="dropdown dropdown-bottom"
@@ -151,9 +184,7 @@ defmodule PeggyWeb.Layouts do
               </.link>
             </li>
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
-              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/deleted"}>
-                {gettext("Deleted")}
-              </.link>
+              <hr class="my-1 border-base-300" />
             </li>
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/gestating?new=service"}>
@@ -173,6 +204,9 @@ defmodule PeggyWeb.Layouts do
               </.link>
             </li>
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
+              <hr class="my-1 border-base-300" />
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/batch-service"}>
                 {gettext("Batch Service")}
               </.link>
@@ -185,6 +219,11 @@ defmodule PeggyWeb.Layouts do
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/batch-weaning"}>
                 {gettext("Batch Weaning")}
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/deleted"}>
+                {gettext("Deleted")}
               </.link>
             </li>
           </ul>

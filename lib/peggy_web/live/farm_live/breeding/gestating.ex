@@ -82,6 +82,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
               <thead class="text-left text-base-content/60">
                 <tr>
                   <th class="py-2">{gettext("Sow")}</th>
+                  <th class="py-2">{gettext("Pen")}</th>
                   <th class="py-2">{gettext("Boar")}</th>
                   <th class="py-2">{gettext("Type")}</th>
                   <th class="py-2">{gettext("Served")}</th>
@@ -105,6 +106,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                     >
                       {entry.service.sow.ear_tag}
                     </.link>
+                  </td>
+                  <td class="py-1.5 font-mono text-base-content/70">
+                    {sow_pen_label(entry.service.sow)}
                   </td>
                   <td class="py-1.5 font-mono">
                     {entry.service.boar && entry.service.boar.ear_tag}
@@ -1447,6 +1451,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
   defp days_left(%{expected_farrow_date: efd}) do
     Date.diff(efd, Date.utc_today())
   end
+
+  defp sow_pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}-#{code}"
+  defp sow_pen_label(%{current_pen: %{code: code}}), do: code
+  defp sow_pen_label(_), do: "—"
 
   defp expected_farrow(%{served_at: %Date{} = d}),
     do: Date.add(d, Breeding.gestation_days())

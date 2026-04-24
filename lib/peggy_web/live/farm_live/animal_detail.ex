@@ -3,6 +3,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
   alias Peggy.Animals
   alias Peggy.Animals.{Animal, Movement}
+  alias Peggy.Breeding
   alias Peggy.Locations
   alias Peggy.Policy
 
@@ -215,8 +216,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           </.form>
         </section>
 
-        <%!-- Movement history --%>
-        <section class="mt-8">
+        <%!-- Movement history (batches only) --%>
+        <section :if={@animal.tracking_type == "batch"} class="mt-8">
           <h3 class="font-semibold mb-2">{gettext("Movement history")}</h3>
           <table class="table table-sm w-full text-sm">
             <thead class="text-left text-base-content/60">
@@ -237,9 +238,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 id={dom_id}
                 class="border-t border-base-200"
               >
-                <td class="py-1.5 whitespace-nowrap">
-                  {m.moved_at}
-                </td>
+                <td class="py-1.5 whitespace-nowrap">{m.moved_at}</td>
                 <td class="py-1.5">{String.replace(m.reason, "_", " ")}</td>
                 <td class="py-1.5 font-mono">
                   {m.from_pen && "#{m.from_pen.house.code}-#{m.from_pen.code}"}
@@ -265,11 +264,55 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               </tr>
             </tbody>
           </table>
-          <p
-            :if={@movement_count == 0}
-            class="mt-2 text-sm text-base-content/60"
-          >
+          <p :if={@movement_count == 0} class="mt-2 text-sm text-base-content/60">
             {gettext("No movements recorded.")}
+          </p>
+        </section>
+
+        <%!-- Unified history (individuals only): movements + breeding --%>
+        <section :if={@animal.tracking_type == "individual"} class="mt-8">
+          <h3 class="font-semibold mb-2">{gettext("History")}</h3>
+          <table class="table table-sm w-full text-sm">
+            <thead class="text-left text-base-content/60">
+              <tr>
+                <th class="py-2">{gettext("When")}</th>
+                <th class="py-2">{gettext("Event")}</th>
+                <th class="py-2">{gettext("Detail")}</th>
+                <th class="py-2">{gettext("From → To")}</th>
+                <th class="py-2">{gettext("Notes")}</th>
+                <th :if={@can_move} class="py-2"></th>
+              </tr>
+            </thead>
+            <tbody id="history" phx-update="stream">
+              <tr
+                :for={{dom_id, row} <- @streams.history}
+                id={dom_id}
+                class="border-t border-base-200"
+              >
+                <td class="py-1.5 whitespace-nowrap">{history_date(row)}</td>
+                <td class="py-1.5">{history_event_label(row)}</td>
+                <td class="py-1.5 text-base-content/80">
+                  <.history_detail row={row} current_scope={@current_scope} animal={@animal} />
+                </td>
+                <td class="py-1.5 font-mono">{history_from_to(row)}</td>
+                <td class="py-1.5 text-base-content/60">{history_notes(row)}</td>
+                <td :if={@can_move} class="py-1.5 text-right">
+                  <button
+                    :if={history_undoable?(row, @latest_movement_id)}
+                    phx-click="undo_last_movement"
+                    class="btn btn-ghost btn-xs text-error"
+                    data-confirm={
+                      gettext("Undo this movement? This will reverse all related state changes.")
+                    }
+                  >
+                    {gettext("Undo")}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p :if={@history_count == 0} class="mt-2 text-sm text-base-content/60">
+            {gettext("No history recorded.")}
           </p>
         </section>
 
@@ -428,6 +471,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     offspring = Animals.list_offspring(scope, animal)
     placements = Animals.list_placements(scope, animal)
     movements = Animals.list_movements(scope, animal)
+    {services, litter_events} = breeding_data(scope, animal)
+    history = build_history(animal, movements, services, litter_events)
 
     move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 
@@ -445,10 +490,106 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
        move_form: to_form(move_cs, as: :movement),
        movement_count: length(movements),
        latest_movement_id: latest_id,
+       history_count: length(history),
        ac: move_ac_items(scope, placements),
        promote_stage: nil
      )
-     |> stream(:movements, movements)}
+     |> stream(:movements, movements)
+     |> stream(:history, history)}
+  end
+
+  defp breeding_data(scope, %Animal{tracking_type: "individual"} = animal) do
+    services = Breeding.list_services_for_animal(scope, animal.id)
+    litter_events = Breeding.list_litter_events_for_sow(scope, animal.id)
+    {services, litter_events}
+  end
+
+  defp breeding_data(_scope, _animal), do: {[], []}
+
+  defp build_history(
+         %Animal{tracking_type: "individual"} = animal,
+         movements,
+         services,
+         litter_events
+       ) do
+    rows =
+      Enum.map(movements, &row_from_movement/1) ++
+        Enum.flat_map(services, &rows_from_service(&1, animal.id)) ++
+        Enum.map(litter_events, &row_from_litter_event/1)
+
+    Enum.sort(rows, fn a, b ->
+      case Date.compare(a.date, b.date) do
+        :gt -> true
+        :lt -> false
+        :eq -> {a.priority, a.id} >= {b.priority, b.id}
+      end
+    end)
+  end
+
+  defp build_history(_animal, _movements, _services, _litter_events), do: []
+
+  defp row_from_movement(m) do
+    %{
+      id: "m-#{m.id}",
+      date: m.moved_at,
+      priority: 2,
+      kind: :movement,
+      data: m
+    }
+  end
+
+  defp rows_from_service(s, animal_id) do
+    open = %{
+      id: "s-#{s.id}",
+      date: s.served_at,
+      priority: 1,
+      kind: :service,
+      data: %{service: s, animal_id: animal_id}
+    }
+
+    close =
+      if s.result && s.result_at do
+        closed_kind =
+          case s.result do
+            "farrowing" -> :farrowing
+            _ -> :service_closed
+          end
+
+        %{
+          id: "sc-#{s.id}",
+          date: s.result_at,
+          priority: if(closed_kind == :farrowing, do: 3, else: 6),
+          kind: closed_kind,
+          data: %{service: s, animal_id: animal_id}
+        }
+      end
+
+    wean =
+      case s.farrowing && s.farrowing.weaning do
+        nil ->
+          nil
+
+        w ->
+          %{
+            id: "w-#{w.id}",
+            date: w.weaned_at,
+            priority: 5,
+            kind: :weaning,
+            data: %{weaning: w, farrowing: s.farrowing}
+          }
+      end
+
+    [open, close, wean] |> Enum.reject(&is_nil/1)
+  end
+
+  defp row_from_litter_event(e) do
+    %{
+      id: "le-#{e.id}",
+      date: e.occurred_at,
+      priority: 4,
+      kind: :litter_event,
+      data: e
+    }
   end
 
   @impl true
@@ -484,6 +625,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         animal = Animals.get_animal!(scope, animal.id)
         placements = Animals.list_placements(scope, animal)
         movements = Animals.list_movements(scope, animal)
+        {services, litter_events} = breeding_data(scope, animal)
+        history = build_history(animal, movements, services, litter_events)
 
         move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 
@@ -492,11 +635,13 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
          |> assign(
            animal: animal,
            placements: placements,
-           movement_count: length(movements)
+           movement_count: length(movements),
+           history_count: length(history)
          )
          |> assign(:move_form, to_form(move_cs, as: :movement))
          |> assign(:ac, move_ac_items(scope, placements))
          |> stream(:movements, movements, reset: true)
+         |> stream(:history, history, reset: true)
          |> push_event("ac:reset", %{id: "move-pen-picker"})
          |> push_event("ac:reset", %{id: "move-from-pen-picker"})
          |> put_flash(:info, gettext("Movement recorded."))}
@@ -516,6 +661,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           animal = Animals.get_animal!(scope, animal.id)
           placements = Animals.list_placements(scope, animal)
           movements = Animals.list_movements(scope, animal)
+          {services, litter_events} = breeding_data(scope, animal)
+          history = build_history(animal, movements, services, litter_events)
           latest_id = movements |> List.first() |> then(&(&1 && &1.id))
           move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 
@@ -526,10 +673,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
              placements: placements,
              movement_count: length(movements),
              latest_movement_id: latest_id,
+             history_count: length(history),
              move_form: to_form(move_cs, as: :movement),
              ac: move_ac_items(scope, placements)
            )
            |> stream(:movements, movements, reset: true)
+           |> stream(:history, history, reset: true)
            |> put_flash(:info, gettext("Movement undone."))}
 
         {:error, :no_movements} ->
@@ -745,6 +894,162 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     do: tag
 
   defp wean_sow_tag(_), do: nil
+
+  defp service_role(%{sow_id: id}, id), do: gettext("Sow")
+  defp service_role(%{boar_id: id}, id), do: gettext("Boar")
+  defp service_role(_, _), do: ""
+
+  defp service_mate(%{sow_id: id, boar: boar}, id), do: boar
+  defp service_mate(%{boar_id: id, sow: sow}, id), do: sow
+  defp service_mate(_, _), do: nil
+
+  ## Unified history helpers
+
+  defp history_date(%{date: d}), do: d
+
+  defp history_event_label(%{kind: :movement, data: m}), do: String.replace(m.reason, "_", " ")
+  defp history_event_label(%{kind: :service}), do: gettext("Service")
+  defp history_event_label(%{kind: :farrowing}), do: gettext("Farrowing")
+  defp history_event_label(%{kind: :service_closed}), do: gettext("Service closed")
+  defp history_event_label(%{kind: :weaning}), do: gettext("Weaning")
+
+  defp history_event_label(%{kind: :litter_event, data: %{kind: "death"}}),
+    do: gettext("Piglet death")
+
+  defp history_event_label(%{kind: :litter_event, data: %{kind: "foster_out"}}),
+    do: gettext("Piglet foster-out")
+
+  defp history_event_label(%{kind: :litter_event, data: %{kind: "foster_in"}}),
+    do: gettext("Piglet foster-in")
+
+  defp history_from_to(%{kind: :movement, data: m}) do
+    from = m.from_pen && "#{m.from_pen.house.code}-#{m.from_pen.code}"
+    to = m.to_pen && "#{m.to_pen.house.code}-#{m.to_pen.code}"
+
+    case {from, to} do
+      {nil, nil} -> ""
+      {nil, t} -> "→ #{t}"
+      {f, nil} -> "#{f} →"
+      {f, t} -> "#{f} → #{t}"
+    end
+  end
+
+  defp history_from_to(%{kind: :farrowing, data: %{service: %{farrowing: %{pen: pen}}}})
+       when not is_nil(pen) do
+    "→ #{pen.house.code}-#{pen.code}"
+  end
+
+  defp history_from_to(_), do: ""
+
+  defp history_notes(%{kind: :movement, data: m}), do: m.notes
+  defp history_notes(%{kind: :service, data: %{service: s}}), do: s.notes
+  defp history_notes(%{kind: :service_closed, data: %{service: s}}), do: s.result_notes
+  defp history_notes(%{kind: :farrowing, data: %{service: %{farrowing: f}}}), do: f.notes
+  defp history_notes(%{kind: :weaning, data: %{weaning: w}}), do: w.notes
+  defp history_notes(%{kind: :litter_event, data: e}), do: e.notes
+  defp history_notes(_), do: nil
+
+  defp history_undoable?(%{kind: :movement, data: %{id: id}}, latest_id), do: id == latest_id
+  defp history_undoable?(_, _), do: false
+
+  # Renders the Detail cell per row kind. Uses links for mate/counterpart
+  # sow so the user can jump between animals.
+  attr :row, :map, required: true
+  attr :current_scope, :map, required: true
+  attr :animal, :map, required: true
+
+  defp history_detail(%{row: %{kind: :service}} = assigns) do
+    ~H"""
+    <span>
+      {@row.data.service.service_type} · {service_role(@row.data.service, @animal.id)}
+      <%= if mate = service_mate(@row.data.service, @animal.id) do %>
+        · {gettext("mate")}
+        <.link
+          navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{mate.id}"}
+          class="font-mono text-primary hover:underline"
+        >
+          {mate.ear_tag}
+        </.link>
+      <% end %>
+    </span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :farrowing}} = assigns) do
+    ~H"""
+    <span>
+      {gettext("born")} {@row.data.service.farrowing.born_alive}
+      <%= if (@row.data.service.farrowing.stillborn || 0) > 0 do %>
+        · {gettext("stillborn")} {@row.data.service.farrowing.stillborn}
+      <% end %>
+      <%= if (@row.data.service.farrowing.mummified || 0) > 0 do %>
+        · {gettext("mummified")} {@row.data.service.farrowing.mummified}
+      <% end %>
+    </span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :service_closed}} = assigns) do
+    ~H"""
+    <span>{String.replace(@row.data.service.result, "_", " ")}</span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :weaning}} = assigns) do
+    assigns =
+      assign(assigns,
+        qty: assigns.row.data.weaning.weaned_count,
+        age: Date.diff(assigns.row.data.weaning.weaned_at, assigns.row.data.farrowing.farrowed_at)
+      )
+
+    ~H"""
+    <span>{gettext("qty")} {@qty} · {gettext("age")} {@age}d</span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :litter_event, data: %{kind: "death"}}} = assigns) do
+    ~H"""
+    <span>{@row.data.quantity}</span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :litter_event, data: %{kind: "foster_out"}}} = assigns) do
+    ~H"""
+    <span>
+      {@row.data.quantity} →
+      <.link
+        :if={counterpart_sow(@row.data)}
+        navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{counterpart_sow(@row.data).id}"}
+        class="font-mono text-primary hover:underline"
+      >
+        {gettext("sow")} {counterpart_sow(@row.data).ear_tag}
+      </.link>
+    </span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :litter_event, data: %{kind: "foster_in"}}} = assigns) do
+    ~H"""
+    <span>
+      {@row.data.quantity} ←
+      <.link
+        :if={counterpart_sow(@row.data)}
+        navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{counterpart_sow(@row.data).id}"}
+        class="font-mono text-primary hover:underline"
+      >
+        {gettext("sow")} {counterpart_sow(@row.data).ear_tag}
+      </.link>
+    </span>
+    """
+  end
+
+  defp history_detail(assigns) do
+    ~H"""
+    """
+  end
+
+  defp counterpart_sow(%{counterpart_farrowing: %{sow: %{} = sow}}), do: sow
+  defp counterpart_sow(_), do: nil
 
   defp unplaced_count(%Animal{quantity: total}, placements) do
     placed = Enum.reduce(placements, 0, fn p, acc -> acc + p.quantity end)

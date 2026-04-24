@@ -14,25 +14,6 @@ defmodule PeggyWeb.FarmLive.Animals do
         <.header>
           {gettext("Animals")}
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
-          <:actions>
-            <.link
-              :if={@can_manage}
-              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/batch-register"}
-              class="btn btn-sm"
-            >
-              {gettext("Batch Register")}
-            </.link>
-            <.link
-              :if={@can_move}
-              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/bulk-move"}
-              class="btn btn-sm"
-            >
-              {gettext("Bulk Move Sire/Dam")}
-            </.link>
-            <.button :if={@can_manage} phx-click="new" class="btn btn-primary btn-sm">
-              {gettext("Register animal")}
-            </.button>
-          </:actions>
         </.header>
 
         <form phx-change="filter" class="mt-4 flex gap-3 flex-wrap">
@@ -241,6 +222,25 @@ defmodule PeggyWeb.FarmLive.Animals do
      |> assign(ac: default_ac())
      |> load_animals()}
   end
+
+  @impl true
+  def handle_params(%{"new" => "1"}, _uri, socket) do
+    socket =
+      if socket.assigns.can_manage and is_nil(socket.assigns.form) do
+        open_form(
+          socket,
+          nil,
+          %Animal{tracking_type: "individual", stage: "sow", sex: "female"},
+          gettext("Register animal")
+        )
+      else
+        socket
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("filter", params, socket) do

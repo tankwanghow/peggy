@@ -891,6 +891,7 @@ defmodule Peggy.Breeding do
       preload: [:sow, :boar]
     )
     |> maybe_filter_service(:sow_id, Keyword.get(opts, :sow_id))
+    |> maybe_filter_service(:boar_id, Keyword.get(opts, :boar_id))
     |> maybe_filter_service(:result, Keyword.get(opts, :result))
     |> Repo.all()
   end
@@ -900,6 +901,41 @@ defmodule Peggy.Breeding do
   """
   def list_services_for_sow(%Scope{} = scope, sow_id) do
     list_services(scope, sow_id: sow_id)
+  end
+
+  @doc """
+  Lists services for an animal regardless of role (sow or boar), newest first.
+  """
+  def list_services_for_animal(%Scope{farm: farm}, animal_id) do
+    from(s in Service,
+      where:
+        s.farm_id == ^farm.id and
+          is_nil(s.deleted_at) and
+          (s.sow_id == ^animal_id or s.boar_id == ^animal_id),
+      order_by: [desc: s.served_at, desc: s.id],
+      preload: [:sow, :boar, farrowing: [:weaning, pen: :house]]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists active litter events across all of a sow's non-deleted
+  farrowings, newest first. Preloads the counterpart farrowing's sow
+  so fostering rows can name the other sow.
+  """
+  def list_litter_events_for_sow(%Scope{farm: farm}, sow_id) do
+    from(e in LitterEvent,
+      join: f in Farrowing,
+      on: f.id == e.farrowing_id,
+      where:
+        e.farm_id == ^farm.id and
+          is_nil(e.deleted_at) and
+          is_nil(f.deleted_at) and
+          f.sow_id == ^sow_id,
+      order_by: [desc: e.occurred_at, desc: e.id],
+      preload: [counterpart_farrowing: :sow]
+    )
+    |> Repo.all()
   end
 
   @doc """
@@ -1109,7 +1145,7 @@ defmodule Peggy.Breeding do
         join: sow in assoc(s, :sow),
         where: s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at),
         order_by: [asc: s.served_at],
-        preload: [:sow, :boar]
+        preload: [sow: [current_pen: :house], boar: []]
       )
 
     q =
@@ -3164,6 +3200,9 @@ defmodule Peggy.Breeding do
 
   defp maybe_filter_service(query, :sow_id, nil), do: query
   defp maybe_filter_service(query, :sow_id, id), do: where(query, [s], s.sow_id == ^id)
+
+  defp maybe_filter_service(query, :boar_id, nil), do: query
+  defp maybe_filter_service(query, :boar_id, id), do: where(query, [s], s.boar_id == ^id)
 
   defp maybe_filter_service(query, :result, nil), do: query
   defp maybe_filter_service(query, :result, :open), do: where(query, [s], is_nil(s.result))
