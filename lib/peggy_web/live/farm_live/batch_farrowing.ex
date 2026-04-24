@@ -285,7 +285,7 @@ defmodule PeggyWeb.FarmLive.BatchFarrowing do
      )}
   end
 
-  defp pen_label(%{house: house, code: code}), do: "#{house.code}/#{code}"
+  defp pen_label(%{house: house, code: code}), do: "#{house.code}-#{code}"
 
   @impl true
   def handle_event("update", params, socket) do

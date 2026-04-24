@@ -370,7 +370,7 @@ defmodule PeggyWeb.FarmLive.Animals do
       pen_items:
         scope
         |> Locations.list_all_pens()
-        |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}/#{&1.code}"}),
+        |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"}),
       pen_label: nil,
       sire_items: animal_items(active_animals, "male"),
       sire_label: nil,
@@ -388,7 +388,7 @@ defmodule PeggyWeb.FarmLive.Animals do
   defp maybe_preselect_pen(ac, socket, %{current_pen_id: pen_id}) when not is_nil(pen_id) do
     scope = socket.assigns.current_scope
     pen = Peggy.Repo.preload(Locations.get_pen!(scope, pen_id), :house)
-    %{ac | pen_label: "#{pen.house.code}/#{pen.code}"}
+    %{ac | pen_label: "#{pen.house.code}-#{pen.code}"}
   end
 
   defp maybe_preselect_pen(ac, _socket, _), do: ac
@@ -429,11 +429,11 @@ defmodule PeggyWeb.FarmLive.Animals do
   defp pen_label(%{tracking_type: "batch", placements: [_ | _] = placements}) do
     placements
     |> Enum.map_join(" · ", fn p ->
-      "#{p.pen.house.code}/#{p.pen.code}×#{p.quantity}"
+      "#{p.pen.house.code}-#{p.pen.code}×#{p.quantity}"
     end)
   end
 
-  defp pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}/#{code}"
+  defp pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}-#{code}"
   defp pen_label(%{current_pen: %{code: code}}), do: code
   defp pen_label(_), do: nil
 end

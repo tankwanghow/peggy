@@ -302,7 +302,7 @@ defmodule PeggyWeb.FarmLive.BulkMove do
   defp infer_reason(%{current_pen_id: _}), do: "pen_transfer"
 
   defp current_pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}),
-    do: "#{hcode}/#{code}"
+    do: "#{hcode}-#{code}"
 
   defp current_pen_label(_), do: nil
 
@@ -341,7 +341,7 @@ defmodule PeggyWeb.FarmLive.BulkMove do
   defp pen_items(scope) do
     scope
     |> Locations.list_all_pens()
-    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}/#{&1.code}"})
+    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
   end
 
   defp parse_int(nil), do: nil

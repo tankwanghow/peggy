@@ -182,6 +182,11 @@ defmodule PeggyWeb.Layouts do
                 {gettext("Batch Farrowing")}
               </.link>
             </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/batch-weaning"}>
+                {gettext("Batch Weaning")}
+              </.link>
+            </li>
           </ul>
         </div>
         <.farm_nav_link

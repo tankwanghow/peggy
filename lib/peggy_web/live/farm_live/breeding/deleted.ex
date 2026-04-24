@@ -92,7 +92,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Deleted do
                     <td class="py-1.5">{f.farrowed_at}</td>
                     <td class="py-1.5 text-right font-mono">{f.born_alive}</td>
                     <td class="py-1.5 font-mono">
-                      {f.pen && "#{f.pen.house.code}/#{f.pen.code}"}
+                      {f.pen && "#{f.pen.house.code}-#{f.pen.code}"}
                     </td>
                     <td class="py-1.5 text-base-content/70">
                       {Calendar.strftime(f.deleted_at, "%Y-%m-%d %H:%M")}
@@ -137,7 +137,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Deleted do
                     <td class="py-1.5 text-right">{w.weaned_count}</td>
                     <td class="py-1.5 font-mono">
                       {w.destination_pen &&
-                        "#{w.destination_pen.house.code}/#{w.destination_pen.code}"}
+                        "#{w.destination_pen.house.code}-#{w.destination_pen.code}"}
                     </td>
                     <td class="py-1.5 text-base-content/70">
                       {Calendar.strftime(w.deleted_at, "%Y-%m-%d %H:%M")}

@@ -6,9 +6,9 @@ defmodule Peggy.Animals.Animal do
   @tracking_types ~w(individual batch)
   @stages ~w(piglet weaner grower finisher sow boar cull)
   @sexes ~w(male female unknown)
-  @statuses ~w(active served open lactating dry culled sold slaughtered deceased transferred)
+  @statuses ~w(active served open lactating dry culled sold slaughtered deceased transferred reversed)
   @present_statuses ~w(active served open lactating dry culled)
-  @departed_statuses ~w(sold slaughtered deceased transferred)
+  @departed_statuses ~w(sold slaughtered deceased transferred reversed)
   @serviceable_statuses ~w(active open dry)
   @breeding_active_statuses ~w(served lactating)
 
@@ -22,14 +22,15 @@ defmodule Peggy.Animals.Animal do
     "sold" => "Departed via sale.",
     "slaughtered" => "Departed via slaughter.",
     "deceased" => "Died on farm.",
-    "transferred" => "Moved to another farm or entity."
+    "transferred" => "Moved to another farm or entity.",
+    "reversed" => "All source records were reversed; the row is retained for audit only."
   }
 
   # Allowed status transitions. See PLAN.md → "Animal status model".
   # Departed statuses are terminal (no outgoing transitions).
   # Same-status transitions are always allowed (no-op saves).
   @transitions %{
-    "active" => ~w(served culled sold slaughtered deceased transferred),
+    "active" => ~w(served culled sold slaughtered deceased transferred reversed),
     "served" => ~w(lactating open culled sold slaughtered deceased transferred),
     "open" => ~w(served culled sold slaughtered deceased transferred),
     "lactating" => ~w(dry culled sold slaughtered deceased transferred),
@@ -38,7 +39,8 @@ defmodule Peggy.Animals.Animal do
     "sold" => [],
     "slaughtered" => [],
     "deceased" => [],
-    "transferred" => []
+    "transferred" => [],
+    "reversed" => []
   }
 
   schema "animals" do
@@ -188,8 +190,14 @@ defmodule Peggy.Animals.Animal do
     |> validate_length(:ear_tag, min: 1, max: 40)
     |> validate_length(:rfid, min: 1, max: 60)
     |> validate_length(:breed, min: 1, max: 60)
-    |> unsafe_validate_unique([:farm_id, :ear_tag], Peggy.Repo, error_key: :ear_tag)
-    |> unsafe_validate_unique([:farm_id, :rfid], Peggy.Repo, error_key: :rfid)
+    |> unsafe_validate_unique([:farm_id, :ear_tag], Peggy.Repo,
+      error_key: :ear_tag,
+      query: present_tag_scope()
+    )
+    |> unsafe_validate_unique([:farm_id, :rfid], Peggy.Repo,
+      error_key: :rfid,
+      query: present_tag_scope()
+    )
     |> unique_constraint(:ear_tag, name: :animals_farm_id_ear_tag_index)
     |> unique_constraint(:rfid, name: :animals_farm_id_rfid_index)
   end
@@ -227,8 +235,18 @@ defmodule Peggy.Animals.Animal do
     |> validate_inclusion(:status, @statuses)
     |> validate_length(:ear_tag, min: 1, max: 40)
     |> validate_number(:quantity, greater_than_or_equal_to: 0)
-    |> unsafe_validate_unique([:farm_id, :ear_tag], Peggy.Repo, error_key: :ear_tag)
+    |> unsafe_validate_unique([:farm_id, :ear_tag], Peggy.Repo,
+      error_key: :ear_tag,
+      query: present_tag_scope()
+    )
     |> unique_constraint(:ear_tag, name: :animals_farm_id_ear_tag_index)
+  end
+
+  # Mirrors the partial unique index in DB: tag uniqueness is enforced
+  # only among present (non-departed) animals. See migration
+  # ReuseTagsForDepartedAnimals.
+  defp present_tag_scope do
+    from a in __MODULE__, where: a.status in ^@present_statuses
   end
 
   defp validate_type_specific(cs) do

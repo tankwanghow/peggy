@@ -156,7 +156,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     animals = Animals.list_animals(scope, status: "present")
     pens = Locations.list_all_pens(scope)
 
-    pen_items = Enum.map(pens, &%{id: &1.id, label: "#{&1.house.code}/#{&1.code}"})
+    pen_items = Enum.map(pens, &%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
 
     %{
       sow_items: animal_items(animals, "female"),
@@ -179,7 +179,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
 
   def maybe_preselect_pen(ac, scope, %{current_pen_id: pen_id}) when not is_nil(pen_id) do
     pen = Locations.get_pen!(scope, pen_id) |> Peggy.Repo.preload(:house)
-    %{ac | pen_label: "#{pen.house.code}/#{pen.code}"}
+    %{ac | pen_label: "#{pen.house.code}-#{pen.code}"}
   end
 
   def maybe_preselect_pen(ac, _, _), do: ac

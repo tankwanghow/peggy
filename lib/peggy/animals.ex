@@ -73,7 +73,7 @@ defmodule Peggy.Animals do
       from m in Movement,
         where: m.animal_id == ^animal_id,
         order_by: [desc: m.moved_at, desc: m.inserted_at, desc: m.id],
-        preload: [from_pen: :house, to_pen: :house]
+        preload: [from_pen: :house, to_pen: :house, weaning: [farrowing: :sow]]
     )
   end
 
@@ -538,6 +538,43 @@ defmodule Peggy.Animals do
     case animal.tracking_type do
       "individual" -> record_individual_movement(scope, animal, attrs)
       "batch" -> record_batch_movement(scope, animal, attrs)
+    end
+  end
+
+  @doc """
+  Promotes a batch animal to a new stage (e.g. weaner → grower).
+
+  Stage is a property of the whole batch, not of any single placement,
+  so this is intentionally separate from `record_movement/3` — operators
+  do their pen moves first, then promote when the batch truly graduates.
+
+  Allowed stages come from `Animal.stages_for("batch")`. Returns
+  `{:ok, animal}` or `{:error, changeset}` / `{:error, :batch_only}` /
+  `{:error, :unauthorized}`.
+  """
+  def promote_batch_stage(%Scope{farm: farm} = scope, %Animal{farm_id: fid} = animal, new_stage)
+      when fid == farm.id and is_binary(new_stage) do
+    cond do
+      animal.tracking_type != "batch" ->
+        {:error, :batch_only}
+
+      new_stage == animal.stage ->
+        {:ok, animal}
+
+      true ->
+        Multi.new()
+        |> Multi.update(:animal, Animal.changeset(animal, %{stage: new_stage}))
+        |> Multi.run({:audit, :stage_change}, fn _repo, %{animal: a} ->
+          Audit.log_now!(scope, "animal.updated",
+            entity_type: :animal,
+            entity_id: a.id,
+            changes: normalize_changes(%{stage: a.stage, previous_stage: animal.stage})
+          )
+
+          {:ok, :logged}
+        end)
+        |> Repo.transaction()
+        |> unwrap(:animal)
     end
   end
 

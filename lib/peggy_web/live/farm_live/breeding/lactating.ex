@@ -74,7 +74,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   value={p.id}
                   selected={"#{p.id}" == "#{@filters.pen_id}"}
                 >
-                  {p.house.code}/{p.code}
+                  {p.house.code}-{p.code}
                 </option>
               </select>
             </label>
@@ -124,7 +124,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   </td>
                   <td class="py-1.5 font-mono">
                     {entry.farrowing.pen &&
-                      "#{entry.farrowing.pen.house.code}/#{entry.farrowing.pen.code}"}
+                      "#{entry.farrowing.pen.house.code}-#{entry.farrowing.pen.code}"}
                   </td>
                   <td class="py-1.5 text-right font-mono">
                     {Date.diff(Date.utc_today(), entry.farrowing.farrowed_at)}
@@ -515,7 +515,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                 <dt class="text-base-content/60">{gettext("Pen")}</dt>
                 <dd class="font-mono">
                   {@wn.resolved_farrowing.pen &&
-                    "#{@wn.resolved_farrowing.pen.house.code}/#{@wn.resolved_farrowing.pen.code}"}
+                    "#{@wn.resolved_farrowing.pen.house.code}-#{@wn.resolved_farrowing.pen.code}"}
                 </dd>
               </dl>
             </div>

@@ -322,7 +322,7 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
   defp pen_items(scope) do
     scope
     |> Locations.list_all_pens()
-    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}/#{&1.code}"})
+    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
   end
 
   defp lookup_label(_items, nil), do: nil

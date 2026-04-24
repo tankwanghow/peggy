@@ -48,6 +48,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                   <th class="py-2">{gettext("Weaned at")}</th>
                   <th class="py-2 text-right">{gettext("Weaned count")}</th>
                   <th class="py-2 text-right">{gettext("Avg wt (g)")}</th>
+                  <th class="py-2">{gettext("Batch")}</th>
                   <th class="py-2">{gettext("Dest. pen")}</th>
                   <th :if={@can_record} class="py-2"></th>
                 </tr>
@@ -65,8 +66,17 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                   <td class="py-1.5 text-right">{w.weaned_count}</td>
                   <td class="py-1.5 text-right">{w.avg_wean_weight_g}</td>
                   <td class="py-1.5 font-mono">
+                    <.link
+                      :if={w.batch_animal}
+                      navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{w.batch_animal.id}"}
+                      class="text-primary hover:underline"
+                    >
+                      {w.batch_animal.ear_tag}
+                    </.link>
+                  </td>
+                  <td class="py-1.5 font-mono">
                     {w.destination_pen &&
-                      "#{w.destination_pen.house.code}/#{w.destination_pen.code}"}
+                      "#{w.destination_pen.house.code}-#{w.destination_pen.code}"}
                   </td>
                   <td :if={@can_record} class="py-1.5 text-right">
                     <button

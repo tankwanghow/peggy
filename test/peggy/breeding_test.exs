@@ -2059,10 +2059,10 @@ defmodule Peggy.BreedingTest do
       {:ok, deleted} = Breeding.delete_weaning(scope, w)
       assert deleted.deleted_at
 
-      # Batch shell is kept for audit; quantity zero + status deceased.
+      # Batch shell is kept for audit; quantity zero + status reversed.
       persisted = Peggy.Repo.get!(Peggy.Animals.Animal, batch_id)
       assert persisted.quantity == 0
-      assert persisted.status == "deceased"
+      assert persisted.status == "reversed"
 
       # Sow back to lactating
       updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
@@ -2164,6 +2164,34 @@ defmodule Peggy.BreedingTest do
       batch
       |> Ecto.Changeset.change(%{status: "sold"})
       |> Peggy.Repo.update!()
+
+      assert {:error, :weaning_has_activity} = Breeding.delete_weaning(scope, w)
+    end
+
+    test "rejects when batch has a non-wean movement", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      house: house,
+      pen: pen
+    } do
+      dest = pen_fixture(scope, house, code: "DEST-NW", capacity: 20)
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 4, pen_id: pen.id)
+
+      {:ok, w, batch} =
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-04-17],
+          weaned_count: 4,
+          batch_tag: "W-NW1"
+        })
+
+      {:ok, _} =
+        Peggy.Animals.record_movement(scope, batch, %{
+          "reason" => "placement",
+          "to_pen_id" => dest.id,
+          "quantity" => 2,
+          "moved_at" => ~D[2026-04-18]
+        })
 
       assert {:error, :weaning_has_activity} = Breeding.delete_weaning(scope, w)
     end
@@ -3069,6 +3097,183 @@ defmodule Peggy.BreedingTest do
       # nothing persisted
       assert Peggy.Animals.get_animal!(scope, sow.id).status == "active"
       refute Peggy.Animals.find_by_ear_tag(scope, "WBF-B4")
+    end
+  end
+
+  describe "record_batch_weanings_with_backfill/2" do
+    test "open-farrowing path: weans an existing sow with an open farrowing", %{
+      scope: scope,
+      sow: sow,
+      boar: boar,
+      pen: pen
+    } do
+      f =
+        farrowing_fixture(scope, sow,
+          boar_id: boar.id,
+          farrowed_at: ~D[2026-04-01],
+          born_alive: 10,
+          pen_id: pen.id
+        )
+
+      {:ok, [{weaning, batch}]} =
+        Breeding.record_batch_weanings_with_backfill(scope, [
+          %{
+            sow_id: sow.id,
+            weaned_at: ~D[2026-04-25],
+            weaned_count: 9,
+            batch_tag: "BW-OPEN-1",
+            destination_pen_id: pen.id,
+            pen_id: pen.id
+          }
+        ])
+
+      assert weaning.farrowing_id == f.id
+      assert weaning.weaned_count == 9
+      assert batch.ear_tag == "BW-OPEN-1"
+      assert batch.quantity == 9
+    end
+
+    test "no-open-farrowing path: back-fills service + farrowing for an existing sow",
+         %{scope: scope, pen: pen} do
+      sow = animal_fixture(scope, ear_tag: "BW-NOFARR", sex: "female", stage: "sow")
+
+      {:ok, [{weaning, batch}]} =
+        Breeding.record_batch_weanings_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BW-NOFARR",
+            weaned_at: ~D[2026-04-25],
+            farrowed_at: ~D[2026-04-01],
+            served_at: ~D[2025-12-08],
+            weaned_count: 8,
+            batch_tag: "BW-NOFARR-1",
+            destination_pen_id: pen.id,
+            pen_id: pen.id,
+            born_alive: 8
+          }
+        ])
+
+      farrowing = Breeding.get_farrowing!(scope, weaning.farrowing_id)
+      assert farrowing.sow_id == sow.id
+      assert farrowing.inferred == true
+      assert farrowing.created_via == "farrowing_backfill"
+
+      service = Breeding.get_service!(scope, farrowing.service_id)
+      assert service.inferred == true
+      assert service.created_via == "farrowing_backfill"
+
+      assert batch.quantity == 8
+    end
+
+    test "new-sow path: registers sow + back-fills service + farrowing + weans",
+         %{scope: scope, pen: pen} do
+      {:ok, [{weaning, _batch}]} =
+        Breeding.record_batch_weanings_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BW-NEW-1",
+            weaned_at: ~D[2026-04-25],
+            farrowed_at: ~D[2026-04-01],
+            served_at: ~D[2025-12-08],
+            weaned_count: 7,
+            batch_tag: "BW-NEW-BATCH",
+            destination_pen_id: pen.id,
+            pen_id: pen.id,
+            born_alive: 7,
+            backfill_sow: %{breed: "Duroc"}
+          }
+        ])
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "BW-NEW-1")
+      assert sow
+      assert sow.inferred == true
+
+      farrowing = Breeding.get_farrowing!(scope, weaning.farrowing_id)
+      assert farrowing.sow_id == sow.id
+    end
+
+    test "rejects similar tag without force_create", %{scope: scope, pen: pen} do
+      assert {:error, {0, {:similar_tag, tags}}} =
+               Breeding.record_batch_weanings_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "SOW2",
+                   weaned_at: ~D[2026-04-25],
+                   farrowed_at: ~D[2026-04-01],
+                   served_at: ~D[2025-12-08],
+                   weaned_count: 5,
+                   batch_tag: "BW-SIM-1",
+                   destination_pen_id: pen.id,
+                   pen_id: pen.id,
+                   born_alive: 5,
+                   backfill_sow: %{breed: "Duroc"}
+                 }
+               ])
+
+      assert "SOW1" in tags
+    end
+
+    test "rejects duplicate new ear tags within the grid", %{scope: scope, pen: pen} do
+      assert {:error, {1, :duplicate_ear_tag}} =
+               Breeding.record_batch_weanings_with_backfill(scope, [
+                 %{
+                   sow_ear_tag: "BW-DUPE-1",
+                   weaned_at: ~D[2026-04-25],
+                   farrowed_at: ~D[2026-04-01],
+                   served_at: ~D[2025-12-08],
+                   weaned_count: 5,
+                   batch_tag: "BW-DUPE-A",
+                   destination_pen_id: pen.id,
+                   pen_id: pen.id,
+                   born_alive: 5,
+                   backfill_sow: %{breed: "Duroc"}
+                 },
+                 %{
+                   sow_ear_tag: "BW-DUPE-1",
+                   weaned_at: ~D[2026-04-25],
+                   farrowed_at: ~D[2026-04-01],
+                   served_at: ~D[2025-12-08],
+                   weaned_count: 5,
+                   batch_tag: "BW-DUPE-B",
+                   destination_pen_id: pen.id,
+                   pen_id: pen.id,
+                   born_alive: 5,
+                   backfill_sow: %{breed: "Duroc"}
+                 }
+               ])
+    end
+
+    test "rolls back the entire batch when any row fails", %{scope: scope, pen: pen} do
+      result =
+        Breeding.record_batch_weanings_with_backfill(scope, [
+          %{
+            sow_ear_tag: "BW-ROLL-1",
+            weaned_at: ~D[2026-04-25],
+            farrowed_at: ~D[2026-04-01],
+            served_at: ~D[2025-12-08],
+            weaned_count: 5,
+            batch_tag: "BW-ROLL-A",
+            destination_pen_id: pen.id,
+            pen_id: pen.id,
+            born_alive: 5,
+            backfill_sow: %{breed: "Duroc"}
+          },
+          %{
+            sow_ear_tag: "BW-ROLL-MISSING",
+            weaned_at: ~D[2026-04-25],
+            farrowed_at: ~D[2026-04-01],
+            served_at: ~D[2025-12-08],
+            weaned_count: 5,
+            batch_tag: "BW-ROLL-B",
+            destination_pen_id: pen.id,
+            pen_id: pen.id,
+            born_alive: 5
+          }
+        ])
+
+      assert {:error, {1, :sow_not_found}} = result
+      refute Peggy.Animals.find_by_ear_tag(scope, "BW-ROLL-1")
+    end
+
+    test "rejects empty list", %{scope: scope} do
+      assert {:error, :no_entries} = Breeding.record_batch_weanings_with_backfill(scope, [])
     end
   end
 end

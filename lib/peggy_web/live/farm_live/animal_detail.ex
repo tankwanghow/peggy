@@ -42,7 +42,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             <%= if @animal.tracking_type == "individual" do %>
               · <span class="font-mono">{pen_label(@animal) || "—"}</span>
             <% end %>
-            <%= if @animal.sire do %>
+            <%= if @animal.tracking_type == "individual" and @animal.sire do %>
               · {gettext("Sire")}:
               <.link
                 navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.sire.id}"}
@@ -51,7 +51,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 {@animal.sire.ear_tag}
               </.link>
             <% end %>
-            <%= if @animal.dam do %>
+            <%= if @animal.tracking_type == "individual" and @animal.dam do %>
               · {gettext("Dam")}:
               <.link
                 navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.dam.id}"}
@@ -72,6 +72,17 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             >
               {gettext("Batch Transfer")}
             </.link>
+            <.button
+              :if={
+                @can_manage && @animal.tracking_type == "batch" &&
+                  Peggy.Animals.Animal.present_status?(@animal.status) &&
+                  promote_targets(@animal) != []
+              }
+              phx-click="promote_open"
+              class="btn btn-sm"
+            >
+              {gettext("Promote stage")}
+            </.button>
             <.button
               :if={@can_manage && Peggy.Animals.Animal.present_status?(@animal.status)}
               phx-click="edit"
@@ -100,12 +111,17 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               :for={p <- @placements}
               class="inline-flex items-center gap-1 rounded bg-base-200 px-2 py-0.5"
             >
-              {p.pen.house.code}/{p.pen.code}
+              {p.pen.house.code}-{p.pen.code}
               <span class="text-base-content/60">×{p.quantity}</span>
             </span>
           </div>
           <p :if={@placements == []} class="mt-2 text-sm text-base-content/60">
             {gettext("Not currently placed in any pen.")}
+          </p>
+          <p :if={unplaced_count(@animal, @placements) > 0} class="mt-2 text-sm text-warning">
+            {gettext("Currently has %{n} animals unplaced in this batch",
+              n: unplaced_count(@animal, @placements)
+            )}
           </p>
         </section>
 
@@ -135,7 +151,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             id="movement-form"
             phx-submit="record_movement"
             phx-change="validate_movement"
-            class="grid grid-cols-2 md:grid-cols-6 gap-3"
+            class="grid grid-cols-2 md:grid-cols-7 gap-1"
           >
             <.input
               field={@move_form[:reason]}
@@ -158,7 +174,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               items={@ac.from_pen_items}
               selected_label={@ac.from_pen_label}
               class="w-full input font-mono"
-              placeholder={gettext("Search placements...")}
+              placeholder={gettext("Search pens...")}
             />
             <.autocomplete
               :if={
@@ -174,7 +190,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               value={Phoenix.HTML.Form.input_value(@move_form, :to_pen_id)}
               items={@ac.move_pen_items}
               selected_label={@ac.move_pen_label}
-              class="w-full input font-mono"
+              class="input font-mono"
               placeholder={gettext("Search pens...")}
             />
             <.input
@@ -210,6 +226,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 <th class="py-2">{gettext("From pen")}</th>
                 <th class="py-2">{gettext("To pen")}</th>
                 <th class="py-2">{gettext("Qty")}</th>
+                <th class="py-2">{gettext("Dam")}</th>
                 <th class="py-2">{gettext("Notes")}</th>
                 <th :if={@can_move} class="py-2"></th>
               </tr>
@@ -225,12 +242,13 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 </td>
                 <td class="py-1.5">{String.replace(m.reason, "_", " ")}</td>
                 <td class="py-1.5 font-mono">
-                  {m.from_pen && "#{m.from_pen.house.code}/#{m.from_pen.code}"}
+                  {m.from_pen && "#{m.from_pen.house.code}-#{m.from_pen.code}"}
                 </td>
                 <td class="py-1.5 font-mono">
-                  {m.to_pen && "#{m.to_pen.house.code}/#{m.to_pen.code}"}
+                  {m.to_pen && "#{m.to_pen.house.code}-#{m.to_pen.code}"}
                 </td>
                 <td class="py-1.5">{m.quantity}</td>
+                <td class="py-1.5 font-mono">{wean_sow_tag(m)}</td>
                 <td class="py-1.5 text-base-content/60">{m.notes}</td>
                 <td :if={@can_move} class="py-1.5 text-right">
                   <button
@@ -254,6 +272,46 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             {gettext("No movements recorded.")}
           </p>
         </section>
+
+        <%!-- Promote stage modal --%>
+        <div
+          :if={@promote_stage}
+          id="promote-modal"
+          class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        >
+          <div
+            class="bg-base-100 rounded p-6 w-full max-w-md"
+            phx-click-away="promote_cancel"
+            phx-window-keydown="promote_cancel"
+            phx-key="escape"
+          >
+            <h3 class="text-lg font-semibold mb-3">{gettext("Promote batch stage")}</h3>
+            <p class="text-sm text-base-content/60 mb-3">
+              {gettext("Current stage")}:
+              <span class="font-medium text-base-content">{String.capitalize(@animal.stage)}</span>
+              · {@animal.quantity} {gettext("animals across")} {length(@placements)} {gettext(
+                "pen(s)"
+              )}
+            </p>
+            <form phx-submit="promote_submit">
+              <.input
+                name="new_stage"
+                value={@promote_stage}
+                type="select"
+                label={gettext("New stage")}
+                options={promote_targets(@animal)}
+              />
+              <div class="mt-4 flex gap-2 justify-end">
+                <button type="button" phx-click="promote_cancel" class="btn btn-ghost">
+                  {gettext("Cancel")}
+                </button>
+                <.button class="btn btn-primary" phx-disable-with={gettext("Promoting...")}>
+                  {gettext("Promote")}
+                </.button>
+              </div>
+            </form>
+          </div>
+        </div>
 
         <%!-- Edit modal --%>
         <div
@@ -387,7 +445,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
        move_form: to_form(move_cs, as: :movement),
        movement_count: length(movements),
        latest_movement_id: latest_id,
-       ac: move_ac_items(scope, placements)
+       ac: move_ac_items(scope, placements),
+       promote_stage: nil
      )
      |> stream(:movements, movements)}
   end
@@ -478,6 +537,48 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
         {:error, _} ->
           {:noreply, put_flash(socket, :error, gettext("Could not undo movement."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("promote_open", _, socket) do
+    if socket.assigns.can_manage do
+      default = promote_targets(socket.assigns.animal) |> List.first() |> elem(1)
+      {:noreply, assign(socket, :promote_stage, default)}
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("promote_cancel", _, socket) do
+    {:noreply, assign(socket, :promote_stage, nil)}
+  end
+
+  def handle_event("promote_submit", %{"new_stage" => new_stage}, socket) do
+    if socket.assigns.can_manage do
+      scope = socket.assigns.current_scope
+
+      case Animals.promote_batch_stage(scope, socket.assigns.animal, new_stage) do
+        {:ok, _} ->
+          animal = Animals.get_animal!(scope, socket.assigns.animal.id)
+
+          {:noreply,
+           socket
+           |> assign(animal: animal, promote_stage: nil)
+           |> put_flash(:info, gettext("Stage updated."))}
+
+        {:error, %Ecto.Changeset{} = cs} ->
+          msg =
+            cs.errors
+            |> Enum.map(fn {f, {m, _}} -> "#{f} #{m}" end)
+            |> Enum.join(", ")
+
+          {:noreply, put_flash(socket, :error, msg)}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not promote stage."))}
       end
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
@@ -587,14 +688,14 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
   defp placement_items(placements) do
     Enum.map(placements, fn p ->
-      %{id: p.pen_id, label: "#{p.pen.house.code}/#{p.pen.code} (#{p.quantity})"}
+      %{id: p.pen_id, label: "#{p.pen.house.code}-#{p.pen.code} (#{p.quantity})"}
     end)
   end
 
   defp pen_items(scope) do
     scope
     |> Locations.list_all_pens()
-    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}/#{&1.code}"})
+    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
   end
 
   defp animal_items(animals, sex) do
@@ -631,6 +732,25 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
   defp humanize_reason(r), do: r |> String.replace("_", " ") |> String.capitalize()
 
+  # Stages a batch can be promoted to, excluding its current stage.
+  defp promote_targets(%Animal{tracking_type: "batch", stage: current}) do
+    Animal.stages_for("batch")
+    |> Enum.reject(&(&1 == current))
+    |> Enum.map(&{String.capitalize(&1), &1})
+  end
+
+  defp promote_targets(_), do: []
+
+  defp wean_sow_tag(%Movement{reason: "wean", weaning: %{farrowing: %{sow: %{ear_tag: tag}}}}),
+    do: tag
+
+  defp wean_sow_tag(_), do: nil
+
+  defp unplaced_count(%Animal{quantity: total}, placements) do
+    placed = Enum.reduce(placements, 0, fn p, acc -> acc + p.quantity end)
+    total - placed
+  end
+
   # Seed a blank Movement for the form. Default to "placement" only when
   # there's still quantity in the batch that isn't placed anywhere yet —
   # that's the "just registered, now assign to pens" case.
@@ -647,7 +767,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
   defp pen_label(animal) do
     case animal do
-      %{current_pen: %{code: code, house: %{code: hcode}}} -> "#{hcode}/#{code}"
+      %{current_pen: %{code: code, house: %{code: hcode}}} -> "#{hcode}-#{code}"
       %{current_pen: %{code: code}} -> code
       _ -> nil
     end

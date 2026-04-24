@@ -52,7 +52,7 @@ defmodule PeggyWeb.FarmLive.BatchEntry do
               :for={p <- @placements}
               class="inline-flex items-center gap-1 rounded bg-base-200 px-2 py-0.5"
             >
-              {p.pen.house.code}/{p.pen.code}
+              {p.pen.house.code}-{p.pen.code}
               <span class="text-base-content/60">×{p.quantity}</span>
             </span>
           </div>
@@ -404,12 +404,12 @@ defmodule PeggyWeb.FarmLive.BatchEntry do
   defp pen_items(scope) do
     scope
     |> Locations.list_all_pens()
-    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}/#{&1.code}"})
+    |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
   end
 
   defp placement_items(placements) do
     Enum.map(placements, fn p ->
-      %{id: p.pen_id, label: "#{p.pen.house.code}/#{p.pen.code} (#{p.quantity})"}
+      %{id: p.pen_id, label: "#{p.pen.house.code}-#{p.pen.code} (#{p.quantity})"}
     end)
   end
 

@@ -2242,6 +2242,159 @@ defmodule Peggy.Breeding do
     end
   end
 
+  @doc """
+  Spreadsheet-style batch weaning with per-row back-fill cascade.
+
+  Each entry resolves one sow (via `:sow_ear_tag` or `:sow_id`) and
+  then records a weaning — creating inferred service + farrowing (and
+  the sow itself, if unknown) on the fly for sows without an open
+  farrowing.
+
+  Returns `{:ok, [{weaning, batch}, ...]}` on success; rolls back the
+  entire batch and returns `{:error, {row_index, reason}}` on the
+  first failure.
+  """
+  def record_batch_weanings_with_backfill(%Scope{}, []), do: {:error, :no_entries}
+
+  def record_batch_weanings_with_backfill(%Scope{} = scope, entries)
+      when is_list(entries) do
+    Repo.transaction(fn ->
+      with {:ok, classified} <- classify_batch_weaning_entries(scope, entries) do
+        classified
+        |> Enum.with_index()
+        |> Enum.reduce([], fn {row, i}, acc ->
+          case process_weaning_row(scope, row) do
+            {:ok, weaning, batch} -> [{weaning, batch} | acc]
+            {:error, reason} -> Repo.rollback({i, reason})
+          end
+        end)
+        |> Enum.reverse()
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp classify_batch_weaning_entries(scope, entries) do
+    entries
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn {entry, i}, {:ok, acc, seen_new} ->
+      case classify_weaning_one(scope, entry, seen_new) do
+        {:ok, row} ->
+          seen_new =
+            case row do
+              %{kind: :inferred_sow, ear_tag: tag} -> MapSet.put(seen_new, tag)
+              _ -> seen_new
+            end
+
+          {:cont, {:ok, [row | acc], seen_new}}
+
+        {:error, reason} ->
+          {:halt, {:error, {i, reason}}}
+      end
+    end)
+    |> case do
+      {:ok, acc, _} -> {:ok, Enum.reverse(acc)}
+      {:error, _} = err -> err
+    end
+  end
+
+  defp classify_weaning_one(scope, entry, seen_new) do
+    attrs = stringify_keys(entry)
+    sow_id = to_int(attrs["sow_id"])
+    ear_tag = attrs["sow_ear_tag"]
+
+    cond do
+      not is_nil(sow_id) ->
+        {:ok, %{kind: :existing_sow_id, sow_id: sow_id, attrs: attrs}}
+
+      is_nil(ear_tag) or ear_tag == "" ->
+        {:error, :sow_not_found}
+
+      true ->
+        case Animals.find_by_ear_tag(scope, ear_tag) do
+          %Animal{} = sow ->
+            {:ok, %{kind: :existing_sow, sow: sow, attrs: attrs}}
+
+          nil ->
+            classify_new_weaning_tag(scope, ear_tag, attrs, seen_new)
+        end
+    end
+  end
+
+  defp classify_new_weaning_tag(scope, ear_tag, attrs, seen_new) do
+    backfill = Map.get(attrs, "backfill_sow")
+
+    force? =
+      truthy?(backfill && (Map.get(backfill, :force_create) || Map.get(backfill, "force_create")))
+
+    cond do
+      MapSet.member?(seen_new, ear_tag) ->
+        {:error, :duplicate_ear_tag}
+
+      true ->
+        similars = Animals.similar_ear_tags(scope, ear_tag)
+
+        cond do
+          similars != [] and not force? ->
+            {:error, {:similar_tag, similars}}
+
+          is_nil(backfill) ->
+            {:error, :sow_not_found}
+
+          true ->
+            {:ok,
+             %{
+               kind: :inferred_sow,
+               ear_tag: ear_tag,
+               backfill: backfill,
+               attrs: attrs
+             }}
+        end
+    end
+  end
+
+  defp process_weaning_row(scope, %{kind: :existing_sow_id, sow_id: sid, attrs: attrs}) do
+    case Repo.get(Animal, sid) do
+      %Animal{farm_id: fid} when fid == scope.farm.id ->
+        wean_for_existing_sow(scope, sid, attrs)
+
+      _ ->
+        {:error, :sow_not_found}
+    end
+  end
+
+  defp process_weaning_row(scope, %{kind: :existing_sow, sow: sow, attrs: attrs}) do
+    wean_for_existing_sow(scope, sow.id, attrs)
+  end
+
+  defp process_weaning_row(scope, %{
+         kind: :inferred_sow,
+         ear_tag: tag,
+         backfill: backfill,
+         attrs: attrs
+       }) do
+    sow_attrs =
+      backfill
+      |> stringify_keys()
+      |> Map.put("ear_tag", tag)
+
+    attrs = Map.drop(attrs, ["sow_id", "sow_ear_tag", "backfill_sow"])
+    record_weaning_with_backfill(scope, {:new_sow, sow_attrs}, attrs)
+  end
+
+  defp wean_for_existing_sow(scope, sow_id, attrs) do
+    attrs = Map.drop(attrs, ["sow_id", "sow_ear_tag", "backfill_sow"])
+
+    case latest_open_farrowing_for_sow(scope, sow_id) do
+      %Farrowing{} = farrowing ->
+        record_weaning(scope, farrowing, attrs)
+
+      nil ->
+        record_weaning_with_backfill(scope, {:existing_sow, sow_id}, attrs)
+    end
+  end
+
   defp normalize_batch_tag(nil), do: nil
 
   defp normalize_batch_tag(tag) when is_binary(tag) do
@@ -2424,7 +2577,11 @@ defmodule Peggy.Breeding do
         where: w.farm_id == ^farm.id and is_nil(w.deleted_at),
         order_by: [desc: w.weaned_at, desc: w.id],
         limit: ^limit,
-        preload: [[destination_pen: :house], farrowing: [:sow, [pen: :house]]]
+        preload: [
+          :batch_animal,
+          [destination_pen: :house],
+          farrowing: [:sow, [pen: :house]]
+        ]
       )
 
     q =
@@ -2497,7 +2654,8 @@ defmodule Peggy.Breeding do
         not is_nil(batch) and
           batch.status == "active" and
           batch.stage == "weaner" and
-          (batch.quantity || 0) >= count
+          (batch.quantity || 0) >= count and
+          not batch_has_non_wean_movement?(batch.id)
 
       true ->
         batch = Repo.get(Animal, w.batch_animal_id)
@@ -2506,8 +2664,13 @@ defmodule Peggy.Breeding do
           batch.farm_id == farm.id and
           batch.status == "active" and
           batch.stage == "weaner" and
-          (batch.quantity || 0) >= count
+          (batch.quantity || 0) >= count and
+          not batch_has_non_wean_movement?(batch.id)
     end
+  end
+
+  defp batch_has_non_wean_movement?(batch_id) do
+    Repo.exists?(from(m in Movement, where: m.animal_id == ^batch_id and m.reason != "wean"))
   end
 
   @doc """
@@ -2598,7 +2761,7 @@ defmodule Peggy.Breeding do
 
             changes =
               if new_qty == 0 do
-                %{quantity: 0, status: "deceased"}
+                %{quantity: 0, status: "reversed"}
               else
                 %{quantity: new_qty}
               end

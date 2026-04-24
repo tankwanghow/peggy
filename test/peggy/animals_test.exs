@@ -84,6 +84,25 @@ defmodule Peggy.AnimalsTest do
       assert errors_on(cs)[:ear_tag]
     end
 
+    test "ear_tag may be reused once the prior animal departs", %{scope: scope} do
+      original = animal_fixture(scope, ear_tag: "REUSE1", stage: "sow", sex: "female")
+
+      original
+      |> Ecto.Changeset.change(%{status: "sold"})
+      |> Peggy.Repo.update!()
+
+      assert {:ok, fresh} =
+               Animals.create_animal(scope, %{
+                 tracking_type: "individual",
+                 ear_tag: "REUSE1",
+                 stage: "sow",
+                 sex: "female"
+               })
+
+      assert fresh.id != original.id
+      assert fresh.ear_tag == "REUSE1"
+    end
+
     test "validates stage inclusion", %{scope: scope} do
       assert {:error, cs} =
                Animals.create_animal(scope, %{

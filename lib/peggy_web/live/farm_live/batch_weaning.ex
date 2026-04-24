@@ -1,12 +1,12 @@
-defmodule PeggyWeb.FarmLive.BatchService do
+defmodule PeggyWeb.FarmLive.BatchWeaning do
   @moduledoc """
-  Spreadsheet-style batch entry for recording multiple breeding
-  services at once in one atomic commit.
+  Spreadsheet-style batch entry for recording multiple weanings at
+  once in one atomic commit.
 
-  Supports the back-fill cascade: each row takes an ear tag (not a
-  sow-id picker), and unknown tags are inferred as new sows on commit.
-  A single "default pen" applies to all inferred sows as their
-  placement pen.
+  Supports the back-fill cascade: each row takes an ear tag. Existing
+  sows without an open farrowing get an inferred service + farrowing
+  back-dated from the weaned_at; unknown tags also create an inferred
+  sow.
   """
   use PeggyWeb, :live_view
 
@@ -16,7 +16,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-6xl">
+      <div class="mx-auto max-w-7xl">
         <div class="text-sm text-base-content/60 mb-1">
           <.link
             navigate={~p"/farms/#{@current_scope.farm.slug}/breeding"}
@@ -27,15 +27,15 @@ defmodule PeggyWeb.FarmLive.BatchService do
         </div>
 
         <.header>
-          {gettext("Batch Service Entry")}
+          {gettext("Batch Weaning Entry")}
           <:subtitle>
-            {gettext("Type ear tags — unknown tags become new sows on commit")}
+            {gettext("Type ear tags — missing services/farrowings are back-filled on commit")}
           </:subtitle>
         </.header>
 
         <section class="mt-6">
           <form
-            id="batch-service-grid"
+            id="batch-weaning-grid"
             phx-change="update"
             phx-submit="commit"
             phx-debounce="300"
@@ -44,12 +44,13 @@ defmodule PeggyWeb.FarmLive.BatchService do
               <thead class="text-left text-base-content/60">
                 <tr>
                   <th class="py-2 w-8">#</th>
-                  <th class="py-2">{gettext("Sow ear tag")}</th>
-                  <th class="py-2">{gettext("Service type")}</th>
-                  <th class="py-2">{gettext("Boar")}</th>
-                  <th class="py-2">{gettext("Served at")}</th>
-                  <th class="py-2">{gettext("Current pen")}</th>
-                  <th class="py-2">{gettext("Breed (new sow)")}</th>
+                  <th class="py-2 min-w-[11rem]">{gettext("Sow ear tag")}</th>
+                  <th class="py-2 min-w-[9rem]">{gettext("Weaned at")}</th>
+                  <th class="py-2 w-24 text-right">{gettext("Weaned")}</th>
+                  <th class="py-2 w-24 text-right">{gettext("Avg wt (g)")}</th>
+                  <th class="py-2 min-w-[9rem]">{gettext("Batch tag")}</th>
+                  <th class="py-2 min-w-[9rem]">{gettext("Destination pen")}</th>
+                  <th class="py-2 min-w-[8rem]">{gettext("Breed (new sow)")}</th>
                   <th class="py-2 w-10"></th>
                 </tr>
               </thead>
@@ -58,7 +59,8 @@ defmodule PeggyWeb.FarmLive.BatchService do
                   <tr class={[
                     "border-t border-base-200 align-top",
                     @error_index == i && "bg-error/10",
-                    row.sow_state == :existing && "bg-success/5",
+                    row.sow_state == :existing_open && "bg-success/5",
+                    row.sow_state == :existing_no_farrowing && "bg-warning/5",
                     row.sow_state == :new && "bg-warning/5",
                     row.sow_state == :similar && "bg-error/10",
                     row.sow_state == :similar_overridable && "bg-warning/5"
@@ -80,7 +82,8 @@ defmodule PeggyWeb.FarmLive.BatchService do
                       />
                       <p class={[
                         "mt-0.5 text-xs",
-                        row.sow_state == :existing && "text-success",
+                        row.sow_state == :existing_open && "text-success",
+                        row.sow_state == :existing_no_farrowing && "text-warning",
                         row.sow_state == :new && "text-warning",
                         row.sow_state == :similar && "text-error",
                         row.sow_state == :similar_overridable && "text-warning",
@@ -124,43 +127,40 @@ defmodule PeggyWeb.FarmLive.BatchService do
                       </div>
                     </td>
                     <td class="py-1 px-0.5">
-                      <select
-                        name={"rows[#{row.tmp_id}][service_type]"}
-                        class="select w-full"
-                      >
-                        <option value="ai" selected={row.service_type == "ai"}>
-                          {gettext("AI")}
-                        </option>
-                        <option value="natural" selected={row.service_type == "natural"}>
-                          {gettext("Natural")}
-                        </option>
-                      </select>
-                    </td>
-                    <td class="py-1 px-0.5">
-                      <.autocomplete
-                        :if={row.service_type == "natural"}
-                        id={"row-#{row.tmp_id}-boar"}
-                        label=""
-                        name={"rows[#{row.tmp_id}][boar_id]"}
-                        value={row.boar_id}
-                        items={@boar_items}
-                        selected_label={row.boar_label}
-                        class="input w-full font-mono text-sm"
-                        placeholder={gettext("Ear tag...")}
+                      <input
+                        type="date"
+                        name={"rows[#{row.tmp_id}][weaned_at]"}
+                        value={row.weaned_at}
+                        class="input w-full"
                       />
-                      <span
-                        :if={row.service_type != "natural"}
-                        class="text-base-content/30"
-                      >
-                        —
-                      </span>
                     </td>
                     <td class="py-1 px-0.5">
                       <input
-                        type="date"
-                        name={"rows[#{row.tmp_id}][served_at]"}
-                        value={row.served_at}
-                        class="input w-full"
+                        type="number"
+                        min="0"
+                        name={"rows[#{row.tmp_id}][weaned_count]"}
+                        value={row.weaned_count}
+                        class="input w-full text-right"
+                      />
+                    </td>
+                    <td class="py-1 px-0.5">
+                      <input
+                        type="number"
+                        min="0"
+                        name={"rows[#{row.tmp_id}][avg_wean_weight_g]"}
+                        value={row.avg_wean_weight_g}
+                        class="input w-full text-right"
+                      />
+                    </td>
+                    <td class="py-1 px-0.5">
+                      <input
+                        type="text"
+                        name={"rows[#{row.tmp_id}][batch_tag]"}
+                        value={row.batch_tag}
+                        autocomplete="off"
+                        spellcheck="false"
+                        class="input input-bordered w-full font-mono"
+                        placeholder={gettext("e.g. POOL-W24")}
                       />
                     </td>
                     <td class="py-1 px-0.5">
@@ -176,7 +176,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
                           row.pen_state == :found && "border-success",
                           row.pen_state == :not_found && "border-error"
                         ]}
-                        placeholder={gettext("e.g. H1/F1")}
+                        placeholder={gettext("e.g. H1/N1")}
                       />
                       <p
                         :if={row.pen_state == :not_found}
@@ -259,21 +259,16 @@ defmodule PeggyWeb.FarmLive.BatchService do
   @impl true
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
-    boar_pool = Animals.list_animals(scope, status: "present")
     pens = Locations.list_all_pens(scope)
     today = to_string(Date.utc_today())
 
-    pens_by_label =
-      Map.new(pens, fn p -> {pen_label(p), p.id} end)
-
-    pens_by_id =
-      Map.new(pens, fn p -> {p.id, pen_label(p)} end)
+    pens_by_label = Map.new(pens, fn p -> {pen_label(p), p.id} end)
+    pens_by_id = Map.new(pens, fn p -> {p.id, pen_label(p)} end)
 
     {:ok,
      socket
      |> assign(
        can_record: Policy.can?(scope, :record_breeding),
-       boar_items: animal_items(boar_pool, "male"),
        pens_by_label: pens_by_label,
        pens_by_id: pens_by_id,
        rows: Enum.map(1..3, fn _ -> blank_row(today) end),
@@ -335,10 +330,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
     rows = Enum.reject(socket.assigns.rows, &(&1.tmp_id == tmp_id))
     rows = if rows == [], do: [blank_row(socket.assigns.default_date)], else: rows
 
-    {:noreply,
-     socket
-     |> assign(rows: rows, error_index: nil, error_message: nil)
-     |> push_event("ac:reset", %{id: "row-#{tmp_id}-boar"})}
+    {:noreply, assign(socket, rows: rows, error_index: nil, error_message: nil)}
   end
 
   def handle_event("commit", _params, socket) do
@@ -355,12 +347,12 @@ defmodule PeggyWeb.FarmLive.BatchService do
 
     entries = Enum.map(rows, &build_entry/1)
 
-    case Breeding.record_batch_services_with_backfill(scope, entries) do
-      {:ok, services} ->
+    case Breeding.record_batch_weanings_with_backfill(scope, entries) do
+      {:ok, results} ->
         {:noreply,
          socket
-         |> put_flash(:info, gettext("Committed %{n} services.", n: length(services)))
-         |> push_navigate(to: ~p"/farms/#{scope.farm.slug}/breeding")}
+         |> put_flash(:info, gettext("Committed %{n} weanings.", n: length(results)))
+         |> push_navigate(to: ~p"/farms/#{scope.farm.slug}/breeding?tab=weaned")}
 
       {:error, {i, reason}} ->
         {:noreply,
@@ -375,22 +367,28 @@ defmodule PeggyWeb.FarmLive.BatchService do
   end
 
   defp build_entry(r) do
+    weaned_at = parse_date(r.weaned_at)
+    farrowed_at = weaned_at && Date.add(weaned_at, -Breeding.lactation_days())
+    served_at = farrowed_at && Date.add(farrowed_at, -Breeding.gestation_days())
+
     base = %{
-      service_type: r.service_type,
-      served_at: r.served_at,
-      notes: r.notes
+      weaned_at: r.weaned_at,
+      farrowed_at: farrowed_at && to_string(farrowed_at),
+      served_at: served_at && to_string(served_at),
+      weaned_count: to_int_or_zero(r.weaned_count),
+      avg_wean_weight_g: to_int_or_nil(r.avg_wean_weight_g),
+      batch_tag: presence(r.batch_tag),
+      destination_pen_id: r.pen_id,
+      pen_id: r.pen_id,
+      born_alive: to_int_or_zero(r.weaned_count)
     }
 
-    base =
-      if r.service_type == "natural" and r.boar_id,
-        do: Map.put(base, :boar_id, r.boar_id),
-        else: base
-
-    base = if r.pen_id, do: Map.put(base, :pen_id, r.pen_id), else: base
-
     case r.sow_state do
-      :existing ->
+      :existing_open ->
         Map.put(base, :sow_id, r.resolved_sow_id)
+
+      :existing_no_farrowing ->
+        Map.put(base, :sow_ear_tag, r.sow_ear_tag)
 
       :new ->
         base
@@ -417,15 +415,14 @@ defmodule PeggyWeb.FarmLive.BatchService do
       resolved_sow_id: nil,
       similar_tags: [],
       force_create: false,
-      service_type: "ai",
-      boar_id: nil,
-      boar_label: nil,
-      served_at: default_date,
+      weaned_at: default_date,
+      weaned_count: nil,
+      avg_wean_weight_g: nil,
+      batch_tag: "",
       pen_input: "",
       pen_id: nil,
       pen_state: :empty,
-      breed: nil,
-      notes: nil
+      breed: nil
     }
   end
 
@@ -434,9 +431,6 @@ defmodule PeggyWeb.FarmLive.BatchService do
   end
 
   defp merge_row(row, params, assigns) do
-    boar_id = parse_int(Map.get(params, "boar_id"))
-    service_type = Map.get(params, "service_type", row.service_type)
-
     pen_input =
       params |> Map.get("pen_input", row.pen_input) |> to_string() |> String.trim()
 
@@ -447,19 +441,14 @@ defmodule PeggyWeb.FarmLive.BatchService do
       | sow_ear_tag:
           params |> Map.get("sow_ear_tag", row.sow_ear_tag) |> to_string() |> String.trim(),
         force_create: truthy?(Map.get(params, "force_create")),
-        service_type: service_type,
-        boar_id: if(service_type == "natural", do: boar_id, else: nil),
-        boar_label:
-          if(service_type == "natural",
-            do: lookup_label(assigns.boar_items, boar_id),
-            else: nil
-          ),
-        served_at: Map.get(params, "served_at", row.served_at),
+        weaned_at: Map.get(params, "weaned_at", row.weaned_at),
+        weaned_count: Map.get(params, "weaned_count", row.weaned_count),
+        avg_wean_weight_g: Map.get(params, "avg_wean_weight_g", row.avg_wean_weight_g),
+        batch_tag: Map.get(params, "batch_tag", row.batch_tag),
         pen_input: pen_input,
         pen_id: pen_id,
         pen_state: pen_state,
-        breed: presence(Map.get(params, "breed")),
-        notes: Map.get(params, "notes")
+        breed: presence(Map.get(params, "breed"))
     }
   end
 
@@ -480,10 +469,14 @@ defmodule PeggyWeb.FarmLive.BatchService do
     scope = assigns.current_scope
 
     case Animals.find_by_ear_tag(scope, tag) do
-      %{id: id, current_pen_id: cur_pen_id} ->
-        row
-        |> Map.merge(%{sow_state: :existing, resolved_sow_id: id, similar_tags: []})
-        |> prefill_pen_from_sow(cur_pen_id, assigns.pens_by_id)
+      %{id: id} ->
+        state =
+          case Breeding.latest_open_farrowing_for_sow(scope, id) do
+            nil -> :existing_no_farrowing
+            _ -> :existing_open
+          end
+
+        %{row | sow_state: state, resolved_sow_id: id, similar_tags: []}
 
       nil ->
         case Animals.similar_ear_tags(scope, tag) do
@@ -497,26 +490,18 @@ defmodule PeggyWeb.FarmLive.BatchService do
     end
   end
 
-  # Only prefill when the user hasn't typed anything into the pen column yet.
-  # Keeps user edits sticky — if they typed a different pen, we don't overwrite it.
-  defp prefill_pen_from_sow(row, nil, _pens_by_id), do: row
-  defp prefill_pen_from_sow(%{pen_input: s} = row, _cur, _pens) when s not in [nil, ""], do: row
-
-  defp prefill_pen_from_sow(row, cur_pen_id, pens_by_id) do
-    case Map.get(pens_by_id, cur_pen_id) do
-      nil -> row
-      label -> %{row | pen_input: label, pen_id: cur_pen_id, pen_state: :found}
-    end
-  end
-
   defp committable_rows(rows) do
     Enum.filter(rows, &row_committable?/1)
   end
 
   defp row_committable?(row) do
-    row.sow_state in [:existing, :new, :similar_overridable] and
-      row.pen_state != :not_found and
-      (row.service_type != "natural" or not is_nil(row.boar_id))
+    weaned_count = to_int_or_zero(row.weaned_count)
+
+    row.sow_state in [:existing_open, :existing_no_farrowing, :new, :similar_overridable] and
+      row.pen_state in [:found, :empty] and
+      not is_nil(row.weaned_at) and row.weaned_at != "" and
+      weaned_count > 0 and
+      presence(row.batch_tag) != nil
   end
 
   defp commit_ready?(rows) do
@@ -526,36 +511,29 @@ defmodule PeggyWeb.FarmLive.BatchService do
       not Enum.any?(rows, &(&1.sow_state == :similar or &1.pen_state == :not_found))
   end
 
-  defp sow_input_class(:existing), do: "border-success"
+  defp sow_input_class(:existing_open), do: "border-success"
+  defp sow_input_class(:existing_no_farrowing), do: "border-warning"
   defp sow_input_class(:new), do: "border-warning"
   defp sow_input_class(:similar), do: "border-error"
   defp sow_input_class(:similar_overridable), do: "border-warning"
   defp sow_input_class(_), do: ""
 
   defp row_state_text(%{sow_state: :empty}), do: ""
-  defp row_state_text(%{sow_state: :existing}), do: gettext("existing sow")
-  defp row_state_text(%{sow_state: :new}), do: gettext("new sow — will be registered")
+
+  defp row_state_text(%{sow_state: :existing_open}),
+    do: gettext("existing sow (open farrowing)")
+
+  defp row_state_text(%{sow_state: :existing_no_farrowing}),
+    do: gettext("existing sow — will back-fill service + farrowing")
+
+  defp row_state_text(%{sow_state: :new}),
+    do: gettext("new sow — will be registered")
 
   defp row_state_text(%{sow_state: :similar}),
     do: gettext("similar tag exists — pick one or tick \"Create anyway\"")
 
   defp row_state_text(%{sow_state: :similar_overridable}),
     do: gettext("new sow (override) — will be registered")
-
-  defp animal_items(animals, sex) do
-    animals
-    |> Enum.filter(&(&1.sex == sex and &1.ear_tag != nil))
-    |> Enum.map(&%{id: &1.id, label: &1.ear_tag})
-  end
-
-  defp lookup_label(_items, nil), do: nil
-
-  defp lookup_label(items, id) do
-    case Enum.find(items, &(&1.id == id)) do
-      %{label: l} -> l
-      _ -> nil
-    end
-  end
 
   defp format_row_error(i, %Ecto.Changeset{errors: errors}) do
     case errors do
@@ -573,13 +551,39 @@ defmodule PeggyWeb.FarmLive.BatchService do
   defp format_row_error(i, :duplicate_ear_tag),
     do: "Row #{i + 1}: duplicate ear tag earlier in the grid"
 
+  defp format_row_error(i, :weaned_at_required),
+    do: "Row #{i + 1}: weaned_at is required"
+
+  defp format_row_error(i, :served_at_required),
+    do: "Row #{i + 1}: served_at could not be derived"
+
+  defp format_row_error(i, :farrowed_at_required),
+    do: "Row #{i + 1}: farrowed_at could not be derived"
+
+  defp format_row_error(i, :gestation_out_of_range),
+    do: "Row #{i + 1}: gestation window out of range"
+
+  defp format_row_error(i, :batch_tag_required),
+    do: "Row #{i + 1}: batch tag is required when weaned_count ≥ 1"
+
   defp format_row_error(i, other), do: "Row #{i + 1}: #{inspect(other)}"
 
-  defp parse_int(nil), do: nil
-  defp parse_int(""), do: nil
-  defp parse_int(i) when is_integer(i), do: i
+  defp to_int_or_zero(nil), do: 0
+  defp to_int_or_zero(""), do: 0
+  defp to_int_or_zero(i) when is_integer(i), do: i
 
-  defp parse_int(s) when is_binary(s) do
+  defp to_int_or_zero(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {i, ""} -> i
+      _ -> 0
+    end
+  end
+
+  defp to_int_or_nil(nil), do: nil
+  defp to_int_or_nil(""), do: nil
+  defp to_int_or_nil(i) when is_integer(i), do: i
+
+  defp to_int_or_nil(s) when is_binary(s) do
     case Integer.parse(s) do
       {i, ""} -> i
       _ -> nil
@@ -601,4 +605,15 @@ defmodule PeggyWeb.FarmLive.BatchService do
   defp truthy?(true), do: true
   defp truthy?("true"), do: true
   defp truthy?(_), do: false
+
+  defp parse_date(%Date{} = d), do: d
+
+  defp parse_date(s) when is_binary(s) do
+    case Date.from_iso8601(s) do
+      {:ok, d} -> d
+      _ -> nil
+    end
+  end
+
+  defp parse_date(_), do: nil
 end
