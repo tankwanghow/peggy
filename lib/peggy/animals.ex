@@ -28,6 +28,7 @@ defmodule Peggy.Animals do
     stage = Keyword.get(opts, :stage)
     status = Keyword.get(opts, :status)
     pen_id = Keyword.get(opts, :pen_id)
+    needs_review = Keyword.get(opts, :needs_review, false)
 
     base =
       from(a in Animal,
@@ -36,6 +37,7 @@ defmodule Peggy.Animals do
       )
       |> maybe_filter(:stage, stage)
       |> maybe_filter(:status, status)
+      |> maybe_needs_review(needs_review)
       |> preload(current_pen: [:house], placements: ^active_placement_query())
 
     query =
@@ -344,6 +346,26 @@ defmodule Peggy.Animals do
 
   def update_stage(%Scope{} = scope, %Animal{} = animal, new_stage) do
     update_animal(scope, animal, %{stage: new_stage})
+  end
+
+  @doc """
+  Clears `needs_review` on an inferred/backfilled animal. No-op if the
+  flag is already false. Writes an `animal.reviewed` audit row so the
+  reviewer is recorded.
+  """
+  def mark_reviewed(%Scope{farm: farm} = scope, %Animal{farm_id: fid} = animal)
+      when fid == farm.id do
+    if animal.needs_review do
+      cs = Ecto.Changeset.change(animal, %{needs_review: false})
+
+      Multi.new()
+      |> Multi.update(:animal, cs)
+      |> audit_after(scope, "animal.reviewed", :animal, fn _ -> %{needs_review: false} end)
+      |> Repo.transaction()
+      |> unwrap(:animal)
+    else
+      {:ok, animal}
+    end
   end
 
   ## Herd import (onboarding)
@@ -1595,7 +1617,11 @@ defmodule Peggy.Animals do
   defp maybe_filter(query, :status, "serviceable"), do: Animal.scope_serviceable(query)
   defp maybe_filter(query, :status, "breeding_herd"), do: Animal.scope_breeding_herd(query)
   defp maybe_filter(query, :status, "saleable"), do: Animal.scope_saleable(query)
+  defp maybe_filter(query, :status, "departed"), do: Animal.scope_departed(query)
   defp maybe_filter(query, :status, val), do: where(query, [a], a.status == ^val)
+
+  defp maybe_needs_review(query, true), do: where(query, [a], a.needs_review == true)
+  defp maybe_needs_review(query, _), do: query
 
   defp audit_after(multi, scope, action, key, change_fn) do
     Multi.run(multi, {:audit, action}, fn _repo, changes ->

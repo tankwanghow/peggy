@@ -4,7 +4,7 @@ defmodule Peggy.Animals.Animal do
   import Ecto.Query, only: [from: 2]
 
   @tracking_types ~w(individual batch)
-  @stages ~w(piglet weaner grower finisher sow boar cull)
+  @stages ~w(piglet weaner grower finisher sow boar)
   @sexes ~w(male female unknown)
   @statuses ~w(active served open lactating dry culled sold slaughtered deceased transferred reversed)
   @present_statuses ~w(active served open lactating dry culled)
@@ -53,6 +53,7 @@ defmodule Peggy.Animals.Animal do
     field :dob, :date
     field :quantity, :integer, default: 1
     field :status, :string, default: "active"
+    field :legacy_parity, :integer, default: 0
     field :notes, :string
     field :inferred, :boolean, default: false
     field :needs_review, :boolean, default: false
@@ -132,6 +133,11 @@ defmodule Peggy.Animals.Animal do
     from(a in query, where: a.status in ^@serviceable_statuses)
   end
 
+  @doc "Narrows to animals that have left the farm (any departed status)."
+  def scope_departed(query) do
+    from(a in query, where: a.status in ^@departed_statuses)
+  end
+
   @doc """
   Narrows to animals eligible for sale / slaughter.
 
@@ -154,7 +160,7 @@ defmodule Peggy.Animals.Animal do
   accepts any stage in `@stages` — this helper only narrows the
   dropdown.
   """
-  def stages_for("individual"), do: ~w(sow boar cull)
+  def stages_for("individual"), do: ~w(sow boar)
   def stages_for("batch"), do: ~w(weaner grower finisher)
   def stages_for(_), do: @stages
 
@@ -170,6 +176,7 @@ defmodule Peggy.Animals.Animal do
       :dob,
       :quantity,
       :status,
+      :legacy_parity,
       :notes,
       :inferred,
       :needs_review,
@@ -187,6 +194,7 @@ defmodule Peggy.Animals.Animal do
     |> validate_inclusion(:status, @statuses)
     |> validate_status_transition()
     |> validate_type_specific()
+    |> validate_number(:legacy_parity, greater_than_or_equal_to: 0)
     |> validate_length(:ear_tag, min: 1, max: 40)
     |> validate_length(:rfid, min: 1, max: 60)
     |> validate_length(:breed, min: 1, max: 60)

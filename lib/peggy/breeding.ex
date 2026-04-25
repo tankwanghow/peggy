@@ -2016,15 +2016,27 @@ defmodule Peggy.Breeding do
   end
 
   @doc """
-  Returns the parity (number of farrowings) for a sow.
+  Returns the parity for a sow: prior litters from before Peggy
+  (`animals.legacy_parity`) plus farrowings recorded on the system.
   """
   def parity(%Scope{farm: farm}, sow_id) do
-    Repo.aggregate(
-      from(f in Farrowing,
-        where: f.farm_id == ^farm.id and f.sow_id == ^sow_id and is_nil(f.deleted_at)
-      ),
-      :count
-    )
+    farrowings =
+      Repo.aggregate(
+        from(f in Farrowing,
+          where: f.farm_id == ^farm.id and f.sow_id == ^sow_id and is_nil(f.deleted_at)
+        ),
+        :count
+      )
+
+    legacy =
+      Repo.one(
+        from(a in Animal,
+          where: a.id == ^sow_id and a.farm_id == ^farm.id,
+          select: a.legacy_parity
+        )
+      ) || 0
+
+    farrowings + legacy
   end
 
   @doc """

@@ -16,7 +16,7 @@ defmodule PeggyWeb.FarmLive.Animals do
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
         </.header>
 
-        <form phx-change="filter" class="mt-4 flex gap-3 flex-wrap">
+        <form phx-change="filter" class="mt-4 flex gap-3 flex-wrap items-end">
           <.input
             name="stage"
             value={@filter_stage}
@@ -30,9 +30,23 @@ defmodule PeggyWeb.FarmLive.Animals do
             type="select"
             label={gettext("Status")}
             options={[
-              {gettext("All"), ""} | Enum.map(Animal.statuses(), &{String.capitalize(&1), &1})
+              {gettext("Present (any)"), "present"},
+              {gettext("Departed (any)"), "departed"},
+              {gettext("All"), ""}
+              | Enum.map(Animal.statuses(), &{String.capitalize(&1), &1})
             ]}
           />
+          <label class="flex items-center gap-2 cursor-pointer h-10 px-1">
+            <input type="hidden" name="needs_review" value="0" />
+            <input
+              type="checkbox"
+              name="needs_review"
+              value="1"
+              checked={@filter_needs_review}
+              class="checkbox checkbox-sm"
+            />
+            <span class="text-sm">{gettext("Needs review")}</span>
+          </label>
         </form>
 
         <div class="mt-4 overflow-x-auto">
@@ -56,7 +70,12 @@ defmodule PeggyWeb.FarmLive.Animals do
                 phx-click={JS.navigate(~p"/farms/#{@current_scope.farm.slug}/animals/#{a.id}")}
               >
                 <td class="py-1.5 font-mono font-semibold">
-                  {a.ear_tag || "##{a.id}"}
+                  <span class="inline-flex items-center gap-1">
+                    {a.ear_tag || "##{a.id}"}
+                    <span :if={a.needs_review} title={gettext("Needs review")}>
+                      <.icon name="hero-exclamation-triangle-micro" class="size-4 text-warning" />
+                    </span>
+                  </span>
                 </td>
                 <td class="py-1.5">
                   <span class={[
@@ -156,6 +175,16 @@ defmodule PeggyWeb.FarmLive.Animals do
               />
               <.input field={@form[:breed]} type="text" label={gettext("Breed")} />
               <.input field={@form[:dob]} type="date" label={gettext("Date of birth")} />
+              <.input
+                :if={
+                  form_value(@form, :tracking_type) == "individual" and
+                    form_value(@form, :stage) == "sow"
+                }
+                field={@form[:legacy_parity]}
+                type="number"
+                label={gettext("Legacy parity")}
+                min="0"
+              />
               <.autocomplete
                 :if={form_value(@form, :tracking_type) == "individual"}
                 id="pen-picker"
@@ -217,40 +246,68 @@ defmodule PeggyWeb.FarmLive.Animals do
     {:ok,
      socket
      |> assign(can_manage: can_manage, can_move: can_move)
-     |> assign(filter_stage: "", filter_status: "")
+     |> assign(filter_stage: "", filter_status: "present", filter_needs_review: false)
      |> assign(form: nil, form_title: nil, form_target: nil)
      |> assign(ac: default_ac())
-     |> load_animals()}
+     |> assign(:animal_count, 0)
+     |> stream(:animals, [])}
   end
 
   @impl true
-  def handle_params(%{"new" => "1"}, _uri, socket) do
+  def handle_params(params, _uri, socket) do
+    stage = Map.get(params, "stage", "")
+    status = Map.get(params, "status", "present")
+    needs_review = Map.get(params, "needs_review") in ["1", "true"]
+
     socket =
-      if socket.assigns.can_manage and is_nil(socket.assigns.form) do
-        open_form(
-          socket,
-          nil,
-          %Animal{tracking_type: "individual", stage: "sow", sex: "female"},
-          gettext("Register animal")
-        )
-      else
-        socket
-      end
+      socket
+      |> assign(
+        filter_stage: stage,
+        filter_status: status,
+        filter_needs_review: needs_review
+      )
+      |> load_animals()
+      |> maybe_open_new(params)
 
     {:noreply, socket}
   end
 
-  def handle_params(_params, _uri, socket), do: {:noreply, socket}
+  defp maybe_open_new(socket, %{"new" => "1"}) do
+    if socket.assigns.can_manage and is_nil(socket.assigns.form) do
+      open_form(
+        socket,
+        nil,
+        %Animal{tracking_type: "individual", stage: "sow", sex: "female"},
+        gettext("Register animal")
+      )
+    else
+      socket
+    end
+  end
+
+  defp maybe_open_new(socket, _), do: socket
 
   @impl true
   def handle_event("filter", params, socket) do
-    stage = Map.get(params, "stage", "")
-    status = Map.get(params, "status", "")
+    # Status is always kept in the URL — an empty `status=` is the
+    # explicit "All" choice, distinct from a missing param which
+    # defaults to "present". Other filters drop when blank.
+    status = Map.get(params, "status", "present")
+
+    query =
+      %{
+        "stage" => Map.get(params, "stage", ""),
+        "needs_review" =>
+          if(Map.get(params, "needs_review") in ["1", "true", "on"], do: "1", else: "")
+      }
+      |> Enum.reject(fn {_k, v} -> v == "" end)
+      |> Enum.into(%{})
+      |> Map.put("status", status)
 
     {:noreply,
-     socket
-     |> assign(filter_stage: stage, filter_status: status)
-     |> load_animals()}
+     push_patch(socket,
+       to: ~p"/farms/#{socket.assigns.current_scope.farm.slug}/animals?#{query}"
+     )}
   end
 
   def handle_event("new", _, socket) do
@@ -412,7 +469,12 @@ defmodule PeggyWeb.FarmLive.Animals do
     stage = if socket.assigns.filter_stage == "", do: nil, else: socket.assigns.filter_stage
     status = if socket.assigns.filter_status == "", do: nil, else: socket.assigns.filter_status
 
-    animals = Animals.list_animals(scope, stage: stage, status: status)
+    animals =
+      Animals.list_animals(scope,
+        stage: stage,
+        status: status,
+        needs_review: socket.assigns.filter_needs_review
+      )
 
     socket
     |> assign(:animal_count, length(animals))

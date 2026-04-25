@@ -229,6 +229,12 @@ defmodule PeggyWeb.Layouts do
           </ul>
         </div>
         <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :view_reports)}
+          href={~p"/farms/#{@current_scope.farm.slug}/reports"}
+          icon="hero-chart-bar-micro"
+          label={gettext("Reports")}
+        />
+        <.farm_nav_link
           :if={Peggy.Policy.can?(@current_scope, :view_audit)}
           href={~p"/farms/#{@current_scope.farm.slug}/audit"}
           icon="hero-clipboard-document-list-micro"

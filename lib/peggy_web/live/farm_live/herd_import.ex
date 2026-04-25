@@ -64,6 +64,9 @@ defmodule PeggyWeb.FarmLive.HerdImport do
                   <th class="py-2">{gettext("Last served")}</th>
                   <th class="py-2">{gettext("Last farrowed")}</th>
                   <th class="py-2">{gettext("Born alive")}</th>
+                  <th class="py-2" title={gettext("Litters this sow had before Peggy")}>
+                    {gettext("Legacy parity")}
+                  </th>
                   <th class="py-2 w-10"></th>
                 </tr>
               </thead>
@@ -163,6 +166,16 @@ defmodule PeggyWeb.FarmLive.HerdImport do
                       value={row.born_alive || ""}
                       class="input input-sm w-20"
                       disabled={row.status != "lactating"}
+                    />
+                  </td>
+                  <td class="py-1 px-1">
+                    <input
+                      type="number"
+                      min="0"
+                      name={"rows[#{row.tmp_id}][legacy_parity]"}
+                      value={row.legacy_parity || ""}
+                      class="input input-sm w-20"
+                      disabled={row.stage != "sow"}
                     />
                   </td>
                   <td class="py-1 px-1">
@@ -279,7 +292,8 @@ defmodule PeggyWeb.FarmLive.HerdImport do
           current_pen_id: r.pen_id,
           last_served_at: r.last_served_at,
           last_farrowed_at: r.last_farrowed_at,
-          born_alive: r.born_alive
+          born_alive: r.born_alive,
+          legacy_parity: r.legacy_parity
         }
       end)
 
@@ -315,7 +329,8 @@ defmodule PeggyWeb.FarmLive.HerdImport do
       pen_id: nil,
       last_served_at: nil,
       last_farrowed_at: nil,
-      born_alive: nil
+      born_alive: nil,
+      legacy_parity: nil
     }
   end
 
@@ -337,7 +352,8 @@ defmodule PeggyWeb.FarmLive.HerdImport do
         pen_id: parse_int(Map.get(params, "current_pen_id")),
         last_served_at: Map.get(params, "last_served_at"),
         last_farrowed_at: Map.get(params, "last_farrowed_at"),
-        born_alive: Map.get(params, "born_alive")
+        born_alive: Map.get(params, "born_alive"),
+        legacy_parity: Map.get(params, "legacy_parity")
     }
   end
 

@@ -1354,4 +1354,73 @@ defmodule Peggy.AnimalsTest do
       assert length(logs) == 1
     end
   end
+
+  describe "mark_reviewed/2" do
+    test "clears needs_review and writes an audit row", %{scope: scope} do
+      {:ok, animal} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "R1",
+          stage: "sow",
+          sex: "female"
+        })
+
+      {1, _} =
+        Peggy.Repo.update_all(
+          Ecto.Query.from(a in Peggy.Animals.Animal, where: a.id == ^animal.id),
+          set: [needs_review: true, inferred: true, created_via: "back_fill_from_service"]
+        )
+
+      animal = Animals.get_animal!(scope, animal.id)
+      assert animal.needs_review
+
+      {:ok, reviewed} = Animals.mark_reviewed(scope, animal)
+      refute reviewed.needs_review
+
+      logs = Audit.list(scope, action: "animal.reviewed")
+      assert length(logs) == 1
+    end
+
+    test "no-op when already reviewed", %{scope: scope} do
+      {:ok, animal} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "R2",
+          stage: "sow",
+          sex: "female"
+        })
+
+      assert {:ok, _} = Animals.mark_reviewed(scope, animal)
+      assert Audit.list(scope, action: "animal.reviewed") == []
+    end
+  end
+
+  describe "list_animals needs_review filter" do
+    test "narrows to rows with needs_review = true", %{scope: scope} do
+      {:ok, a} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "NR1",
+          stage: "sow",
+          sex: "female"
+        })
+
+      {:ok, _b} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "NR2",
+          stage: "sow",
+          sex: "female"
+        })
+
+      {1, _} =
+        Peggy.Repo.update_all(
+          Ecto.Query.from(x in Peggy.Animals.Animal, where: x.id == ^a.id),
+          set: [needs_review: true]
+        )
+
+      rows = Animals.list_animals(scope, needs_review: true)
+      assert Enum.map(rows, & &1.ear_tag) == ["NR1"]
+    end
+  end
 end

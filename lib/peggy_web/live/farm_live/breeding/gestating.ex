@@ -1341,7 +1341,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
         true ->
           case Animals.find_by_ear_tag(scope, tag) do
             %{id: id} = sow ->
-              state = if sow_serviceable_status?(sow.status), do: :existing, else: :not_serviceable
+              state =
+                if sow_serviceable_status?(sow.status), do: :existing, else: :not_serviceable
 
               svc = %{
                 svc

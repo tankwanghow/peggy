@@ -338,4 +338,44 @@ defmodule PeggyWeb.FarmLiveTest do
       assert html =~ "exceeds unplaced"
     end
   end
+
+  describe "/farms/:slug/animals needs_review filter" do
+    import Peggy.LocationsFixtures
+    import Peggy.AnimalsFixtures
+    import Ecto.Query
+
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+      house = house_fixture(scope, code: "H1")
+      pen = pen_fixture(scope, house, code: "P1", capacity: 50)
+
+      review_sow =
+        animal_fixture(scope, ear_tag: "REVIEWME", stage: "sow", current_pen_id: pen.id)
+
+      _clean_sow =
+        animal_fixture(scope, ear_tag: "CLEANTAG", stage: "sow", current_pen_id: pen.id)
+
+      {1, _} =
+        Peggy.Repo.update_all(
+          from(a in Peggy.Animals.Animal, where: a.id == ^review_sow.id),
+          set: [needs_review: true]
+        )
+
+      %{conn: log_in_user(conn, owner), farm: farm}
+    end
+
+    test "?needs_review=1 narrows the list on first load", %{conn: conn, farm: farm} do
+      {:ok, _lv, html} = live(conn, ~p"/farms/#{farm.slug}/animals?needs_review=1")
+      assert html =~ "REVIEWME"
+      refute html =~ "CLEANTAG"
+    end
+
+    test "unfiltered URL shows all rows", %{conn: conn, farm: farm} do
+      {:ok, _lv, html} = live(conn, ~p"/farms/#{farm.slug}/animals")
+      assert html =~ "REVIEWME"
+      assert html =~ "CLEANTAG"
+    end
+  end
 end

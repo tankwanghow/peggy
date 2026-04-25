@@ -1,0 +1,425 @@
+defmodule Peggy.Reports do
+  @moduledoc """
+  Reporting & KPI queries. Read-only, farm-scoped aggregates over
+  `Animals` and `Breeding` data.
+
+  Every public function takes a `Peggy.Accounts.Scope` (for `farm_id`
+  isolation) and a `%{from: Date.t(), to: Date.t()}` range. Ranges are
+  inclusive of both endpoints.
+
+  Feed/health/sales KPIs (FCR, ADG, withdrawal, revenue) are deferred
+  with §5/6/7 of REQUIREMENTS.md and intentionally absent here.
+  """
+
+  import Ecto.Query
+  alias Peggy.Accounts.Scope
+  alias Peggy.Repo
+
+  @type range :: %{from: Date.t(), to: Date.t()}
+  @type kpi_summary :: %{
+          farrowing_rate: float() | nil,
+          avg_born_alive: float() | nil,
+          avg_stillborn: float() | nil,
+          avg_mummified: float() | nil,
+          pre_wean_mortality: float() | nil,
+          avg_weaned: float() | nil,
+          avg_wean_to_service_days: float() | nil,
+          pigs_weaned_per_sow_year: float() | nil,
+          services_count: non_neg_integer(),
+          farrowings_count: non_neg_integer(),
+          weanings_count: non_neg_integer()
+        }
+
+  @doc "Default range: the last 12 months ending today."
+  @spec default_range() :: range
+  def default_range do
+    today = Date.utc_today()
+    %{from: Date.add(today, -365), to: today}
+  end
+
+  # ── Dashboard aggregates ───────────────────────────────────────────
+
+  @gestation_days 114
+
+  @doc """
+  Herd snapshot: counts of present animals grouped by stage and (for
+  sows) by reproductive status, plus pen occupancy stats.
+
+  Piglet-stage animals are counted via the `animals.stage` field —
+  note pre-wean piglets typically live as a count on
+  `breeding_farrowings.born_alive`, not as `animals` rows, so the
+  `piglet` bucket here is usually 0 unless batches are registered
+  that way.
+  """
+  @spec herd_snapshot(Scope.t()) :: map()
+  def herd_snapshot(%Scope{farm: %{id: farm_id}}) do
+    stage_rows =
+      from(a in "animals",
+        where: a.farm_id == ^farm_id and a.status in ~w(active served open lactating dry culled),
+        group_by: a.stage,
+        select: {a.stage, sum(a.quantity)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    sow_status_rows =
+      from(a in "animals",
+        where:
+          a.farm_id == ^farm_id and a.stage == "sow" and
+            a.status in ~w(active open served lactating dry),
+        group_by: a.status,
+        select: {a.status, count(a.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    nursing_piglets =
+      from(f in "breeding_farrowings",
+        left_join: w in "breeding_weanings",
+        on: w.farrowing_id == f.id and is_nil(w.deleted_at),
+        where: f.farm_id == ^farm_id and is_nil(f.deleted_at) and is_nil(w.id),
+        select: sum(f.born_alive)
+      )
+      |> Repo.one()
+
+    present_total = stage_rows |> Map.values() |> Enum.sum()
+
+    %{
+      present_total: present_total,
+      nursing_piglets: nursing_piglets || 0,
+      by_stage: stage_rows,
+      sow_status: sow_status_rows,
+      pen_stats: pen_stats(farm_id)
+    }
+  end
+
+  defp pen_stats(farm_id) do
+    pen_rows =
+      from(p in "pens",
+        left_join: a in "animals",
+        on:
+          a.current_pen_id == p.id and
+            a.status in ~w(active served open lactating dry culled),
+        where: p.farm_id == ^farm_id and p.status == "active",
+        group_by: [p.id, p.capacity],
+        select: {p.capacity, sum(coalesce(a.quantity, 0))}
+      )
+      |> Repo.all()
+
+    total = length(pen_rows)
+
+    {empty, over, used_sum, cap_sum} =
+      Enum.reduce(pen_rows, {0, 0, 0, 0}, fn {cap, used}, {e, o, u, c} ->
+        used = used || 0
+        cap = cap || 0
+
+        {
+          if(used == 0, do: e + 1, else: e),
+          if(cap > 0 and used > cap, do: o + 1, else: o),
+          u + used,
+          c + cap
+        }
+      end)
+
+    %{
+      total: total,
+      empty: empty,
+      overcapacity: over,
+      avg_utilization: if(cap_sum > 0, do: used_sum / cap_sum, else: nil)
+    }
+  end
+
+  @doc """
+  Action list — rows the operator should act on this week. All counts
+  are farm-scoped. `due_to_farrow` is a small sample list (up to 10)
+  so the dashboard can render names; the rest are bare counts.
+  """
+  @spec action_list(Scope.t()) :: map()
+  def action_list(%Scope{farm: %{id: farm_id}} = scope) do
+    today = Date.utc_today()
+    farrow_cutoff_7d = Date.add(today, 7 - @gestation_days)
+    farrow_cutoff_overdue = Date.add(today, -@gestation_days)
+
+    due_to_farrow =
+      from(s in "breeding_services",
+        join: a in "animals",
+        on: a.id == s.sow_id,
+        where:
+          s.farm_id == ^farm_id and is_nil(s.result) and is_nil(s.deleted_at) and
+            s.served_at <= ^farrow_cutoff_7d,
+        order_by: [asc: s.served_at],
+        limit: 10,
+        select: %{
+          sow_id: s.sow_id,
+          sow_tag: a.ear_tag,
+          served_at: s.served_at
+        }
+      )
+      |> Repo.all()
+      |> Enum.map(fn r ->
+        %{
+          sow_id: r.sow_id,
+          sow_tag: r.sow_tag,
+          expected_at: Date.add(r.served_at, @gestation_days),
+          overdue?: Date.compare(r.served_at, farrow_cutoff_overdue) != :gt
+        }
+      end)
+
+    overdue_farrow_count =
+      from(s in "breeding_services",
+        where:
+          s.farm_id == ^farm_id and is_nil(s.result) and is_nil(s.deleted_at) and
+            s.served_at <= ^farrow_cutoff_overdue,
+        select: count(s.id)
+      )
+      |> Repo.one()
+
+    # Lactating farrowings older than 21 days with no weaning yet.
+    wean_cutoff = Date.add(today, -21)
+
+    due_to_wean_count =
+      from(f in "breeding_farrowings",
+        left_join: w in "breeding_weanings",
+        on: w.farrowing_id == f.id and is_nil(w.deleted_at),
+        where:
+          f.farm_id == ^farm_id and is_nil(f.deleted_at) and is_nil(w.id) and
+            f.farrowed_at <= ^wean_cutoff,
+        select: count(f.id)
+      )
+      |> Repo.one()
+
+    sow_status_counts =
+      from(a in "animals",
+        where:
+          a.farm_id == ^farm_id and a.stage == "sow" and
+            a.status in ~w(active dry open),
+        group_by: a.status,
+        select: {a.status, count(a.id)}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    active_sow_count = Map.get(sow_status_counts, "active", 0)
+    dry_sow_count = Map.get(sow_status_counts, "dry", 0)
+    open_sow_count = Map.get(sow_status_counts, "open", 0)
+
+    needs_review_count =
+      from(a in "animals",
+        where:
+          a.farm_id == ^farm_id and a.needs_review == true and
+            a.status in ~w(active served open lactating dry culled),
+        select: count(a.id)
+      )
+      |> Repo.one()
+
+    %{
+      due_to_farrow_7d: due_to_farrow,
+      overdue_farrow_count: overdue_farrow_count,
+      due_to_wean_count: due_to_wean_count,
+      active_sow_count: active_sow_count,
+      dry_sow_count: dry_sow_count,
+      open_sow_count: open_sow_count,
+      needs_review_count: needs_review_count,
+      recent_kpis: summary(scope, %{from: Date.add(today, -90), to: today})
+    }
+  end
+
+  @doc """
+  Returns every KPI in a single map, computed from one read per
+  underlying table. Values are `nil` when the denominator is zero.
+  """
+  @spec summary(Scope.t(), range) :: kpi_summary
+  def summary(%Scope{farm: %{id: farm_id}}, %{from: from, to: to}) do
+    services = services_in_range(farm_id, from, to)
+    farrowings = farrowings_in_range(farm_id, from, to)
+    weanings = weanings_in_range(farm_id, from, to)
+
+    %{
+      services_count: length(services),
+      farrowings_count: length(farrowings),
+      weanings_count: length(weanings),
+      farrowing_rate: farrowing_rate(services),
+      avg_born_alive: avg(farrowings, & &1.born_alive),
+      avg_stillborn: avg(farrowings, & &1.stillborn),
+      avg_mummified: avg(farrowings, & &1.mummified),
+      avg_weaned: avg(weanings, & &1.weaned_count),
+      pre_wean_mortality: pre_wean_mortality(farrowings, weanings),
+      avg_wean_to_service_days: avg_wean_to_service_days(farm_id, from, to),
+      pigs_weaned_per_sow_year: pigs_weaned_per_sow_year(farm_id, from, to, weanings)
+    }
+  end
+
+  # ── Raw fetches ────────────────────────────────────────────────────
+
+  defp services_in_range(farm_id, from, to) do
+    from(s in "breeding_services",
+      where:
+        s.farm_id == ^farm_id and is_nil(s.deleted_at) and
+          s.served_at >= ^from and s.served_at <= ^to,
+      select: %{id: s.id, sow_id: s.sow_id, result: s.result, served_at: s.served_at}
+    )
+    |> Repo.all()
+  end
+
+  defp farrowings_in_range(farm_id, from, to) do
+    from(f in "breeding_farrowings",
+      where:
+        f.farm_id == ^farm_id and is_nil(f.deleted_at) and
+          f.farrowed_at >= ^from and f.farrowed_at <= ^to,
+      select: %{
+        id: f.id,
+        sow_id: f.sow_id,
+        farrowed_at: f.farrowed_at,
+        born_alive: f.born_alive,
+        stillborn: f.stillborn,
+        mummified: f.mummified
+      }
+    )
+    |> Repo.all()
+  end
+
+  defp weanings_in_range(farm_id, from, to) do
+    from(w in "breeding_weanings",
+      join: f in "breeding_farrowings",
+      on: f.id == w.farrowing_id,
+      where:
+        w.farm_id == ^farm_id and is_nil(w.deleted_at) and
+          w.weaned_at >= ^from and w.weaned_at <= ^to,
+      select: %{
+        id: w.id,
+        farrowing_id: w.farrowing_id,
+        weaned_at: w.weaned_at,
+        weaned_count: w.weaned_count,
+        born_alive: f.born_alive,
+        sow_id: f.sow_id
+      }
+    )
+    |> Repo.all()
+  end
+
+  # ── Derivations ────────────────────────────────────────────────────
+
+  # Closed services only (result is set). A service is counted as a
+  # success when result = "farrowing". Open services in the window are
+  # excluded from the denominator — they haven't resolved yet.
+  defp farrowing_rate(services) do
+    closed = Enum.filter(services, &(&1.result != nil))
+
+    case length(closed) do
+      0 ->
+        nil
+
+      n ->
+        succeeded = Enum.count(closed, &(&1.result == "farrowing"))
+        succeeded / n
+    end
+  end
+
+  defp avg([], _fun), do: nil
+
+  defp avg(rows, fun) do
+    values = rows |> Enum.map(fun) |> Enum.reject(&is_nil/1)
+
+    case values do
+      [] -> nil
+      xs -> Enum.sum(xs) / length(xs)
+    end
+  end
+
+  defp pre_wean_mortality(farrowings, weanings) do
+    weaned_by_farrowing = Map.new(weanings, &{&1.farrowing_id, &1.weaned_count})
+
+    paired =
+      farrowings
+      |> Enum.filter(&Map.has_key?(weaned_by_farrowing, &1.id))
+      |> Enum.map(fn f -> {f.born_alive || 0, Map.fetch!(weaned_by_farrowing, f.id)} end)
+
+    case paired do
+      [] ->
+        nil
+
+      pairs ->
+        {born, weaned} =
+          Enum.reduce(pairs, {0, 0}, fn {b, w}, {bacc, wacc} -> {bacc + b, wacc + w} end)
+
+        if born == 0, do: nil, else: (born - weaned) / born
+    end
+  end
+
+  # For each sow with a wean followed by a service in the window, the
+  # interval in days. Averaged across all such pairs (not per-sow).
+  defp avg_wean_to_service_days(farm_id, from, to) do
+    weanings =
+      from(w in "breeding_weanings",
+        join: f in "breeding_farrowings",
+        on: f.id == w.farrowing_id,
+        where: w.farm_id == ^farm_id and is_nil(w.deleted_at),
+        select: %{sow_id: f.sow_id, weaned_at: w.weaned_at}
+      )
+      |> Repo.all()
+
+    services =
+      from(s in "breeding_services",
+        where: s.farm_id == ^farm_id and is_nil(s.deleted_at),
+        select: %{sow_id: s.sow_id, served_at: s.served_at}
+      )
+      |> Repo.all()
+
+    services_by_sow =
+      services
+      |> Enum.group_by(& &1.sow_id, & &1.served_at)
+      |> Map.new(fn {k, dates} -> {k, Enum.sort(dates, Date)} end)
+
+    intervals =
+      for w <- weanings,
+          dates = Map.get(services_by_sow, w.sow_id, []),
+          next = Enum.find(dates, &(Date.compare(&1, w.weaned_at) == :gt)),
+          Date.compare(next, from) != :lt and Date.compare(next, to) != :gt do
+        Date.diff(next, w.weaned_at)
+      end
+
+    case intervals do
+      [] -> nil
+      xs -> Enum.sum(xs) / length(xs)
+    end
+  end
+
+  # Annualised: (piglets weaned in range) / (productive sow count)
+  # × (365 / range_days). The productive denominator is every sow —
+  # present *or* departed — that had at least one service or farrowing
+  # inside the window. Using the snapshot of currently-present sows
+  # would distort the rate whenever the herd has turned over inside
+  # the window (culls + replacements).
+  defp pigs_weaned_per_sow_year(farm_id, from, to, weanings) do
+    service_sow_ids =
+      from(s in "breeding_services",
+        where:
+          s.farm_id == ^farm_id and is_nil(s.deleted_at) and
+            s.served_at >= ^from and s.served_at <= ^to,
+        select: s.sow_id,
+        distinct: true
+      )
+      |> Repo.all()
+
+    farrowing_sow_ids =
+      from(f in "breeding_farrowings",
+        where:
+          f.farm_id == ^farm_id and is_nil(f.deleted_at) and
+            f.farrowed_at >= ^from and f.farrowed_at <= ^to,
+        select: f.sow_id,
+        distinct: true
+      )
+      |> Repo.all()
+
+    sow_count = (service_sow_ids ++ farrowing_sow_ids) |> Enum.uniq() |> length()
+
+    total_weaned = Enum.reduce(weanings, 0, &(&1.weaned_count + &2))
+    days = Date.diff(to, from) + 1
+
+    cond do
+      sow_count == 0 -> nil
+      days <= 0 -> nil
+      true -> total_weaned / sow_count * (365 / days)
+    end
+  end
+end

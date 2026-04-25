@@ -61,6 +61,14 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 {@animal.dam.ear_tag}
               </.link>
             <% end %>
+            <%= if @animal.stage == "sow" do %>
+              · {gettext("Parity")}: {@parity}
+              <%= if (@animal.legacy_parity || 0) > 0 do %>
+                <span class="text-base-content/50">
+                  ({@animal.legacy_parity} {gettext("prior to Peggy")})
+                </span>
+              <% end %>
+            <% end %>
           </span>
           <:actions>
             <.link
@@ -93,6 +101,35 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             </.button>
           </:actions>
         </.header>
+
+        <div
+          :if={@animal.needs_review}
+          class="mt-4 rounded-md border border-warning/40 bg-warning/10 p-3 flex items-start gap-3"
+        >
+          <.icon name="hero-exclamation-triangle-micro" class="size-5 text-warning mt-0.5" />
+          <div class="flex-1 text-sm">
+            <p class="font-medium">
+              {gettext("This record needs review.")}
+            </p>
+            <p class="text-base-content/70">
+              {if @animal.inferred,
+                do:
+                  gettext(
+                    "It was auto-created from a backfill (%{via}). Verify the details below — dob, breed, sire, dam, pen — then confirm.",
+                    via: @animal.created_via || "backfill"
+                  ),
+                else: gettext("Verify the details below, then confirm.")}
+            </p>
+          </div>
+          <.button
+            :if={@can_manage}
+            phx-click="mark_reviewed"
+            data-confirm={gettext("Confirm this record as reviewed?")}
+            class="btn btn-sm btn-warning"
+          >
+            {gettext("Confirm reviewed")}
+          </.button>
+        </div>
 
         <div :if={@animal.notes} class="mt-4 text-sm">
           <span class="text-base-content/60">{gettext("Notes")}</span>
@@ -414,6 +451,13 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               />
               <.input field={@edit_form[:breed]} type="text" label={gettext("Breed")} />
               <.input field={@edit_form[:dob]} type="date" label={gettext("Date of birth")} />
+              <.input
+                :if={@animal.tracking_type == "individual" and @animal.stage == "sow"}
+                field={@edit_form[:legacy_parity]}
+                type="number"
+                label={gettext("Legacy parity")}
+                min="0"
+              />
               <.autocomplete
                 :if={@animal.tracking_type == "individual"}
                 id="edit-sire-picker"
@@ -477,6 +521,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     move_cs = Animals.change_movement(new_movement(animal, placements), %{})
 
     latest_id = movements |> List.first() |> then(&(&1 && &1.id))
+    parity = sow_parity(scope, animal)
 
     {:ok,
      socket
@@ -484,6 +529,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
        animal: animal,
        offspring: offspring,
        placements: placements,
+       parity: parity,
        can_manage: Policy.can?(scope, :manage_animals),
        can_move: Policy.can?(scope, :record_movement),
        edit_form: nil,
@@ -505,6 +551,11 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   end
 
   defp breeding_data(_scope, _animal), do: {[], []}
+
+  defp sow_parity(scope, %Animal{tracking_type: "individual", stage: "sow", id: id}),
+    do: Breeding.parity(scope, id)
+
+  defp sow_parity(_scope, _animal), do: 0
 
   defp build_history(
          %Animal{tracking_type: "individual"} = animal,
@@ -710,6 +761,27 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     {:noreply, assign(socket, :promote_stage, nil)}
   end
 
+  def handle_event("mark_reviewed", _, socket) do
+    if socket.assigns.can_manage do
+      scope = socket.assigns.current_scope
+
+      case Animals.mark_reviewed(scope, socket.assigns.animal) do
+        {:ok, _} ->
+          animal = Animals.get_animal!(scope, socket.assigns.animal.id)
+
+          {:noreply,
+           socket
+           |> assign(animal: animal)
+           |> put_flash(:info, gettext("Record confirmed as reviewed."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not mark as reviewed."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
   def handle_event("promote_submit", %{"new_stage" => new_stage}, socket) do
     if socket.assigns.can_manage do
       scope = socket.assigns.current_scope
@@ -791,6 +863,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
            |> assign(
              animal: animal,
              placements: placements,
+             parity: sow_parity(scope, animal),
              edit_form: nil,
              ac: move_ac_items(scope, placements)
            )
