@@ -11,6 +11,7 @@ defmodule PeggyWeb.FarmLive.BulkMove do
   use PeggyWeb, :live_view
 
   alias Peggy.Animals
+  alias Peggy.FarmClock
   alias Peggy.Locations
   alias Peggy.Policy
 
@@ -237,7 +238,7 @@ defmodule PeggyWeb.FarmLive.BulkMove do
         %{
           animal_id: r.animal_id,
           to_pen_id: r.to_pen_id,
-          moved_at: Date.utc_today(),
+          moved_at: FarmClock.today(scope),
           notes: r.notes
         }
       end)

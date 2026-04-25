@@ -5,7 +5,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Animals, Breeding, Locations, Policy}
+  alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
   alias Peggy.Breeding.{Weaning, LitterEvent}
   alias PeggyWeb.FarmLive.Breeding.Shared
 
@@ -151,7 +151,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                       "#{entry.farrowing.pen.house.code}-#{entry.farrowing.pen.code}"}
                   </td>
                   <td class="py-2 text-right font-mono">
-                    {Date.diff(Date.utc_today(), entry.farrowing.farrowed_at)}
+                    {Date.diff(@today, entry.farrowing.farrowed_at)}
                   </td>
                   <td :if={@can_record} class="py-2 text-right">
                     <button
@@ -635,7 +635,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
        weaner_batches: [],
        batch_tag_hint: "",
        wn: nil,
-       per_page: @per_page
+       per_page: @per_page,
+       today: FarmClock.today(scope)
      )
      |> stream_configure(:lactating, dom_id: &"farrowing-#{&1.farrowing.id}")
      |> stream(:lactating, [])}
@@ -680,7 +681,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
 
     cs =
       Breeding.change_weaning(%Weaning{
-        weaned_at: Date.utc_today(),
+        weaned_at: FarmClock.today(scope),
         weaned_count: surviving
       })
 
@@ -711,10 +712,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
 
   def handle_event("new_top_weaning", _, socket) do
     scope = socket.assigns.current_scope
+    today = FarmClock.today(scope)
 
     cs =
       Breeding.change_weaning(%Weaning{
-        weaned_at: Date.utc_today()
+        weaned_at: today
       })
 
     wn = %{
@@ -722,7 +724,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       sow_tag: "",
       sow_state: :empty,
       resolved_farrowing: nil,
-      backfill: default_wn_backfill(Date.utc_today())
+      backfill: default_wn_backfill(today)
     }
 
     {:noreply,
@@ -810,7 +812,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     cs =
       LitterEvent.changeset(%LitterEvent{}, %{
         "kind" => "death",
-        "occurred_at" => Date.utc_today(),
+        "occurred_at" => FarmClock.today(scope),
         "quantity" => 1
       })
       |> Map.put(:action, nil)
@@ -834,7 +836,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     cs =
       LitterEvent.changeset(%LitterEvent{}, %{
         "kind" => "foster_out",
-        "occurred_at" => Date.utc_today(),
+        "occurred_at" => FarmClock.today(scope),
         "quantity" => 1
       })
       |> Map.put(:action, nil)

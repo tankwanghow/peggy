@@ -6,7 +6,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Breeding, Animals, Policy}
+  alias Peggy.{Breeding, Animals, FarmClock, Policy}
   alias Peggy.Breeding.{Service, Farrowing}
   alias PeggyWeb.FarmLive.Breeding.Shared
 
@@ -157,10 +157,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                   <td class="py-2">{entry.expected_farrow_date}</td>
                   <td class={[
                     "py-2 text-right font-mono",
-                    days_left(entry) <= 7 && "text-warning font-bold",
-                    days_left(entry) <= 0 && "text-error font-bold"
+                    days_left(entry, @today) <= 7 && "text-warning font-bold",
+                    days_left(entry, @today) <= 0 && "text-error font-bold"
                   ]}>
-                    {days_left(entry)}
+                    {days_left(entry, @today)}
                   </td>
                   <td :if={@can_record} class="py-2 text-right">
                     <button
@@ -677,7 +677,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
        svc: nil,
        frw: nil,
        ac: Shared.default_ac(scope),
-       per_page: @per_page
+       per_page: @per_page,
+       today: FarmClock.today(scope)
      )
      |> stream_configure(:gestating, dom_id: &"service-#{&1.service.id}")
      |> stream(:gestating, [])}
@@ -727,7 +728,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
 
   @impl true
   def handle_event("new_service", _, socket) do
-    today = Date.utc_today()
+    today = FarmClock.today(socket.assigns.current_scope)
 
     {:noreply,
      socket
@@ -783,9 +784,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
 
     sow = Animals.get_animal!(scope, service.sow_id)
 
+    today = FarmClock.today(scope)
+
     cs =
       Breeding.change_farrowing(%Farrowing{
-        farrowed_at: Date.utc_today(),
+        farrowed_at: today,
         born_alive: 0,
         stillborn: 0,
         mummified: 0
@@ -800,7 +803,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       sow_tag: sow.ear_tag,
       sow_state: :resolved,
       resolved_service: service,
-      backfill: default_backfill(Date.utc_today())
+      backfill: default_backfill(today)
     }
 
     {:noreply,
@@ -816,10 +819,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
 
   def handle_event("new_top_farrowing", _, socket) do
     scope = socket.assigns.current_scope
+    today = FarmClock.today(scope)
 
     cs =
       Breeding.change_farrowing(%Farrowing{
-        farrowed_at: Date.utc_today(),
+        farrowed_at: today,
         born_alive: 0,
         stillborn: 0,
         mummified: 0
@@ -830,7 +834,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       sow_tag: "",
       sow_state: :empty,
       resolved_service: nil,
-      backfill: default_backfill(Date.utc_today())
+      backfill: default_backfill(today)
     }
 
     {:noreply,
@@ -902,7 +906,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     cs =
       Service.close_changeset(service, %{
         "result" => "abortion",
-        "result_at" => Date.utc_today()
+        "result_at" => FarmClock.today(scope)
       })
       |> Map.put(:action, nil)
 
@@ -1583,8 +1587,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     Enum.map(rows, &Map.put(&1, :parity, Map.get(parities, &1.service.sow_id, 0)))
   end
 
-  defp days_left(%{expected_farrow_date: efd}) do
-    Date.diff(efd, Date.utc_today())
+  defp days_left(%{expected_farrow_date: efd}, today) do
+    Date.diff(efd, today)
   end
 
   defp sow_pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}-#{code}"

@@ -12,6 +12,7 @@ defmodule PeggyWeb.FarmLive.BatchEntry do
 
   alias Peggy.Animals
   alias Peggy.Animals.Animal
+  alias Peggy.FarmClock
   alias Peggy.Locations
   alias Peggy.Policy
 
@@ -291,7 +292,7 @@ defmodule PeggyWeb.FarmLive.BatchEntry do
           quantity: r.qty,
           from_pen_id: r.from_pen_id,
           to_pen_id: r.to_pen_id,
-          moved_at: Date.utc_today(),
+          moved_at: FarmClock.today(scope),
           notes: r.notes
         }
       end)

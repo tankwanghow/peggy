@@ -2819,7 +2819,6 @@ defmodule Peggy.BreedingTest do
       departed =
         animal_fixture(scope,
           ear_tag: "GONE01",
-
           stage: "sow",
           status: "sold"
         )

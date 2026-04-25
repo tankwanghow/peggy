@@ -23,7 +23,7 @@ defmodule Peggy.Breeding do
 
   import Ecto.Query
   alias Ecto.Multi
-  alias Peggy.{Animals, Repo, Audit}
+  alias Peggy.{Animals, Repo, Audit, FarmClock}
   alias Peggy.Accounts.Scope
   alias Peggy.Animals.Animal
   alias Peggy.Audit.AuditLog
@@ -240,7 +240,7 @@ defmodule Peggy.Breeding do
           {i, :existing, attrs} ->
             pen_id = to_int(attrs["pen_id"])
             attrs = Map.delete(attrs, "pen_id")
-            served_at = parse_date(attrs["served_at"]) || Date.utc_today()
+            served_at = parse_date(attrs["served_at"]) || FarmClock.today(farm)
 
             m
             |> ensure_sow_serviceable_keyed(scope, attrs, i)
@@ -259,7 +259,7 @@ defmodule Peggy.Breeding do
           {i, :inferred, ear_tag, backfill, attrs} ->
             pen_id = to_int(attrs["pen_id"])
             attrs = Map.delete(attrs, "pen_id")
-            served_at = parse_date(attrs["served_at"]) || Date.utc_today()
+            served_at = parse_date(attrs["served_at"]) || FarmClock.today(farm)
             sow_cs = build_inferred_sow_changeset(farm, ear_tag, backfill, attrs)
 
             m
@@ -440,7 +440,7 @@ defmodule Peggy.Breeding do
         {:ok, service} ->
           sow = Repo.get!(Animal, service.sow_id)
 
-          case move_existing_sow_for_service(scope.farm.id, sow, pen_id, service.served_at) do
+          case move_existing_sow_for_service(scope.farm, sow, pen_id, service.served_at) do
             {:ok, sow} -> %{sow: sow, service: service, inferred?: false}
             {:error, cs} -> Repo.rollback(cs)
           end
@@ -451,22 +451,22 @@ defmodule Peggy.Breeding do
     end)
   end
 
-  defp move_existing_sow_for_service(_farm_id, sow, nil, _date), do: {:ok, sow}
+  defp move_existing_sow_for_service(_farm, sow, nil, _date), do: {:ok, sow}
 
-  defp move_existing_sow_for_service(_farm_id, %{current_pen_id: cur} = sow, pen_id, _date)
+  defp move_existing_sow_for_service(_farm, %{current_pen_id: cur} = sow, pen_id, _date)
        when cur == pen_id,
        do: {:ok, sow}
 
-  defp move_existing_sow_for_service(farm_id, sow, pen_id, served_at) do
+  defp move_existing_sow_for_service(farm, sow, pen_id, served_at) do
     reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
-    moved_at = served_at || Date.utc_today()
+    moved_at = served_at || FarmClock.today(farm)
 
     multi =
       Multi.new()
       |> Multi.insert(
         :sow_movement,
         Movement.changeset(%Movement{}, %{
-          "farm_id" => farm_id,
+          "farm_id" => farm.id,
           "animal_id" => sow.id,
           "from_pen_id" => sow.current_pen_id,
           "to_pen_id" => pen_id,
@@ -523,7 +523,7 @@ defmodule Peggy.Breeding do
       |> Map.delete("pen_id")
       |> Map.put("farm_id", farm.id)
 
-    served_at = parse_date(service_attrs["served_at"]) || Date.utc_today()
+    served_at = parse_date(service_attrs["served_at"]) || FarmClock.today(farm)
 
     sow_changeset = build_inferred_sow_changeset(farm, ear_tag, backfill_attrs, service_attrs)
 
@@ -578,7 +578,7 @@ defmodule Peggy.Breeding do
 
   defp build_inferred_sow_changeset(farm, ear_tag, backfill_attrs, service_attrs) do
     backfill_attrs = stringify_keys(backfill_attrs || %{})
-    served_at = parse_date(service_attrs["served_at"]) || Date.utc_today()
+    served_at = parse_date(service_attrs["served_at"]) || FarmClock.today(farm)
     default_dob = Date.add(served_at, -@minimum_sow_age_days)
 
     Animal.changeset(%Animal{}, %{
@@ -705,7 +705,7 @@ defmodule Peggy.Breeding do
             {:ok, nil}
 
           prior ->
-            result_at = attrs["served_at"] || to_string(Date.utc_today())
+            result_at = attrs["served_at"] || to_string(FarmClock.today(scope))
 
             prior
             |> Service.close_changeset(%{"result" => "re_service", "result_at" => result_at})
@@ -766,7 +766,7 @@ defmodule Peggy.Breeding do
             {:ok, nil}
 
           prior ->
-            result_at = attrs["served_at"] || to_string(Date.utc_today())
+            result_at = attrs["served_at"] || to_string(FarmClock.today(scope))
 
             prior
             |> Service.close_changeset(%{"result" => "re_service", "result_at" => result_at})
@@ -841,7 +841,7 @@ defmodule Peggy.Breeding do
     Multi.run(multi, :depart_sow, fn _repo, _ ->
       sow = Repo.get!(Animal, sow_id)
       reason = Map.fetch!(@sow_departure_reasons, result)
-      moved_at = attrs["result_at"] || to_string(Date.utc_today())
+      moved_at = attrs["result_at"] || to_string(FarmClock.today(scope))
 
       with {:ok, _movement} <-
              Repo.insert(
@@ -862,6 +862,188 @@ defmodule Peggy.Breeding do
   end
 
   defp handle_sow_after_close(multi, _scope, _sow_id, _result, _attrs), do: multi
+
+  # ── Batch close-services (with back-fill) ────────────────────────────
+
+  @gestation_backfill_offset 60
+  @valid_close_results ~w(abortion death cull)
+
+  @doc """
+  Batch variant for closing gestation cycles with back-fill.
+
+  Each entry is a map with:
+
+    * `:result` — `"abortion"` | `"death"` | `"cull"`
+    * `:result_at` — date the result occurred (required)
+    * `:sow_id` — for known sows, OR
+    * `:sow_ear_tag` + optional `:backfill_sow` map for inferred sows
+    * `:served_at` — optional; when the sow has no open service, an
+      inferred service is created at this date. Defaults to
+      `result_at - 60 days` when omitted.
+    * `:result_notes`, `:notes` — free text
+
+  Three back-fill cases per row:
+
+    1. Sow exists and has an open service → close it with the result.
+    2. Sow exists, no open service → insert an inferred service at
+       `served_at`, then close it with the result.
+    3. Sow doesn't exist → insert inferred sow + inferred service,
+       then close it.
+
+  Inferred sows / services carry `inferred: true` and
+  `created_via: "close_service_backfill"`.
+
+  Returns `{:ok, [service, ...]}` or `{:error, {row_index, reason}}`.
+  Any failure rolls back the entire batch.
+  """
+  @spec record_batch_close_services_with_backfill(Scope.t(), [map()]) ::
+          {:ok, [Service.t()]} | {:error, term()}
+  def record_batch_close_services_with_backfill(%Scope{}, []), do: {:error, :no_entries}
+
+  def record_batch_close_services_with_backfill(%Scope{} = scope, entries)
+      when is_list(entries) do
+    Repo.transaction(fn ->
+      result =
+        entries
+        |> Enum.with_index()
+        |> Enum.reduce_while([], fn {entry, i}, acc ->
+          case do_close_service_with_backfill(scope, entry) do
+            {:ok, service} -> {:cont, [service | acc]}
+            {:error, reason} -> {:halt, {:row_error, i, reason}}
+          end
+        end)
+
+      case result do
+        {:row_error, i, reason} -> Repo.rollback({i, reason})
+        services when is_list(services) -> Enum.reverse(services)
+      end
+    end)
+  end
+
+  defp do_close_service_with_backfill(scope, entry) do
+    attrs = stringify_keys(entry)
+    result = attrs["result"]
+    result_at = parse_date(attrs["result_at"])
+    served_at = parse_date(attrs["served_at"])
+    sow_id = to_int(attrs["sow_id"])
+    ear_tag = attrs["sow_ear_tag"]
+
+    cond do
+      result not in @valid_close_results ->
+        {:error, :result_invalid}
+
+      is_nil(result_at) ->
+        {:error, :result_at_required}
+
+      not is_nil(sow_id) ->
+        close_for_existing_sow(scope, sow_id, result, result_at, served_at, attrs)
+
+      is_nil(ear_tag) or ear_tag == "" ->
+        {:error, :sow_not_found}
+
+      true ->
+        case Animals.find_by_ear_tag(scope, ear_tag) do
+          %Animal{id: id} ->
+            close_for_existing_sow(scope, id, result, result_at, served_at, attrs)
+
+          nil ->
+            backfill_sow_then_close(scope, ear_tag, result, result_at, served_at, attrs)
+        end
+    end
+  end
+
+  defp close_for_existing_sow(scope, sow_id, result, result_at, served_at, attrs) do
+    case current_service(scope, sow_id) do
+      %Service{} = service ->
+        close_service(scope, service, result, %{
+          "result_at" => result_at,
+          "result_notes" => attrs["result_notes"] || attrs["notes"]
+        })
+
+      nil ->
+        with {:ok, service} <-
+               insert_inferred_close_service(scope, sow_id, result_at, served_at) do
+          close_service(scope, service, result, %{
+            "result_at" => result_at,
+            "result_notes" => attrs["result_notes"] || attrs["notes"]
+          })
+        end
+    end
+  end
+
+  defp backfill_sow_then_close(scope, ear_tag, result, result_at, served_at, attrs) do
+    backfill = attrs["backfill_sow"] || %{}
+
+    force? =
+      truthy?(Map.get(backfill, :force_create) || Map.get(backfill, "force_create"))
+
+    cond do
+      not force? and Animals.similar_ear_tags(scope, ear_tag) != [] ->
+        {:error, {:similar_tag, Animals.similar_ear_tags(scope, ear_tag)}}
+
+      true ->
+        with {:ok, sow} <-
+               insert_inferred_sow_for_close(scope, ear_tag, backfill, served_at, result_at),
+             {:ok, service} <- insert_inferred_close_service(scope, sow.id, result_at, served_at) do
+          close_service(scope, service, result, %{
+            "result_at" => result_at,
+            "result_notes" => attrs["result_notes"] || attrs["notes"]
+          })
+        end
+    end
+  end
+
+  defp insert_inferred_close_service(scope, sow_id, result_at, served_at) do
+    farm = scope.farm
+    served_at = served_at || Date.add(result_at, -@gestation_backfill_offset)
+
+    %Service{}
+    |> Service.changeset(%{
+      "farm_id" => farm.id,
+      "sow_id" => sow_id,
+      "service_type" => "ai",
+      "served_at" => served_at,
+      "inferred" => true,
+      "created_via" => "close_service_backfill"
+    })
+    |> Repo.insert()
+  end
+
+  defp insert_inferred_sow_for_close(scope, ear_tag, backfill, served_at, result_at) do
+    farm = scope.farm
+    backfill = stringify_keys(backfill)
+    effective_served_at = served_at || Date.add(result_at, -@gestation_backfill_offset)
+    default_dob = Date.add(effective_served_at, -@minimum_sow_age_days)
+
+    sow_cs =
+      Animal.changeset(%Animal{}, %{
+        "tracking_type" => "individual",
+        "ear_tag" => ear_tag,
+        "stage" => "sow",
+        "status" => "open",
+        "dob" => backfill["dob"] || default_dob,
+        "breed" => backfill["breed"],
+        "notes" => backfill["notes"],
+        "inferred" => true,
+        "needs_review" => true,
+        "created_via" => "close_service_backfill",
+        "farm_id" => farm.id
+      })
+
+    multi =
+      Multi.new()
+      |> Multi.insert(:sow, sow_cs)
+      |> Multi.insert(:sow_audit, fn %{sow: sow} -> inferred_sow_audit(scope, sow) end)
+      |> Multi.update(:sow_with_origin, fn %{sow: sow, sow_audit: audit} ->
+        Ecto.Changeset.change(sow, origin_audit_id: audit.id)
+      end)
+
+    case Repo.transaction(multi) do
+      {:ok, %{sow_with_origin: sow}} -> {:ok, sow}
+      {:error, :sow, cs, _} -> {:error, cs}
+      {:error, _step, reason, _} -> {:error, reason}
+    end
+  end
 
   @doc """
   Returns the current open service for a sow, or nil.
@@ -1134,7 +1316,7 @@ defmodule Peggy.Breeding do
   end
 
   defp gestating_query(farm, opts) do
-    today = Date.utc_today()
+    today = FarmClock.today(farm)
     search = opts |> Keyword.get(:search) |> normalize_search()
     service_type = Keyword.get(opts, :service_type, "all")
     due_window = Keyword.get(opts, :due_window, "all")
@@ -1267,7 +1449,7 @@ defmodule Peggy.Breeding do
   """
   def list_due_farrowings(%Scope{farm: farm}, days_ahead \\ 7) do
     # Services served before this date have expected farrowing within the window
-    served_before = Date.add(Date.utc_today(), days_ahead - @gestation_days)
+    served_before = Date.add(FarmClock.today(farm), days_ahead - @gestation_days)
 
     from(s in Service,
       where:
@@ -1370,7 +1552,7 @@ defmodule Peggy.Breeding do
           "result_at" => farrowed_at
         })
       )
-      |> maybe_move_sow(farm.id, sow, pen_id, farrowed_at)
+      |> maybe_move_sow(farm, sow, pen_id, farrowed_at)
       |> update_sow_for_farrowing(sow, pen_id)
       |> audit_after(scope, "farrowing.created", :farrowing, &farrowing_audit_data/1)
 
@@ -1735,7 +1917,7 @@ defmodule Peggy.Breeding do
 
   defp insert_inferred_sow_for_farrowing(scope, ear_tag, backfill, attrs) do
     farm = scope.farm
-    farrowed_at = parse_date(attrs["farrowed_at"]) || Date.utc_today()
+    farrowed_at = parse_date(attrs["farrowed_at"]) || FarmClock.today(farm)
     served_at = Date.add(farrowed_at, -@gestation_days)
 
     # Reuse the service-flavored sow changeset but override created_via.
@@ -1762,7 +1944,7 @@ defmodule Peggy.Breeding do
 
   defp insert_inferred_service(scope, sow, attrs) do
     farm = scope.farm
-    farrowed_at = parse_date(attrs["farrowed_at"]) || Date.utc_today()
+    farrowed_at = parse_date(attrs["farrowed_at"]) || FarmClock.today(farm)
     served_at = Date.add(farrowed_at, -@gestation_days)
 
     service_attrs = %{
@@ -1812,21 +1994,21 @@ defmodule Peggy.Breeding do
     Multi.update(multi, :update_sow, Ecto.Changeset.change(sow, changes))
   end
 
-  defp maybe_move_sow(multi, _farm_id, _sow, nil, _date), do: multi
+  defp maybe_move_sow(multi, _farm, _sow, nil, _date), do: multi
 
-  defp maybe_move_sow(multi, _farm_id, %{current_pen_id: cur}, pen_id, _date)
+  defp maybe_move_sow(multi, _farm, %{current_pen_id: cur}, pen_id, _date)
        when cur == pen_id,
        do: multi
 
-  defp maybe_move_sow(multi, farm_id, sow, pen_id, farrowed_at) do
+  defp maybe_move_sow(multi, farm, sow, pen_id, farrowed_at) do
     reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
-    moved_at = farrowed_at || Date.utc_today()
+    moved_at = farrowed_at || FarmClock.today(farm)
 
     Multi.insert(
       multi,
       :sow_movement,
       Movement.changeset(%Movement{}, %{
-        "farm_id" => farm_id,
+        "farm_id" => farm.id,
         "animal_id" => sow.id,
         "from_pen_id" => sow.current_pen_id,
         "to_pen_id" => pen_id,
@@ -2206,7 +2388,7 @@ defmodule Peggy.Breeding do
   end
 
   defp lactating_query(farm, opts) do
-    today = Date.utc_today()
+    today = FarmClock.today(farm)
     search = opts |> Keyword.get(:search) |> normalize_search()
     age_bucket = Keyword.get(opts, :age_bucket, "all")
     pen_id = Keyword.get(opts, :pen_id)
@@ -2364,11 +2546,11 @@ defmodule Peggy.Breeding do
         multi =
           Multi.new()
           |> Multi.insert(:weaning, Weaning.changeset(%Weaning{}, weaning_attrs))
-          |> consolidate_piglets(farm.id, farrowing, sow, weaned_count, batch_tag, weaned_at)
+          |> consolidate_piglets(farm, farrowing, sow, weaned_count, batch_tag, weaned_at)
           |> audit_new_batch_animal(scope)
           |> audit_wean_movement(scope)
           |> link_weaning_to_batch()
-          |> maybe_move_sow_on_weaning(farm.id, sow, dest_pen_id, weaned_at)
+          |> maybe_move_sow_on_weaning(farm, sow, dest_pen_id, weaned_at)
           |> update_sow_after_weaning(sow)
           |> audit_after(scope, "weaning.created", :weaning, &weaning_audit_data/1)
 
@@ -2601,7 +2783,7 @@ defmodule Peggy.Breeding do
 
   # weaned_count == 0: no weaner batch created; deaths/fostering are
   # already captured in the `LitterEvent` ledger.
-  defp consolidate_piglets(multi, _farm_id, _farrowing, _sow, 0, _tag, _weaned_at) do
+  defp consolidate_piglets(multi, _farm, _farrowing, _sow, 0, _tag, _weaned_at) do
     Multi.run(multi, :batch, fn _repo, _ -> {:ok, nil} end)
   end
 
@@ -2610,13 +2792,13 @@ defmodule Peggy.Breeding do
   # first wean against a new tag inserts the Animal batch with
   # `quantity: 0` first; subsequent weans reuse the same row. Uniform
   # write path = uniform delete path.
-  defp consolidate_piglets(multi, farm_id, farrowing, sow, count, batch_tag, weaned_at)
+  defp consolidate_piglets(multi, farm, farrowing, sow, count, batch_tag, weaned_at)
        when count >= 1 and is_binary(batch_tag) do
     service = Repo.get!(Service, farrowing.service_id)
 
     multi
     |> Multi.run(:existing_batch, fn repo, _ ->
-      {:ok, repo.one(active_weaner_batch_query(farm_id, batch_tag))}
+      {:ok, repo.one(active_weaner_batch_query(farm.id, batch_tag))}
     end)
     |> Multi.run(:batch, fn repo, %{existing_batch: existing} ->
       case existing do
@@ -2634,7 +2816,7 @@ defmodule Peggy.Breeding do
             "dam_id" => sow.id,
             "sire_id" => service.boar_id,
             "farrowing_id" => farrowing.id,
-            "farm_id" => farm_id,
+            "farm_id" => farm.id,
             "current_pen_id" => nil
           })
           |> repo.insert()
@@ -2642,14 +2824,14 @@ defmodule Peggy.Breeding do
     end)
     |> Multi.run(:wean_movement, fn repo, %{weaning: weaning, batch: batch} ->
       Movement.changeset(%Movement{}, %{
-        "farm_id" => farm_id,
+        "farm_id" => farm.id,
         "animal_id" => batch.id,
         "weaning_id" => weaning.id,
         "reason" => "wean",
         "from_pen_id" => farrowing.pen_id,
         "to_pen_id" => batch.current_pen_id,
         "quantity" => count,
-        "moved_at" => weaned_at || Date.utc_today()
+        "moved_at" => weaned_at || FarmClock.today(farm)
       })
       |> repo.insert()
     end)
@@ -2679,20 +2861,20 @@ defmodule Peggy.Breeding do
   # Weaning's destination_pen_id is the **sow's** destination (dry-sow
   # housing). The weaner batch is placed separately. No-op when nil or
   # when the sow is already in that pen.
-  defp maybe_move_sow_on_weaning(multi, _farm_id, _sow, nil, _weaned_at), do: multi
+  defp maybe_move_sow_on_weaning(multi, _farm, _sow, nil, _weaned_at), do: multi
 
-  defp maybe_move_sow_on_weaning(multi, farm_id, sow, dest_pen_id, weaned_at)
+  defp maybe_move_sow_on_weaning(multi, farm, sow, dest_pen_id, weaned_at)
        when is_integer(dest_pen_id) do
     if sow.current_pen_id == dest_pen_id do
       multi
     else
-      moved = weaned_at || Date.utc_today()
+      moved = weaned_at || FarmClock.today(farm)
       reason = if is_nil(sow.current_pen_id), do: "placement", else: "pen_transfer"
 
       multi
       |> Multi.run(:sow_movement, fn repo, _ ->
         Movement.changeset(%Movement{}, %{
-          "farm_id" => farm_id,
+          "farm_id" => farm.id,
           "animal_id" => sow.id,
           "from_pen_id" => sow.current_pen_id,
           "to_pen_id" => dest_pen_id,

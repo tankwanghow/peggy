@@ -24,7 +24,6 @@ defmodule Peggy.AnimalsTest do
           tracking_type: "individual",
           ear_tag: "A001",
           stage: "sow",
-
           breed: "Landrace"
         })
 
@@ -144,7 +143,6 @@ defmodule Peggy.AnimalsTest do
           tracking_type: "individual",
           ear_tag: "GILT1",
           stage: "sow",
-
           sire_id: sire.id,
           dam_id: dam.id
         })
@@ -166,7 +164,6 @@ defmodule Peggy.AnimalsTest do
           tracking_type: "individual",
           ear_tag: "M1",
           stage: "grower",
-
           current_pen_id: pen.id
         })
 
@@ -879,7 +876,6 @@ defmodule Peggy.AnimalsTest do
           %{
             ear_tag: "SOW02",
             stage: "sow",
-
             breed: "Yorkshire",
             current_pen_id: pen.id
           },
@@ -986,7 +982,6 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-001",
-
             stage: "sow",
             status: "active"
           }
@@ -1002,7 +997,6 @@ defmodule Peggy.AnimalsTest do
                  %{
                    tracking_type: "individual",
                    ear_tag: "IMP-002",
-
                    stage: "sow",
                    status: "served"
                  }
@@ -1017,7 +1011,6 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-003",
-
             stage: "sow",
             status: "served",
             service_type: "ai",
@@ -1042,7 +1035,6 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-004",
-
             stage: "sow",
             status: "lactating",
             service_type: "ai",
@@ -1075,14 +1067,12 @@ defmodule Peggy.AnimalsTest do
                  %{
                    tracking_type: "individual",
                    ear_tag: "ROLL-1",
-
                    stage: "sow",
                    status: "active"
                  },
                  %{
                    tracking_type: "individual",
                    ear_tag: "ROLL-2",
-
                    stage: "sow",
                    status: "served"
                  }
@@ -1098,21 +1088,18 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-OPEN",
-
             stage: "sow",
             status: "open"
           },
           %{
             tracking_type: "individual",
             ear_tag: "IMP-DRY",
-
             stage: "sow",
             status: "dry"
           },
           %{
             tracking_type: "individual",
             ear_tag: "IMP-CULL",
-
             stage: "sow",
             status: "culled"
           }

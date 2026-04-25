@@ -12,8 +12,8 @@ defmodule Peggy.Reports do
   """
 
   import Ecto.Query
+  alias Peggy.{FarmClock, Repo}
   alias Peggy.Accounts.Scope
-  alias Peggy.Repo
 
   @type range :: %{from: Date.t(), to: Date.t()}
   @type kpi_summary :: %{
@@ -30,10 +30,16 @@ defmodule Peggy.Reports do
           weanings_count: non_neg_integer()
         }
 
-  @doc "Default range: the last 12 months ending today."
-  @spec default_range() :: range
-  def default_range do
-    today = Date.utc_today()
+  @doc """
+  Default range: the last 12 months ending today.
+
+  Accepts an optional `Scope` so the farm's simulated date is used when
+  set. Without a scope (legacy callers / tests), falls back to the
+  system date.
+  """
+  @spec default_range(Scope.t() | nil) :: range
+  def default_range(scope \\ nil) do
+    today = FarmClock.today(scope)
     %{from: Date.add(today, -365), to: today}
   end
 
@@ -134,7 +140,7 @@ defmodule Peggy.Reports do
   """
   @spec action_list(Scope.t()) :: map()
   def action_list(%Scope{farm: %{id: farm_id}} = scope) do
-    today = Date.utc_today()
+    today = FarmClock.today(scope)
     farrow_cutoff_7d = Date.add(today, 7 - @gestation_days)
     farrow_cutoff_overdue = Date.add(today, -@gestation_days)
 

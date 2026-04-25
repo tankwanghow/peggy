@@ -10,7 +10,7 @@ defmodule PeggyWeb.FarmLive.BatchFarrowing do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Breeding, Animals, Locations, Policy}
+  alias Peggy.{Breeding, Animals, FarmClock, Locations, Policy}
 
   @impl true
   def render(assigns) do
@@ -267,7 +267,7 @@ defmodule PeggyWeb.FarmLive.BatchFarrowing do
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
     pens = Locations.list_all_pens(scope)
-    today = to_string(Date.utc_today())
+    today = to_string(FarmClock.today(scope))
 
     pens_by_label = Map.new(pens, fn p -> {pen_label(p), p.id} end)
     pens_by_id = Map.new(pens, fn p -> {p.id, pen_label(p)} end)

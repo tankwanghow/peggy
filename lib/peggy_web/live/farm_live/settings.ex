@@ -49,6 +49,18 @@ defmodule PeggyWeb.FarmLive.Settings do
               options={[{gettext("Free"), "free"}, {gettext("Pro"), "pro"}]}
             />
             <.input field={@farm_form[:seat_limit]} type="number" label={gettext("Seat limit")} />
+            <div class="rounded-md border border-base-300 p-3">
+              <.input
+                field={@farm_form[:simulated_today]}
+                type="date"
+                label={gettext("Simulated today")}
+              />
+              <p class="mt-1 text-xs text-base-content/60">
+                {gettext(
+                  "Pin a date the app uses for age, lactation length, gestation day, and other date-of-day calculations. Leave blank to use the real date. Audit timestamps and record-creation times always use real time."
+                )}
+              </p>
+            </div>
             <.button class="btn btn-primary" phx-disable-with={gettext("Saving...")}>
               {gettext("Save changes")}
             </.button>

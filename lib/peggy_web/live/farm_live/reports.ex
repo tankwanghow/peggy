@@ -98,7 +98,7 @@ defmodule PeggyWeb.FarmLive.Reports do
   @impl true
   def mount(_params, _session, socket) do
     if Policy.can?(socket.assigns.current_scope, :view_reports) do
-      range = Reports.default_range()
+      range = Reports.default_range(socket.assigns.current_scope)
       summary = Reports.summary(socket.assigns.current_scope, range)
 
       {:ok,

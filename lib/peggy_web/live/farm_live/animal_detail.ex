@@ -4,6 +4,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   alias Peggy.Animals
   alias Peggy.Animals.{Animal, Movement}
   alias Peggy.Breeding
+  alias Peggy.FarmClock
   alias Peggy.Locations
   alias Peggy.Policy
 
@@ -508,7 +509,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     {services, litter_events} = breeding_data(scope, animal)
     history = build_history(animal, movements, services, litter_events)
 
-    move_cs = Animals.change_movement(new_movement(animal, placements), %{})
+    move_cs =
+      Animals.change_movement(new_movement(socket.assigns.current_scope, animal, placements), %{})
 
     latest_id = movements |> List.first() |> then(&(&1 && &1.id))
     parity = sow_parity(scope, animal)
@@ -669,7 +671,11 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         {services, litter_events} = breeding_data(scope, animal)
         history = build_history(animal, movements, services, litter_events)
 
-        move_cs = Animals.change_movement(new_movement(animal, placements), %{})
+        move_cs =
+          Animals.change_movement(
+            new_movement(socket.assigns.current_scope, animal, placements),
+            %{}
+          )
 
         {:noreply,
          socket
@@ -710,7 +716,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           {services, litter_events} = breeding_data(scope, animal)
           history = build_history(animal, movements, services, litter_events)
           latest_id = movements |> List.first() |> then(&(&1 && &1.id))
-          move_cs = Animals.change_movement(new_movement(animal, placements), %{})
+
+          move_cs =
+            Animals.change_movement(
+              new_movement(socket.assigns.current_scope, animal, placements),
+              %{}
+            )
 
           {:noreply,
            socket
@@ -1134,14 +1145,14 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   # Seed a blank Movement for the form. Default to "placement" only when
   # there's still quantity in the batch that isn't placed anywhere yet —
   # that's the "just registered, now assign to pens" case.
-  defp new_movement(%Animal{tracking_type: "batch"} = animal, placements) do
+  defp new_movement(scope, %Animal{tracking_type: "batch"} = animal, placements) do
     placed = Enum.reduce(placements, 0, fn p, acc -> acc + p.quantity end)
     reason = if placed < animal.quantity, do: "placement", else: "pen_transfer"
-    %Movement{moved_at: Date.utc_today(), reason: reason}
+    %Movement{moved_at: FarmClock.today(scope), reason: reason}
   end
 
-  defp new_movement(%Animal{}, _),
-    do: %Movement{moved_at: Date.utc_today(), reason: "pen_transfer"}
+  defp new_movement(scope, %Animal{}, _),
+    do: %Movement{moved_at: FarmClock.today(scope), reason: "pen_transfer"}
 
   ## Display helpers
 

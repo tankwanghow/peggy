@@ -18,7 +18,7 @@ defmodule Peggy.Animals do
 
   import Ecto.Query
   alias Ecto.Multi
-  alias Peggy.{Repo, Audit}
+  alias Peggy.{Repo, Audit, FarmClock}
   alias Peggy.Accounts.Scope
   alias Peggy.Animals.{Animal, Movement, Placement}
 
@@ -65,7 +65,7 @@ defmodule Peggy.Animals do
       |> maybe_filter(:stage, stage)
       |> maybe_filter(:status, status)
       |> maybe_needs_review(needs_review)
-      |> maybe_age_filter(min_age, max_age)
+      |> maybe_age_filter(farm, min_age, max_age)
       |> maybe_parity_filter(farm, min_parity, max_parity)
 
     base
@@ -112,10 +112,10 @@ defmodule Peggy.Animals do
     end
   end
 
-  defp maybe_age_filter(query, nil, nil), do: query
+  defp maybe_age_filter(query, _farm, nil, nil), do: query
 
-  defp maybe_age_filter(query, min_age, max_age) do
-    today = Date.utc_today()
+  defp maybe_age_filter(query, farm, min_age, max_age) do
+    today = FarmClock.today(farm)
     query = where(query, [a], not is_nil(a.dob))
 
     query =
@@ -313,24 +313,24 @@ defmodule Peggy.Animals do
 
       if a.breed, do: Map.put(base, :breed, a.breed), else: base
     end)
-    |> maybe_seed_placement(tracking_type, initial_pen_id)
-    |> maybe_seed_initial_movement(tracking_type, initial_pen_id, farm.id)
+    |> maybe_seed_placement(tracking_type, initial_pen_id, farm)
+    |> maybe_seed_initial_movement(tracking_type, initial_pen_id, farm)
     |> Repo.transaction()
     |> unwrap(:animal)
   end
 
   # Placement movement row — for individual or batch with an initial pen.
-  defp maybe_seed_initial_movement(multi, tracking_type, pen_id, farm_id)
+  defp maybe_seed_initial_movement(multi, tracking_type, pen_id, farm)
        when tracking_type in ["individual", "batch"] and pen_id not in [nil, ""] do
     Multi.run(multi, :placement_movement, fn _repo, %{animal: animal} ->
       Repo.insert(
         Movement.changeset(%Movement{}, %{
-          "farm_id" => farm_id,
+          "farm_id" => farm.id,
           "animal_id" => animal.id,
           "to_pen_id" => pen_id,
           "reason" => "placement",
           "quantity" => animal.quantity,
-          "moved_at" => Date.utc_today()
+          "moved_at" => FarmClock.today(farm)
         })
       )
     end)
@@ -339,20 +339,20 @@ defmodule Peggy.Animals do
   defp maybe_seed_initial_movement(multi, _, _, _), do: multi
 
   # Batch with initial pen — seed a placement row covering the whole batch.
-  defp maybe_seed_placement(multi, "batch", pen_id) when pen_id not in [nil, ""] do
+  defp maybe_seed_placement(multi, "batch", pen_id, farm) when pen_id not in [nil, ""] do
     Multi.run(multi, :initial_placement, fn _repo, %{animal: animal} ->
       Repo.insert(
         Placement.changeset(%Placement{}, %{
           animal_id: animal.id,
           pen_id: pen_id,
           quantity: animal.quantity,
-          placed_at: Date.utc_today()
+          placed_at: FarmClock.today(farm)
         })
       )
     end)
   end
 
-  defp maybe_seed_placement(multi, _, _), do: multi
+  defp maybe_seed_placement(multi, _, _, _), do: multi
 
   @doc """
   Creates multiple individual animals atomically (spreadsheet batch entry).
@@ -383,7 +383,7 @@ defmodule Peggy.Animals do
 
         m
         |> Multi.insert({:animal, i}, cs)
-        |> maybe_seed_initial_movement_keyed(i, pen_id, farm.id)
+        |> maybe_seed_initial_movement_keyed(i, pen_id, farm)
       end)
 
     case Repo.transaction(multi) do
@@ -404,22 +404,22 @@ defmodule Peggy.Animals do
 
   def create_batch_animals(_scope, []), do: {:error, :no_entries}
 
-  defp maybe_seed_initial_movement_keyed(multi, _i, pen_id, _farm_id)
+  defp maybe_seed_initial_movement_keyed(multi, _i, pen_id, _farm)
        when pen_id in [nil, ""],
        do: multi
 
-  defp maybe_seed_initial_movement_keyed(multi, i, pen_id, farm_id) do
+  defp maybe_seed_initial_movement_keyed(multi, i, pen_id, farm) do
     Multi.run(multi, {:movement, i}, fn _repo, changes ->
       animal = Map.fetch!(changes, {:animal, i})
 
       Repo.insert(
         Movement.changeset(%Movement{}, %{
-          "farm_id" => farm_id,
+          "farm_id" => farm.id,
           "animal_id" => animal.id,
           "to_pen_id" => pen_id,
           "reason" => "placement",
           "quantity" => 1,
-          "moved_at" => Date.utc_today()
+          "moved_at" => FarmClock.today(farm)
         })
       )
     end)
@@ -732,7 +732,7 @@ defmodule Peggy.Animals do
         entries
       )
       when fid == farm.id and is_list(entries) and entries != [] do
-    with {:ok, normalized} <- normalize_batch_entries(animal, entries) do
+    with {:ok, normalized} <- normalize_batch_entries(farm, animal, entries) do
       multi =
         normalized
         |> Enum.with_index()
@@ -870,7 +870,7 @@ defmodule Peggy.Animals do
     from_pen_id = parse_int(Map.get(attrs, "from_pen_id"))
     to_pen_id = parse_int(Map.get(attrs, "to_pen_id"))
     qty = parse_int(Map.get(attrs, "quantity"))
-    moved_at = Map.get(attrs, "moved_at") || Date.utc_today()
+    moved_at = Map.get(attrs, "moved_at") || FarmClock.today(scope)
 
     cond do
       # "placement" is the bootstrap op — it adds animals to a destination
@@ -1079,13 +1079,13 @@ defmodule Peggy.Animals do
   # Normalize input rows and project their effect onto a running placement
   # state so aggregate budget violations (unplaced exceeded, source pen
   # exceeded) surface with the row index before we touch the DB.
-  defp normalize_batch_entries(%Animal{} = animal, entries) do
+  defp normalize_batch_entries(farm, %Animal{} = animal, entries) do
     proj = initial_projection(animal)
 
     entries
     |> Enum.with_index()
     |> Enum.reduce_while({:ok, [], proj}, fn {entry, i}, {:ok, acc, p} ->
-      case normalize_batch_entry(animal, entry, p) do
+      case normalize_batch_entry(farm, animal, entry, p) do
         {:ok, norm, p2} -> {:cont, {:ok, [norm | acc], p2}}
         {:error, cs} -> {:halt, {:error, {i, cs}}}
       end
@@ -1109,12 +1109,12 @@ defmodule Peggy.Animals do
     %{per_pen: per_pen, unplaced: total - placed}
   end
 
-  defp normalize_batch_entry(%Animal{} = animal, entry, proj) do
+  defp normalize_batch_entry(farm, %Animal{} = animal, entry, proj) do
     reason = get_field_val(entry, :reason)
     qty = parse_int(get_field_val(entry, :quantity))
     from_pen_id = parse_int(get_field_val(entry, :from_pen_id))
     to_pen_id = parse_int(get_field_val(entry, :to_pen_id))
-    moved_at = get_field_val(entry, :moved_at) || Date.utc_today()
+    moved_at = get_field_val(entry, :moved_at) || FarmClock.today(farm)
     notes = get_field_val(entry, :notes)
 
     attrs = %{
@@ -1336,7 +1336,7 @@ defmodule Peggy.Animals do
   defp normalize_bulk_individual_entry(farm, entry, seen) do
     animal_id = parse_int(get_field_val(entry, :animal_id))
     to_pen_id = parse_int(get_field_val(entry, :to_pen_id))
-    moved_at = get_field_val(entry, :moved_at) || Date.utc_today()
+    moved_at = get_field_val(entry, :moved_at) || FarmClock.today(farm)
     notes = get_field_val(entry, :notes)
 
     cs = blank_movement_cs()
@@ -1514,8 +1514,8 @@ defmodule Peggy.Animals do
     reverse_individual(multi, scope, animal, m)
   end
 
-  defp reverse_animal_state(multi, _scope, %Animal{tracking_type: "batch"} = animal, m) do
-    reverse_batch(multi, animal, m)
+  defp reverse_animal_state(multi, scope, %Animal{tracking_type: "batch"} = animal, m) do
+    reverse_batch(multi, scope, animal, m)
   end
 
   defp reverse_individual(multi, _scope, animal, %{reason: "placement"}) do
@@ -1576,14 +1576,18 @@ defmodule Peggy.Animals do
 
   ## Batch reversals
 
-  defp reverse_batch(multi, animal, %{reason: "placement", to_pen_id: to_pen_id, quantity: qty}) do
+  defp reverse_batch(multi, _scope, animal, %{
+         reason: "placement",
+         to_pen_id: to_pen_id,
+         quantity: qty
+       }) do
     Multi.run(multi, :batch, fn repo, _ ->
       decrement_or_remove_placement(repo, animal.id, to_pen_id, qty)
       {:ok, animal}
     end)
   end
 
-  defp reverse_batch(multi, animal, %{
+  defp reverse_batch(multi, %Scope{farm: farm}, animal, %{
          reason: "pen_transfer",
          from_pen_id: from_pen_id,
          to_pen_id: to_pen_id,
@@ -1591,12 +1595,12 @@ defmodule Peggy.Animals do
        }) do
     Multi.run(multi, :batch, fn repo, _ ->
       decrement_or_remove_placement(repo, animal.id, to_pen_id, qty)
-      if from_pen_id, do: upsert_placement_qty(repo, animal.id, from_pen_id, qty)
+      if from_pen_id, do: upsert_placement_qty(repo, farm, animal.id, from_pen_id, qty)
       {:ok, animal}
     end)
   end
 
-  defp reverse_batch(multi, animal, %{
+  defp reverse_batch(multi, _scope, animal, %{
          reason: "adjustment_gain",
          to_pen_id: to_pen_id,
          quantity: qty
@@ -1613,13 +1617,13 @@ defmodule Peggy.Animals do
     end)
   end
 
-  defp reverse_batch(multi, animal, %{
+  defp reverse_batch(multi, %Scope{farm: farm}, animal, %{
          reason: "adjustment_loss",
          from_pen_id: from_pen_id,
          quantity: qty
        }) do
     Multi.run(multi, :batch, fn repo, _ ->
-      if from_pen_id, do: upsert_placement_qty(repo, animal.id, from_pen_id, qty)
+      if from_pen_id, do: upsert_placement_qty(repo, farm, animal.id, from_pen_id, qty)
 
       animal
       |> Ecto.Changeset.change(%{quantity: animal.quantity + qty})
@@ -1627,7 +1631,11 @@ defmodule Peggy.Animals do
     end)
   end
 
-  defp reverse_batch(multi, animal, %{reason: reason, from_pen_id: from_pen_id, quantity: qty})
+  defp reverse_batch(multi, %Scope{farm: farm}, animal, %{
+         reason: reason,
+         from_pen_id: from_pen_id,
+         quantity: qty
+       })
        when reason in @departure_reasons do
     Multi.run(multi, :batch, fn repo, _ ->
       new_qty = animal.quantity + qty
@@ -1640,12 +1648,12 @@ defmodule Peggy.Animals do
           else: %{quantity: new_qty}
 
       result = animal |> Ecto.Changeset.change(updates) |> repo.update()
-      if from_pen_id, do: upsert_placement_qty(repo, animal.id, from_pen_id, qty)
+      if from_pen_id, do: upsert_placement_qty(repo, farm, animal.id, from_pen_id, qty)
       result
     end)
   end
 
-  defp reverse_batch(multi, _animal, _movement), do: multi
+  defp reverse_batch(multi, _scope, _animal, _movement), do: multi
 
   defp decrement_or_remove_placement(repo, animal_id, pen_id, qty) do
     case active_placement(animal_id, pen_id) do
@@ -1663,7 +1671,7 @@ defmodule Peggy.Animals do
     end
   end
 
-  defp upsert_placement_qty(repo, animal_id, pen_id, qty) do
+  defp upsert_placement_qty(repo, farm, animal_id, pen_id, qty) do
     case active_placement(animal_id, pen_id) do
       nil ->
         repo.insert(
@@ -1671,7 +1679,7 @@ defmodule Peggy.Animals do
             animal_id: animal_id,
             pen_id: pen_id,
             quantity: qty,
-            placed_at: Date.utc_today()
+            placed_at: FarmClock.today(farm)
           })
         )
 

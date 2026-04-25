@@ -1,7 +1,7 @@
 defmodule PeggyWeb.FarmLive.Dashboard do
   use PeggyWeb, :live_view
 
-  alias Peggy.Reports
+  alias Peggy.{FarmClock, Reports}
 
   @stage_labels %{
     "sow" => "Sows",
@@ -208,7 +208,7 @@ defmodule PeggyWeb.FarmLive.Dashboard do
 
     {:ok,
      socket
-     |> assign(:today, Date.utc_today())
+     |> assign(:today, FarmClock.today(scope))
      |> assign(:snapshot, Reports.herd_snapshot(scope))
      |> assign(:actions, Reports.action_list(scope))}
   end

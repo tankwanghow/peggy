@@ -4,6 +4,7 @@ defmodule PeggyWeb.FarmLive.Animals do
   alias Peggy.Animals
   alias Peggy.Animals.Animal
   alias Peggy.Breeding
+  alias Peggy.FarmClock
   alias Peggy.Locations
   alias Peggy.Policy
 
@@ -19,7 +20,11 @@ defmodule PeggyWeb.FarmLive.Animals do
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
         </.header>
 
-        <form phx-change="filter" phx-submit="filter" class="mt-2 flex gap-1 flex-nowrap items-end overflow-x-auto [&_.fieldset>label]:flex [&_.fieldset>label]:flex-col [&_.fieldset>label]:items-start">
+        <form
+          phx-change="filter"
+          phx-submit="filter"
+          class="mt-2 flex gap-1 flex-nowrap items-end overflow-x-auto [&_.fieldset>label]:flex [&_.fieldset>label]:flex-col [&_.fieldset>label]:items-start"
+        >
           <.input
             name="stage"
             value={@filter_stage}
@@ -124,7 +129,10 @@ defmodule PeggyWeb.FarmLive.Animals do
                 </td>
                 <td class="py-2">
                   {String.capitalize(a.stage)}
-                  <span :if={detail = stage_detail(a, @parity_map, @avg_wean_age)} class="text-base-content/60">
+                  <span
+                    :if={detail = stage_detail(a, @parity_map, @avg_wean_age, @today)}
+                    class="text-base-content/60"
+                  >
                     · {detail}
                   </span>
                 </td>
@@ -294,7 +302,7 @@ defmodule PeggyWeb.FarmLive.Animals do
      |> assign(form: nil, form_title: nil, form_target: nil)
      |> assign(ac: default_ac())
      |> assign(animal_count: 0, page: 1, has_more: false)
-     |> assign(parity_map: %{}, avg_wean_age: nil)
+     |> assign(parity_map: %{}, avg_wean_age: nil, today: FarmClock.today(scope))
      |> stream(:animals, [])}
   end
 
@@ -606,7 +614,7 @@ defmodule PeggyWeb.FarmLive.Animals do
   # Individuals live in `current_pen`; batches live in a list of active
   # `placements`. For the list view we render each batch's distribution
   # compactly, e.g. "H1/P1 ×40 · H2/P2 ×60".
-  defp stage_detail(%{stage: "sow"} = a, parity_map, _avg) do
+  defp stage_detail(%{stage: "sow"} = a, parity_map, _avg, _today) do
     case Map.get(parity_map, a.id) do
       nil -> nil
       0 -> "P0"
@@ -614,26 +622,26 @@ defmodule PeggyWeb.FarmLive.Animals do
     end
   end
 
-  defp stage_detail(%{stage: stage} = a, _parity, avg_wean_age)
+  defp stage_detail(%{stage: stage} = a, _parity, avg_wean_age, today)
        when stage in ~w(weaner grower finisher) do
-    case batch_age_days(a, avg_wean_age) do
+    case batch_age_days(a, avg_wean_age, today) do
       nil -> nil
       d -> "#{d}d"
     end
   end
 
-  defp stage_detail(_, _, _), do: nil
+  defp stage_detail(_, _, _, _), do: nil
 
-  defp batch_age_days(%{farrowing: %{weaning: %{weaned_at: weaned_at}}}, avg)
+  defp batch_age_days(%{farrowing: %{weaning: %{weaned_at: weaned_at}}}, avg, today)
        when not is_nil(weaned_at) and is_integer(avg) do
-    Date.diff(Date.utc_today(), weaned_at) + avg
+    Date.diff(today, weaned_at) + avg
   end
 
-  defp batch_age_days(%{dob: %Date{} = dob}, _avg) do
-    Date.diff(Date.utc_today(), dob)
+  defp batch_age_days(%{dob: %Date{} = dob}, _avg, today) do
+    Date.diff(today, dob)
   end
 
-  defp batch_age_days(_, _), do: nil
+  defp batch_age_days(_, _, _), do: nil
 
   defp pen_label(%{tracking_type: "batch", placements: [_ | _] = placements}) do
     assigns = %{placements: placements}

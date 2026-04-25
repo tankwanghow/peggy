@@ -1,22 +1,24 @@
-defmodule PeggyWeb.FarmLive.BatchWeaning do
+defmodule PeggyWeb.FarmLive.BatchCloseServices do
   @moduledoc """
-  Spreadsheet-style batch entry for recording multiple weanings at
-  once in one atomic commit.
+  Spreadsheet-style entry for closing gestation cycles —
+  abortion / death / cull — for one or many sows at once with
+  back-fill cascade.
 
-  Supports the back-fill cascade: each row takes an ear tag. Existing
-  sows without an open farrowing get an inferred service + farrowing
-  back-dated from the weaned_at; unknown tags also create an inferred
-  sow.
+  Each row resolves a sow by ear tag (existing or back-filled), with
+  optional `served_at` for inserting an inferred service when the sow
+  has no open one. Defaults `served_at = result_at − 60` days.
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Breeding, Animals, FarmClock, Locations, Policy}
+  alias Peggy.{Animals, Breeding, FarmClock, Policy}
+
+  @backfill_offset 60
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-7xl">
+      <div class="mx-auto max-w-6xl">
         <div class="text-sm text-base-content/60 mb-1">
           <.link
             navigate={~p"/farms/#{@current_scope.farm.slug}/breeding"}
@@ -27,15 +29,17 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
         </div>
 
         <.header>
-          {gettext("Batch Weaning Entry")}
+          {gettext("Close Services")}
           <:subtitle>
-            {gettext("Type ear tags — missing services/farrowings are back-filled on commit")}
+            {gettext(
+              "Record abortion, death, or cull — unknown ear tags become new sows on commit. Served-at defaults to result date minus 60 days."
+            )}
           </:subtitle>
         </.header>
 
         <section class="mt-6">
           <form
-            id="batch-weaning-grid"
+            id="batch-close-services-grid"
             phx-change="update"
             phx-submit="commit"
             phx-debounce="300"
@@ -44,13 +48,12 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
               <thead class="text-left text-base-content/60">
                 <tr>
                   <th class="py-2 w-8">#</th>
-                  <th class="py-2 min-w-[11rem]">{gettext("Sow ear tag")}</th>
-                  <th class="py-2 min-w-[9rem]">{gettext("Weaned at")}</th>
-                  <th class="py-2 w-24 text-right">{gettext("Weaned")}</th>
-                  <th class="py-2 w-24 text-right">{gettext("Avg wt (g)")}</th>
-                  <th class="py-2 min-w-[9rem]">{gettext("Batch tag")}</th>
-                  <th class="py-2 min-w-[9rem]">{gettext("Destination pen")}</th>
-                  <th class="py-2 min-w-[8rem]">{gettext("Breed (new sow)")}</th>
+                  <th class="py-2">{gettext("Sow ear tag")}</th>
+                  <th class="py-2">{gettext("Result")}</th>
+                  <th class="py-2">{gettext("Result date")}</th>
+                  <th class="py-2">{gettext("Served at (backfill)")}</th>
+                  <th class="py-2">{gettext("Breed (new sow)")}</th>
+                  <th class="py-2">{gettext("Notes")}</th>
                   <th class="py-2 w-10"></th>
                 </tr>
               </thead>
@@ -59,8 +62,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
                   <tr class={[
                     "border-t border-base-200 align-top",
                     @error_index == i && "bg-error/10",
-                    row.sow_state == :existing_open && "bg-success/5",
-                    row.sow_state == :existing_no_farrowing && "bg-warning/5",
+                    row.sow_state == :existing && "bg-success/5",
                     row.sow_state == :new && "bg-warning/5",
                     row.sow_state == :similar && "bg-error/10",
                     row.sow_state == :similar_overridable && "bg-warning/5"
@@ -82,8 +84,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
                       />
                       <p class={[
                         "mt-0.5 text-xs",
-                        row.sow_state == :existing_open && "text-success",
-                        row.sow_state == :existing_no_farrowing && "text-warning",
+                        row.sow_state == :existing && "text-success",
                         row.sow_state == :new && "text-warning",
                         row.sow_state == :similar && "text-error",
                         row.sow_state == :similar_overridable && "text-warning",
@@ -127,63 +128,37 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
                       </div>
                     </td>
                     <td class="py-1 px-0.5">
+                      <select
+                        name={"rows[#{row.tmp_id}][result]"}
+                        class="select w-full"
+                      >
+                        <option value="abortion" selected={row.result == "abortion"}>
+                          {gettext("Abortion")}
+                        </option>
+                        <option value="death" selected={row.result == "death"}>
+                          {gettext("Death")}
+                        </option>
+                        <option value="cull" selected={row.result == "cull"}>
+                          {gettext("Cull")}
+                        </option>
+                      </select>
+                    </td>
+                    <td class="py-1 px-0.5">
                       <input
                         type="date"
-                        name={"rows[#{row.tmp_id}][weaned_at]"}
-                        value={row.weaned_at}
+                        name={"rows[#{row.tmp_id}][result_at]"}
+                        value={row.result_at}
                         class="input w-full"
                       />
                     </td>
                     <td class="py-1 px-0.5">
                       <input
-                        type="number"
-                        min="0"
-                        name={"rows[#{row.tmp_id}][weaned_count]"}
-                        value={row.weaned_count}
-                        class="input w-full text-right"
+                        type="date"
+                        name={"rows[#{row.tmp_id}][served_at]"}
+                        value={row.served_at}
+                        class="input w-full"
+                        title={gettext("Used only when the sow has no open service to close")}
                       />
-                    </td>
-                    <td class="py-1 px-0.5">
-                      <input
-                        type="number"
-                        min="0"
-                        name={"rows[#{row.tmp_id}][avg_wean_weight_g]"}
-                        value={row.avg_wean_weight_g}
-                        class="input w-full text-right"
-                      />
-                    </td>
-                    <td class="py-1 px-0.5">
-                      <input
-                        type="text"
-                        name={"rows[#{row.tmp_id}][batch_tag]"}
-                        value={row.batch_tag}
-                        autocomplete="off"
-                        spellcheck="false"
-                        class="input input-bordered w-full font-mono"
-                        placeholder={gettext("e.g. POOL-W24")}
-                      />
-                    </td>
-                    <td class="py-1 px-0.5">
-                      <input
-                        type="text"
-                        name={"rows[#{row.tmp_id}][pen_input]"}
-                        value={row.pen_input}
-                        phx-debounce="300"
-                        autocomplete="off"
-                        spellcheck="false"
-                        class={[
-                          "input input-bordered w-full font-mono",
-                          row.pen_state == :found && "border-success",
-                          row.pen_state == :not_found && "border-error"
-                        ]}
-                        placeholder={gettext("e.g. H1/N1")}
-                      />
-                      <p
-                        :if={row.pen_state == :not_found}
-                        class="mt-0.5 text-xs text-error"
-                      >
-                        {gettext("pen not found")}
-                      </p>
                     </td>
                     <td class="py-1 px-0.5">
                       <input
@@ -200,6 +175,14 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
                       >
                         —
                       </span>
+                    </td>
+                    <td class="py-1 px-0.5">
+                      <input
+                        type="text"
+                        name={"rows[#{row.tmp_id}][notes]"}
+                        value={row.notes}
+                        class="input input-bordered w-full"
+                      />
                     </td>
                     <td class="py-1 px-0.5 text-right">
                       <button
@@ -259,26 +242,20 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
   @impl true
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
-    pens = Locations.list_all_pens(scope)
-    today = to_string(FarmClock.today(scope))
-
-    pens_by_label = Map.new(pens, fn p -> {pen_label(p), p.id} end)
-    pens_by_id = Map.new(pens, fn p -> {p.id, pen_label(p)} end)
+    today = FarmClock.today(scope)
+    today_s = to_string(today)
+    backfill_default = to_string(Date.add(today, -@backfill_offset))
 
     {:ok,
      socket
      |> assign(
        can_record: Policy.can?(scope, :record_breeding),
-       pens_by_label: pens_by_label,
-       pens_by_id: pens_by_id,
-       rows: Enum.map(1..3, fn _ -> blank_row(today) end),
-       default_date: today,
+       rows: Enum.map(1..3, fn _ -> blank_row(today_s, backfill_default) end),
+       default_result_at: today_s,
        error_index: nil,
        error_message: nil
      )}
   end
-
-  defp pen_label(%{house: house, code: code}), do: "#{house.code}-#{code}"
 
   @impl true
   def handle_event("update", params, socket) do
@@ -288,7 +265,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
       Enum.map(socket.assigns.rows, fn row ->
         case Map.get(row_params, row.tmp_id) do
           nil -> row
-          p -> merge_row(row, p, socket.assigns)
+          p -> merge_row(row, p)
         end
       end)
       |> Enum.map(&resolve_row(&1, socket.assigns))
@@ -316,19 +293,40 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
   end
 
   def handle_event("add_row", _, socket) do
-    {:noreply,
-     assign(socket, rows: socket.assigns.rows ++ [blank_row(socket.assigns.default_date)])}
+    rows =
+      socket.assigns.rows ++
+        [
+          blank_row(
+            socket.assigns.default_result_at,
+            default_served_at(socket.assigns.default_result_at)
+          )
+        ]
+
+    {:noreply, assign(socket, rows: rows)}
   end
 
   def handle_event("add_rows", %{"count" => n}, socket) do
     count = String.to_integer(n)
-    extra = Enum.map(1..count, fn _ -> blank_row(socket.assigns.default_date) end)
+    served_default = default_served_at(socket.assigns.default_result_at)
+
+    extra =
+      Enum.map(1..count, fn _ -> blank_row(socket.assigns.default_result_at, served_default) end)
+
     {:noreply, assign(socket, rows: socket.assigns.rows ++ extra)}
   end
 
   def handle_event("remove_row", %{"id" => tmp_id}, socket) do
     rows = Enum.reject(socket.assigns.rows, &(&1.tmp_id == tmp_id))
-    rows = if rows == [], do: [blank_row(socket.assigns.default_date)], else: rows
+
+    rows =
+      if rows == [],
+        do: [
+          blank_row(
+            socket.assigns.default_result_at,
+            default_served_at(socket.assigns.default_result_at)
+          )
+        ],
+        else: rows
 
     {:noreply, assign(socket, rows: rows, error_index: nil, error_message: nil)}
   end
@@ -344,15 +342,14 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
   defp do_commit(socket) do
     scope = socket.assigns.current_scope
     rows = committable_rows(socket.assigns.rows)
-
     entries = Enum.map(rows, &build_entry/1)
 
-    case Breeding.record_batch_weanings_with_backfill(scope, entries) do
-      {:ok, results} ->
+    case Breeding.record_batch_close_services_with_backfill(scope, entries) do
+      {:ok, services} ->
         {:noreply,
          socket
-         |> put_flash(:info, gettext("Committed %{n} weanings.", n: length(results)))
-         |> push_navigate(to: ~p"/farms/#{scope.farm.slug}/breeding?tab=weaned")}
+         |> put_flash(:info, gettext("Closed %{n} services.", n: length(services)))
+         |> push_navigate(to: ~p"/farms/#{scope.farm.slug}/breeding")}
 
       {:error, {i, reason}} ->
         {:noreply,
@@ -367,28 +364,16 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
   end
 
   defp build_entry(r) do
-    weaned_at = parse_date(r.weaned_at)
-    farrowed_at = weaned_at && Date.add(weaned_at, -Breeding.lactation_days())
-    served_at = farrowed_at && Date.add(farrowed_at, -Breeding.gestation_days())
-
     base = %{
-      weaned_at: r.weaned_at,
-      farrowed_at: farrowed_at && to_string(farrowed_at),
-      served_at: served_at && to_string(served_at),
-      weaned_count: to_int_or_zero(r.weaned_count),
-      avg_wean_weight_g: to_int_or_nil(r.avg_wean_weight_g),
-      batch_tag: presence(r.batch_tag),
-      destination_pen_id: r.pen_id,
-      pen_id: r.pen_id,
-      born_alive: to_int_or_zero(r.weaned_count)
+      result: r.result,
+      result_at: r.result_at,
+      served_at: r.served_at,
+      notes: r.notes
     }
 
     case r.sow_state do
-      :existing_open ->
+      :existing ->
         Map.put(base, :sow_id, r.resolved_sow_id)
-
-      :existing_no_farrowing ->
-        Map.put(base, :sow_ear_tag, r.sow_ear_tag)
 
       :new ->
         base
@@ -407,7 +392,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
 
   # ── Row helpers ──────────────────────────────────────────────────
 
-  defp blank_row(default_date) do
+  defp blank_row(default_result_at, default_served_at) do
     %{
       tmp_id: gen_tmp_id(),
       sow_ear_tag: "",
@@ -415,14 +400,12 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
       resolved_sow_id: nil,
       similar_tags: [],
       force_create: false,
-      weaned_at: default_date,
-      weaned_count: nil,
-      avg_wean_weight_g: nil,
-      batch_tag: "",
-      pen_input: "",
-      pen_id: nil,
-      pen_state: :empty,
-      breed: nil
+      result: "abortion",
+      result_at: default_result_at,
+      served_at: default_served_at,
+      served_at_user_set?: false,
+      breed: nil,
+      notes: nil
     }
   end
 
@@ -430,36 +413,50 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
     :crypto.strong_rand_bytes(6) |> Base.url_encode64(padding: false)
   end
 
-  defp merge_row(row, params, assigns) do
-    pen_input =
-      params |> Map.get("pen_input", row.pen_input) |> to_string() |> String.trim()
+  defp merge_row(row, params) do
+    new_result_at = Map.get(params, "result_at", row.result_at)
+    new_served_at_input = Map.get(params, "served_at", row.served_at)
 
-    {pen_id, pen_state} = resolve_pen(pen_input, assigns.pens_by_label)
+    # Track whether the user has explicitly typed a served_at distinct
+    # from the auto-derived default. Once they have, stop auto-syncing.
+    user_set? =
+      row.served_at_user_set? or
+        (new_served_at_input != row.served_at and
+           new_served_at_input != derive_served_at(new_result_at) and
+           new_served_at_input != "")
+
+    served_at =
+      if user_set?,
+        do: new_served_at_input,
+        else: derive_served_at(new_result_at)
 
     %{
       row
       | sow_ear_tag:
           params |> Map.get("sow_ear_tag", row.sow_ear_tag) |> to_string() |> String.trim(),
         force_create: truthy?(Map.get(params, "force_create")),
-        weaned_at: Map.get(params, "weaned_at", row.weaned_at),
-        weaned_count: Map.get(params, "weaned_count", row.weaned_count),
-        avg_wean_weight_g: Map.get(params, "avg_wean_weight_g", row.avg_wean_weight_g),
-        batch_tag: Map.get(params, "batch_tag", row.batch_tag),
-        pen_input: pen_input,
-        pen_id: pen_id,
-        pen_state: pen_state,
-        breed: presence(Map.get(params, "breed"))
+        result: Map.get(params, "result", row.result),
+        result_at: new_result_at,
+        served_at: served_at,
+        served_at_user_set?: user_set?,
+        breed: presence(Map.get(params, "breed")),
+        notes: Map.get(params, "notes")
     }
   end
 
-  defp resolve_pen("", _pens), do: {nil, :empty}
+  defp derive_served_at(""), do: ""
 
-  defp resolve_pen(label, pens) do
-    case Map.get(pens, label) do
-      nil -> {nil, :not_found}
-      id -> {id, :found}
+  defp derive_served_at(date_s) when is_binary(date_s) do
+    case Date.from_iso8601(date_s) do
+      {:ok, d} -> to_string(Date.add(d, -@backfill_offset))
+      _ -> date_s
     end
   end
+
+  defp derive_served_at(_), do: ""
+
+  defp default_served_at(""), do: ""
+  defp default_served_at(s), do: derive_served_at(s)
 
   defp resolve_row(%{sow_ear_tag: tag} = row, _assigns) when tag in [nil, ""] do
     %{row | sow_state: :empty, similar_tags: [], resolved_sow_id: nil}
@@ -470,13 +467,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
 
     case Animals.find_by_ear_tag(scope, tag) do
       %{id: id} ->
-        state =
-          case Breeding.latest_open_farrowing_for_sow(scope, id) do
-            nil -> :existing_no_farrowing
-            _ -> :existing_open
-          end
-
-        %{row | sow_state: state, resolved_sow_id: id, similar_tags: []}
+        %{row | sow_state: :existing, resolved_sow_id: id, similar_tags: []}
 
       nil ->
         case Animals.similar_ear_tags(scope, tag) do
@@ -495,39 +486,25 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
   end
 
   defp row_committable?(row) do
-    weaned_count = to_int_or_zero(row.weaned_count)
-
-    row.sow_state in [:existing_open, :existing_no_farrowing, :new, :similar_overridable] and
-      row.pen_state in [:found, :empty] and
-      not is_nil(row.weaned_at) and row.weaned_at != "" and
-      weaned_count > 0 and
-      presence(row.batch_tag) != nil
+    row.sow_state in [:existing, :new, :similar_overridable] and
+      presence(row.result_at) != nil and
+      row.result in ~w(abortion death cull)
   end
 
   defp commit_ready?(rows) do
     committable = committable_rows(rows)
-
-    committable != [] and
-      not Enum.any?(rows, &(&1.sow_state == :similar or &1.pen_state == :not_found))
+    committable != [] and not Enum.any?(rows, &(&1.sow_state == :similar))
   end
 
-  defp sow_input_class(:existing_open), do: "border-success"
-  defp sow_input_class(:existing_no_farrowing), do: "border-warning"
+  defp sow_input_class(:existing), do: "border-success"
   defp sow_input_class(:new), do: "border-warning"
   defp sow_input_class(:similar), do: "border-error"
   defp sow_input_class(:similar_overridable), do: "border-warning"
   defp sow_input_class(_), do: ""
 
   defp row_state_text(%{sow_state: :empty}), do: ""
-
-  defp row_state_text(%{sow_state: :existing_open}),
-    do: gettext("existing sow (open farrowing)")
-
-  defp row_state_text(%{sow_state: :existing_no_farrowing}),
-    do: gettext("existing sow — will back-fill service + farrowing")
-
-  defp row_state_text(%{sow_state: :new}),
-    do: gettext("new sow — will be registered")
+  defp row_state_text(%{sow_state: :existing}), do: gettext("existing sow")
+  defp row_state_text(%{sow_state: :new}), do: gettext("new sow — will be registered (backfill)")
 
   defp row_state_text(%{sow_state: :similar}),
     do: gettext("similar tag exists — pick one or tick \"Create anyway\"")
@@ -546,49 +523,18 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
     do: "Row #{i + 1}: similar tag exists (#{Enum.join(tags, ", ")}) — tick \"Create anyway\""
 
   defp format_row_error(i, :sow_not_found),
-    do: "Row #{i + 1}: sow not found and no back-fill data"
+    do: "Row #{i + 1}: sow ear tag missing"
 
-  defp format_row_error(i, :duplicate_ear_tag),
-    do: "Row #{i + 1}: duplicate ear tag earlier in the grid"
+  defp format_row_error(i, :result_at_required),
+    do: "Row #{i + 1}: result date required"
 
-  defp format_row_error(i, :weaned_at_required),
-    do: "Row #{i + 1}: weaned_at is required"
+  defp format_row_error(i, :result_invalid),
+    do: "Row #{i + 1}: result must be abortion, death, or cull"
 
-  defp format_row_error(i, :served_at_required),
-    do: "Row #{i + 1}: served_at could not be derived"
-
-  defp format_row_error(i, :farrowed_at_required),
-    do: "Row #{i + 1}: farrowed_at could not be derived"
-
-  defp format_row_error(i, :gestation_out_of_range),
-    do: "Row #{i + 1}: gestation window out of range"
-
-  defp format_row_error(i, :batch_tag_required),
-    do: "Row #{i + 1}: batch tag is required when weaned_count ≥ 1"
+  defp format_row_error(i, :already_closed),
+    do: "Row #{i + 1}: sow's open service is already closed"
 
   defp format_row_error(i, other), do: "Row #{i + 1}: #{inspect(other)}"
-
-  defp to_int_or_zero(nil), do: 0
-  defp to_int_or_zero(""), do: 0
-  defp to_int_or_zero(i) when is_integer(i), do: i
-
-  defp to_int_or_zero(s) when is_binary(s) do
-    case Integer.parse(s) do
-      {i, ""} -> i
-      _ -> 0
-    end
-  end
-
-  defp to_int_or_nil(nil), do: nil
-  defp to_int_or_nil(""), do: nil
-  defp to_int_or_nil(i) when is_integer(i), do: i
-
-  defp to_int_or_nil(s) when is_binary(s) do
-    case Integer.parse(s) do
-      {i, ""} -> i
-      _ -> nil
-    end
-  end
 
   defp presence(nil), do: nil
   defp presence(""), do: nil
@@ -605,15 +551,4 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
   defp truthy?(true), do: true
   defp truthy?("true"), do: true
   defp truthy?(_), do: false
-
-  defp parse_date(%Date{} = d), do: d
-
-  defp parse_date(s) when is_binary(s) do
-    case Date.from_iso8601(s) do
-      {:ok, d} -> d
-      _ -> nil
-    end
-  end
-
-  defp parse_date(_), do: nil
 end

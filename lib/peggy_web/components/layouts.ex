@@ -85,6 +85,7 @@ defmodule PeggyWeb.Layouts do
     </header>
 
     <.farm_nav :if={@current_scope && @current_scope.farm} current_scope={@current_scope} />
+    <.simulated_clock_banner :if={Peggy.FarmClock.simulated?(@current_scope)} scope={@current_scope} />
 
     <main class="px-4 py-4 sm:px-6 lg:px-8">
       <div class="mx-auto max-w-5xl space-y-4">
@@ -93,6 +94,29 @@ defmodule PeggyWeb.Layouts do
     </main>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :scope, :map, required: true
+
+  defp simulated_clock_banner(assigns) do
+    ~H"""
+    <div class="bg-warning/15 border-b border-warning/30 text-warning-content text-sm">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-1.5 flex items-center gap-2">
+        <.icon name="hero-clock-micro" class="size-4 text-warning" />
+        <span>
+          {gettext("Simulated date: %{date}.", date: @scope.farm.simulated_today)}
+          {gettext("All age, gestation, and lactation calculations use this date instead of today.")}
+        </span>
+        <.link
+          :if={Peggy.Policy.can?(@scope, :manage_farm_settings)}
+          navigate={~p"/farms/#{@scope.farm.slug}/settings"}
+          class="ml-auto underline underline-offset-2 hover:no-underline"
+        >
+          {gettext("Change")}
+        </.link>
+      </div>
+    </div>
     """
   end
 
@@ -219,6 +243,11 @@ defmodule PeggyWeb.Layouts do
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/batch-weaning"}>
                 {gettext("Batch Weaning")}
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/close-services"}>
+                {gettext("Close Services")}
               </.link>
             </li>
             <li :if={Peggy.Policy.can?(@current_scope, :record_breeding)}>

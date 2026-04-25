@@ -13,6 +13,7 @@ defmodule Peggy.Farms.Farm do
     field :unit_system, :string, default: "metric"
     field :plan, :string, default: "free"
     field :seat_limit, :integer, default: 5
+    field :simulated_today, :date
 
     field :deleted_at, :utc_datetime
     belongs_to :deleted_by, Peggy.Accounts.User
@@ -27,7 +28,7 @@ defmodule Peggy.Farms.Farm do
 
   def changeset(farm, attrs) do
     farm
-    |> cast(attrs, [:slug, :name, :timezone, :unit_system, :plan, :seat_limit])
+    |> cast(attrs, [:slug, :name, :timezone, :unit_system, :plan, :seat_limit, :simulated_today])
     |> validate_required([:slug, :name, :timezone])
     |> update_change(:slug, &String.downcase/1)
     |> validate_format(:slug, ~r/^[a-z0-9][a-z0-9-]*[a-z0-9]$/,

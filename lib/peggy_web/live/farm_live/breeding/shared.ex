@@ -35,7 +35,6 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     """
   end
 
-
   # ── Path helpers ────────────────────────────────────────────────────
 
   @doc """
