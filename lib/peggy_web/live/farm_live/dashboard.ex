@@ -25,47 +25,6 @@ defmodule PeggyWeb.FarmLive.Dashboard do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-6xl space-y-8">
-        <.header>
-          {@current_scope.farm.name}
-          <:subtitle>{gettext("Role: %{role}", role: @current_scope.role)}</:subtitle>
-          <:actions>
-            <.link
-              navigate={~p"/farms/#{@current_scope.farm.slug}/reports"}
-              class="btn btn-sm btn-ghost"
-            >
-              {gettext("Full reports")} <.icon name="hero-arrow-right-micro" class="ml-1" />
-            </.link>
-          </:actions>
-        </.header>
-
-        <section aria-label={gettext("Rolling 90-day KPIs")}>
-          <h2 class="text-sm font-semibold text-base-content/60 uppercase tracking-wide">
-            {gettext("Last 90 days")}
-          </h2>
-          <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            <.kpi_mini
-              label={gettext("Farrowing rate")}
-              value={format_pct(@actions.recent_kpis.farrowing_rate)}
-            />
-            <.kpi_mini
-              label={gettext("Avg born alive")}
-              value={format_num(@actions.recent_kpis.avg_born_alive, 1)}
-            />
-            <.kpi_mini
-              label={gettext("Avg weaned")}
-              value={format_num(@actions.recent_kpis.avg_weaned, 1)}
-            />
-            <.kpi_mini
-              label={gettext("Pre-wean mortality")}
-              value={format_pct(@actions.recent_kpis.pre_wean_mortality)}
-            />
-            <.kpi_mini
-              label={gettext("Weaned / sow / yr")}
-              value={format_num(@actions.recent_kpis.pigs_weaned_per_sow_year, 1)}
-            />
-          </dl>
-        </section>
-
         <section class="grid gap-4 lg:grid-cols-2" aria-label={gettext("Action list")}>
           <div class="rounded-lg border border-base-200 bg-base-100 p-4">
             <div class="flex items-baseline justify-between">
@@ -203,18 +162,6 @@ defmodule PeggyWeb.FarmLive.Dashboard do
 
   # ── Slots ──────────────────────────────────────────────────────────
 
-  attr :label, :string, required: true
-  attr :value, :string, required: true
-
-  defp kpi_mini(assigns) do
-    ~H"""
-    <div class="rounded-md border border-base-200 bg-base-100 px-3 py-2">
-      <dt class="text-xs text-base-content/60">{@label}</dt>
-      <dd class="mt-0.5 text-xl font-semibold tabular-nums">{@value}</dd>
-    </div>
-    """
-  end
-
   attr :icon, :string, required: true
   attr :label, :string, required: true
   attr :count, :integer, required: true
@@ -281,7 +228,4 @@ defmodule PeggyWeb.FarmLive.Dashboard do
 
   defp format_pct(nil), do: "—"
   defp format_pct(v) when is_number(v), do: :erlang.float_to_binary(v * 100, decimals: 1) <> "%"
-
-  defp format_num(nil, _), do: "—"
-  defp format_num(v, d) when is_number(v), do: :erlang.float_to_binary(v * 1.0, decimals: d)
 end
