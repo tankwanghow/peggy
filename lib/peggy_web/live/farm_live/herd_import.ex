@@ -183,7 +183,7 @@ defmodule PeggyWeb.FarmLive.HerdImport do
                       type="button"
                       phx-click="remove_row"
                       phx-value-id={row.tmp_id}
-                      class="btn btn-ghost btn-xs text-error"
+                      class="btn btn-ghost btn-sm text-error"
                       aria-label={gettext("Remove row")}
                     >
                       ✕

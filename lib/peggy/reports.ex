@@ -45,11 +45,9 @@ defmodule Peggy.Reports do
   Herd snapshot: counts of present animals grouped by stage and (for
   sows) by reproductive status, plus pen occupancy stats.
 
-  Piglet-stage animals are counted via the `animals.stage` field —
-  note pre-wean piglets typically live as a count on
-  `breeding_farrowings.born_alive`, not as `animals` rows, so the
-  `piglet` bucket here is usually 0 unless batches are registered
-  that way.
+  Pre-wean piglets are NOT animal rows — they live as counts on
+  `breeding_farrowings.born_alive` and are surfaced via
+  `nursing_piglets` below.
   """
   @spec herd_snapshot(Scope.t()) :: map()
   def herd_snapshot(%Scope{farm: %{id: farm_id}}) do

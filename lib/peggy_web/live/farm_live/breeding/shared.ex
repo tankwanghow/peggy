@@ -23,7 +23,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
       class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
     >
       <div
-        class="bg-base-100 rounded p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        class="bg-base-100 rounded p-4 sm:p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto"
         phx-click-away={@on_cancel}
         phx-window-keydown={@on_cancel}
         phx-key="escape"
@@ -35,51 +35,6 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     """
   end
 
-  # ── Pagination component ────────────────────────────────────────────
-
-  attr :page, :integer, required: true
-  attr :per_page, :integer, required: true
-  attr :total, :integer, required: true
-
-  def pagination(assigns) do
-    assigns =
-      assign(assigns,
-        total_pages: max(1, div(assigns.total + assigns.per_page - 1, assigns.per_page)),
-        from_n: min((assigns.page - 1) * assigns.per_page + 1, assigns.total),
-        to_n: min(assigns.page * assigns.per_page, assigns.total)
-      )
-
-    ~H"""
-    <div :if={@total > 0} class="mt-3 flex items-center justify-between text-sm">
-      <div class="text-base-content/60">
-        {gettext("%{from}–%{to} of %{total}", from: @from_n, to: @to_n, total: @total)}
-      </div>
-      <div class="flex gap-1">
-        <button
-          type="button"
-          phx-click="paginate"
-          phx-value-page={max(1, @page - 1)}
-          disabled={@page <= 1}
-          class="btn btn-ghost btn-xs"
-        >
-          {gettext("Prev")}
-        </button>
-        <span class="btn btn-ghost btn-xs no-animation pointer-events-none">
-          {gettext("Page %{page} / %{total}", page: @page, total: @total_pages)}
-        </span>
-        <button
-          type="button"
-          phx-click="paginate"
-          phx-value-page={min(@total_pages, @page + 1)}
-          disabled={@page >= @total_pages}
-          class="btn btn-ghost btn-xs"
-        >
-          {gettext("Next")}
-        </button>
-      </div>
-    </div>
-    """
-  end
 
   # ── Path helpers ────────────────────────────────────────────────────
 

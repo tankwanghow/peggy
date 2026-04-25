@@ -607,4 +607,60 @@ defmodule PeggyWeb.CoreComponents do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  @doc """
+  Infinite-scroll sentinel. Renders a loading row that triggers `event`
+  via `phx-viewport-bottom` when scrolled into view, or an "All loaded"
+  message when no more rows are available.
+  """
+  attr :has_more, :boolean, required: true
+  attr :total, :integer, required: true
+  attr :event, :string, default: "load_more"
+  attr :id, :string, default: "load-more-sentinel"
+
+  def infinite_scroll(assigns) do
+    ~H"""
+    <div class="mt-3">
+      <div
+        :if={@has_more}
+        id={@id}
+        phx-hook=".InfiniteScroll"
+        data-event={@event}
+        class="py-6 flex items-center justify-center gap-2 text-sm text-base-content/60"
+      >
+        <span class="loading loading-spinner loading-sm"></span>
+        <span>{gettext("Loading more...")}</span>
+      </div>
+      <p
+        :if={!@has_more and @total > 0}
+        class="py-3 text-center text-xs text-base-content/40"
+      >
+        {gettext("All %{n} loaded", n: @total)}
+      </p>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".InfiniteScroll">
+        export default {
+          mounted() {
+            this.observer = new IntersectionObserver((entries) => {
+              if (entries.some((e) => e.isIntersecting)) {
+                this.pushEvent(this.el.dataset.event || "load_more", {})
+              }
+            }, { rootMargin: "200px" })
+            this.observer.observe(this.el)
+          },
+          updated() {
+            // Re-trigger an intersection check after rows are appended;
+            // if the sentinel is still in view, this fires the next batch.
+            if (this.observer) {
+              this.observer.unobserve(this.el)
+              this.observer.observe(this.el)
+            }
+          },
+          destroyed() {
+            this.observer && this.observer.disconnect()
+          }
+        }
+      </script>
+    </div>
+    """
+  end
 end

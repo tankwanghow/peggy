@@ -43,17 +43,17 @@ defmodule PeggyWeb.FarmLive.Breeding.Deleted do
                     id={dom_id}
                     class="border-t border-base-200"
                   >
-                    <td class="py-1.5 font-mono font-semibold">
+                    <td class="py-2 font-mono font-semibold">
                       {s.sow && s.sow.ear_tag}
                     </td>
-                    <td class="py-1.5 font-mono">{s.boar && s.boar.ear_tag}</td>
-                    <td class="py-1.5">{s.service_type}</td>
-                    <td class="py-1.5">{s.served_at}</td>
-                    <td class="py-1.5">{s.result || gettext("open")}</td>
-                    <td class="py-1.5 text-base-content/70">
+                    <td class="py-2 font-mono">{s.boar && s.boar.ear_tag}</td>
+                    <td class="py-2">{s.service_type}</td>
+                    <td class="py-2">{s.served_at}</td>
+                    <td class="py-2">{s.result || gettext("open")}</td>
+                    <td class="py-2 text-base-content/70">
                       {Calendar.strftime(s.deleted_at, "%Y-%m-%d %H:%M")}
                     </td>
-                    <td class="py-1.5 text-base-content/70">
+                    <td class="py-2 text-base-content/70">
                       {s.deleted_by && s.deleted_by.email}
                     </td>
                   </tr>
@@ -86,18 +86,18 @@ defmodule PeggyWeb.FarmLive.Breeding.Deleted do
                     id={dom_id}
                     class="border-t border-base-200"
                   >
-                    <td class="py-1.5 font-mono font-semibold">
+                    <td class="py-2 font-mono font-semibold">
                       {f.sow && f.sow.ear_tag}
                     </td>
-                    <td class="py-1.5">{f.farrowed_at}</td>
-                    <td class="py-1.5 text-right font-mono">{f.born_alive}</td>
-                    <td class="py-1.5 font-mono">
+                    <td class="py-2">{f.farrowed_at}</td>
+                    <td class="py-2 text-right font-mono">{f.born_alive}</td>
+                    <td class="py-2 font-mono">
                       {f.pen && "#{f.pen.house.code}-#{f.pen.code}"}
                     </td>
-                    <td class="py-1.5 text-base-content/70">
+                    <td class="py-2 text-base-content/70">
                       {Calendar.strftime(f.deleted_at, "%Y-%m-%d %H:%M")}
                     </td>
-                    <td class="py-1.5 text-base-content/70">
+                    <td class="py-2 text-base-content/70">
                       {f.deleted_by && f.deleted_by.email}
                     </td>
                   </tr>
@@ -130,19 +130,19 @@ defmodule PeggyWeb.FarmLive.Breeding.Deleted do
                     id={dom_id}
                     class="border-t border-base-200"
                   >
-                    <td class="py-1.5 font-mono font-semibold">
+                    <td class="py-2 font-mono font-semibold">
                       {w.farrowing && w.farrowing.sow && w.farrowing.sow.ear_tag}
                     </td>
-                    <td class="py-1.5">{w.weaned_at}</td>
-                    <td class="py-1.5 text-right">{w.weaned_count}</td>
-                    <td class="py-1.5 font-mono">
+                    <td class="py-2">{w.weaned_at}</td>
+                    <td class="py-2 text-right">{w.weaned_count}</td>
+                    <td class="py-2 font-mono">
                       {w.destination_pen &&
                         "#{w.destination_pen.house.code}-#{w.destination_pen.code}"}
                     </td>
-                    <td class="py-1.5 text-base-content/70">
+                    <td class="py-2 text-base-content/70">
                       {Calendar.strftime(w.deleted_at, "%Y-%m-%d %H:%M")}
                     </td>
-                    <td class="py-1.5 text-base-content/70">
+                    <td class="py-2 text-base-content/70">
                       {w.deleted_by && w.deleted_by.email}
                     </td>
                   </tr>

@@ -145,23 +145,23 @@ defmodule Peggy.AnimalsTest do
       sire = animal_fixture(scope, ear_tag: "SIRE1", sex: "male", stage: "boar")
       dam = animal_fixture(scope, ear_tag: "DAM1", sex: "female", stage: "sow")
 
-      {:ok, piglet} =
+      {:ok, offspring_animal} =
         Animals.create_animal(scope, %{
           tracking_type: "individual",
-          ear_tag: "PIG1",
-          stage: "piglet",
+          ear_tag: "GILT1",
+          stage: "sow",
           sex: "female",
           sire_id: sire.id,
           dam_id: dam.id
         })
 
-      loaded = Animals.get_animal!(scope, piglet.id)
+      loaded = Animals.get_animal!(scope, offspring_animal.id)
       assert loaded.sire.id == sire.id
       assert loaded.dam.id == dam.id
 
       offspring = Animals.list_offspring(scope, sire)
       assert length(offspring) == 1
-      assert hd(offspring).id == piglet.id
+      assert hd(offspring).id == offspring_animal.id
     end
   end
 

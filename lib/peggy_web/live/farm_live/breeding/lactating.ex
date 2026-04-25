@@ -99,41 +99,41 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   id={dom_id}
                   class="border-t border-base-200"
                 >
-                  <td class="py-1.5 font-mono font-semibold">
+                  <td class="py-2 font-mono font-semibold">
                     <.link
                       navigate={
                         ~p"/farms/#{@current_scope.farm.slug}/animals/#{entry.farrowing.sow_id}"
                       }
-                      class="text-primary hover:underline"
+                      class="text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
                     >
                       {entry.farrowing.sow.ear_tag}
                     </.link>
                   </td>
-                  <td class="py-1.5">{entry.farrowing.farrowed_at}</td>
-                  <td class="py-1.5 text-right">{entry.farrowing.born_alive}</td>
-                  <td class="py-1.5 text-right">
+                  <td class="py-2">{entry.farrowing.farrowed_at}</td>
+                  <td class="py-2 text-right">{entry.farrowing.born_alive}</td>
+                  <td class="py-2 text-right">
                     <button
                       phx-click="show_ledger"
                       phx-value-farrowing-id={entry.farrowing.id}
-                      class="btn btn-xs btn-outline btn-primary font-mono gap-1"
+                      class="btn btn-sm btn-outline btn-primary font-mono gap-1"
                       title={gettext("View litter ledger")}
                     >
                       {entry.surviving}
                       <.icon name="hero-book-open" class="size-3" />
                     </button>
                   </td>
-                  <td class="py-1.5 font-mono">
+                  <td class="py-2 font-mono">
                     {entry.farrowing.pen &&
                       "#{entry.farrowing.pen.house.code}-#{entry.farrowing.pen.code}"}
                   </td>
-                  <td class="py-1.5 text-right font-mono">
+                  <td class="py-2 text-right font-mono">
                     {Date.diff(Date.utc_today(), entry.farrowing.farrowed_at)}
                   </td>
-                  <td :if={@can_record} class="py-1.5 text-right">
+                  <td :if={@can_record} class="py-2 text-right">
                     <button
                       phx-click="new_litter_death"
                       phx-value-farrowing-id={entry.farrowing.id}
-                      class="btn btn-ghost btn-xs text-error/70"
+                      class="btn btn-ghost btn-sm text-error/70"
                       title={gettext("Record pre-wean death")}
                     >
                       {gettext("Death")}
@@ -141,7 +141,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                     <button
                       phx-click="new_litter_foster"
                       phx-value-farrowing-id={entry.farrowing.id}
-                      class="btn btn-ghost btn-xs"
+                      class="btn btn-ghost btn-sm"
                       title={gettext("Record fostering")}
                     >
                       {gettext("Foster")}
@@ -149,7 +149,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                     <button
                       phx-click="new_weaning"
                       phx-value-farrowing-id={entry.farrowing.id}
-                      class="btn btn-ghost btn-xs"
+                      class="btn btn-ghost btn-sm"
                     >
                       {gettext("Wean")}
                     </button>
@@ -161,7 +161,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                           "Delete this farrowing? The sow will be reverted and the service reopened."
                         )
                       }
-                      class="btn btn-ghost btn-xs text-error/70"
+                      class="btn btn-ghost btn-sm text-error/70"
                       title={gettext("Delete farrowing")}
                     >
                       <.icon name="hero-trash" class="size-4" />
@@ -175,7 +175,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
             </p>
           </div>
 
-          <Shared.pagination page={@page} per_page={@per_page} total={@total} />
+          <.infinite_scroll
+            has_more={@has_more}
+            total={@total}
+            id="lactating-sentinel"
+          />
         </section>
 
         <%!-- Pre-wean death modal --%>
@@ -328,7 +332,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                         "Delete this litter event? Paired fostering events are removed together."
                       )
                     }
-                    class="btn btn-ghost btn-xs text-error/80"
+                    class="btn btn-ghost btn-sm text-error/80"
                     title={gettext("Delete event")}
                   >
                     <.icon name="hero-trash" class="size-4" />
@@ -621,11 +625,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       pen_id: params["pen_id"] || ""
     }
 
-    page = Shared.param_page(params["page"])
-
     {:noreply,
      socket
-     |> assign(filters: filters, page: page)
+     |> assign(filters: filters, page: 1)
      |> load_rows()
      |> maybe_open_from_params(params)}
   end
@@ -1028,15 +1030,14 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     query = %{
       "q" => params["q"] || "",
       "age" => params["age"] || "all",
-      "pen_id" => params["pen_id"] || "",
-      "page" => 1
+      "pen_id" => params["pen_id"] || ""
     }
 
     {:noreply, push_patch(socket, to: Shared.tab_path(socket, "lactating", query))}
   end
 
-  def handle_event("paginate", %{"page" => page}, socket) do
-    {:noreply, push_patch(socket, to: Shared.tab_path(socket, "lactating", %{"page" => page}))}
+  def handle_event("load_more", _, socket) do
+    {:noreply, append_rows(socket)}
   end
 
   # ── Helpers ────────────────────────────────────────────────────────
@@ -1073,14 +1074,13 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
     filters = socket.assigns.filters
-    page = socket.assigns.page
 
     opts = [
       search: filters.q,
       age_bucket: filters.age,
       pen_id: filters.pen_id,
       limit: @per_page,
-      offset: (page - 1) * @per_page
+      offset: 0
     ]
 
     rows =
@@ -1092,8 +1092,35 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     total = Breeding.count_lactating_sows(scope, opts)
 
     socket
-    |> assign(total: total)
+    |> assign(total: total, page: 1, has_more: length(rows) < total)
     |> stream(:lactating, rows, reset: true)
+  end
+
+  defp append_rows(socket) do
+    scope = socket.assigns.current_scope
+    filters = socket.assigns.filters
+    next_page = socket.assigns.page + 1
+
+    opts = [
+      search: filters.q,
+      age_bucket: filters.age,
+      pen_id: filters.pen_id,
+      limit: @per_page,
+      offset: (next_page - 1) * @per_page
+    ]
+
+    rows =
+      Breeding.list_lactating_sows(scope, opts)
+      |> Enum.map(fn f ->
+        %{farrowing: f, surviving: Breeding.surviving_piglet_count(f)}
+      end)
+
+    loaded = next_page * @per_page
+
+    socket =
+      Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :lactating, row) end)
+
+    assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
   end
 
   defp close_form(socket) do

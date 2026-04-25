@@ -128,7 +128,7 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
                       type="button"
                       phx-click="remove_row"
                       phx-value-id={row.tmp_id}
-                      class="btn btn-ghost btn-xs"
+                      class="btn btn-ghost btn-sm"
                       title={gettext("Remove row")}
                     >
                       ×

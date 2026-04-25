@@ -97,44 +97,44 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                   id={dom_id}
                   class="border-t border-base-200"
                 >
-                  <td class="py-1.5 font-mono font-semibold">
+                  <td class="py-2 font-mono font-semibold">
                     <.link
                       navigate={
                         ~p"/farms/#{@current_scope.farm.slug}/animals/#{entry.service.sow_id}"
                       }
-                      class="text-primary hover:underline"
+                      class="text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
                     >
                       {entry.service.sow.ear_tag}
                     </.link>
                   </td>
-                  <td class="py-1.5 font-mono text-base-content/70">
+                  <td class="py-2 font-mono text-base-content/70">
                     {sow_pen_label(entry.service.sow)}
                   </td>
-                  <td class="py-1.5 font-mono">
+                  <td class="py-2 font-mono">
                     {entry.service.boar && entry.service.boar.ear_tag}
                   </td>
-                  <td class="py-1.5">{entry.service.service_type}</td>
-                  <td class="py-1.5">{entry.service.served_at}</td>
-                  <td class="py-1.5">{entry.expected_farrow_date}</td>
+                  <td class="py-2">{entry.service.service_type}</td>
+                  <td class="py-2">{entry.service.served_at}</td>
+                  <td class="py-2">{entry.expected_farrow_date}</td>
                   <td class={[
-                    "py-1.5 text-right font-mono",
+                    "py-2 text-right font-mono",
                     days_left(entry) <= 7 && "text-warning font-bold",
                     days_left(entry) <= 0 && "text-error font-bold"
                   ]}>
                     {days_left(entry)}
                   </td>
-                  <td :if={@can_record} class="py-1.5 text-right">
+                  <td :if={@can_record} class="py-2 text-right">
                     <button
                       phx-click="new_farrowing"
                       phx-value-service-id={entry.service.id}
-                      class="btn btn-ghost btn-xs"
+                      class="btn btn-ghost btn-sm"
                     >
                       {gettext("Farrow")}
                     </button>
                     <button
                       phx-click="close_service_prompt"
                       phx-value-service-id={entry.service.id}
-                      class="btn btn-ghost btn-xs text-base-content/50"
+                      class="btn btn-ghost btn-sm text-base-content/50"
                     >
                       {gettext("Close")}
                     </button>
@@ -142,7 +142,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                       phx-click="delete_service"
                       phx-value-service-id={entry.service.id}
                       data-confirm={gettext("Delete this service? The sow will be reverted to open.")}
-                      class="btn btn-ghost btn-xs text-error/70"
+                      class="btn btn-ghost btn-sm text-error/70"
                       title={gettext("Delete service")}
                     >
                       <.icon name="hero-trash" class="size-4" />
@@ -156,7 +156,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
             </p>
           </div>
 
-          <Shared.pagination page={@page} per_page={@per_page} total={@total} />
+          <.infinite_scroll
+            has_more={@has_more}
+            total={@total}
+            id="gestating-sentinel"
+          />
         </section>
 
         <%!-- Service form modal (with back-fill cascade) --%>
@@ -263,7 +267,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                   type="button"
                   phx-click="pick_similar_tag"
                   phx-value-tag={tag}
-                  class="btn btn-xs btn-outline btn-error font-mono"
+                  class="btn btn-sm btn-outline btn-error font-mono"
                 >
                   {tag}
                 </button>
@@ -648,11 +652,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       service_type: Shared.param_service_type(params["service_type"])
     }
 
-    page = Shared.param_page(params["page"])
-
     socket =
       socket
-      |> assign(filters: filters, page: page)
+      |> assign(filters: filters, page: 1)
       |> load_rows()
       |> maybe_open_from_params(params)
 
@@ -940,15 +942,14 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     query = %{
       "q" => params["q"] || "",
       "window" => params["window"] || "all",
-      "service_type" => params["service_type"] || "all",
-      "page" => 1
+      "service_type" => params["service_type"] || "all"
     }
 
     {:noreply, push_patch(socket, to: Shared.tab_path(socket, "gestating", query))}
   end
 
-  def handle_event("paginate", %{"page" => page}, socket) do
-    {:noreply, push_patch(socket, to: Shared.tab_path(socket, "gestating", %{"page" => page}))}
+  def handle_event("load_more", _, socket) do
+    {:noreply, append_rows(socket)}
   end
 
   # ── Helpers ────────────────────────────────────────────────────────
@@ -1470,22 +1471,43 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
     filters = socket.assigns.filters
-    page = socket.assigns.page
 
     opts = [
       search: filters.q,
       due_window: filters.window,
       service_type: filters.service_type,
       limit: @per_page,
-      offset: (page - 1) * @per_page
+      offset: 0
     ]
 
     rows = Breeding.list_gestating_sows(scope, opts)
     total = Breeding.count_gestating_sows(scope, opts)
 
     socket
-    |> assign(total: total)
+    |> assign(total: total, page: 1, has_more: length(rows) < total)
     |> stream(:gestating, rows, reset: true)
+  end
+
+  defp append_rows(socket) do
+    scope = socket.assigns.current_scope
+    filters = socket.assigns.filters
+    next_page = socket.assigns.page + 1
+
+    opts = [
+      search: filters.q,
+      due_window: filters.window,
+      service_type: filters.service_type,
+      limit: @per_page,
+      offset: (next_page - 1) * @per_page
+    ]
+
+    rows = Breeding.list_gestating_sows(scope, opts)
+    loaded = next_page * @per_page
+
+    socket =
+      Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :gestating, row) end)
+
+    assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
   end
 
   defp close_form(socket) do

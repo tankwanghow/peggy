@@ -6,6 +6,8 @@ defmodule PeggyWeb.FarmLive.Animals do
   alias Peggy.Locations
   alias Peggy.Policy
 
+  @per_page 50
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -60,6 +62,7 @@ defmodule PeggyWeb.FarmLive.Animals do
                 <th class="py-2">{gettext("Breed")}</th>
                 <th class="py-2">{gettext("Pen")}</th>
                 <th class="py-2">{gettext("Status")}</th>
+                <th class="py-2 w-6"></th>
               </tr>
             </thead>
             <tbody id="animals" phx-update="stream">
@@ -69,7 +72,7 @@ defmodule PeggyWeb.FarmLive.Animals do
                 class="border-t border-base-200 hover:bg-base-200/50 cursor-pointer"
                 phx-click={JS.navigate(~p"/farms/#{@current_scope.farm.slug}/animals/#{a.id}")}
               >
-                <td class="py-1.5 font-mono font-semibold">
+                <td class="py-2 font-mono font-semibold">
                   <span class="inline-flex items-center gap-1">
                     {a.ear_tag || "##{a.id}"}
                     <span :if={a.needs_review} title={gettext("Needs review")}>
@@ -77,7 +80,7 @@ defmodule PeggyWeb.FarmLive.Animals do
                     </span>
                   </span>
                 </td>
-                <td class="py-1.5">
+                <td class="py-2">
                   <span class={[
                     "badge badge-sm",
                     a.tracking_type == "batch" && "badge-secondary"
@@ -86,14 +89,17 @@ defmodule PeggyWeb.FarmLive.Animals do
                     <span :if={a.tracking_type == "batch"}> ({a.quantity})</span>
                   </span>
                 </td>
-                <td class="py-1.5">{String.capitalize(a.stage)}</td>
-                <td class="py-1.5">{a.sex && String.capitalize(a.sex)}</td>
-                <td class="py-1.5">{a.breed}</td>
-                <td class="py-1.5 font-mono">
+                <td class="py-2">{String.capitalize(a.stage)}</td>
+                <td class="py-2">{a.sex && String.capitalize(a.sex)}</td>
+                <td class="py-2">{a.breed}</td>
+                <td class="py-2 font-mono">
                   {pen_label(a)}
                 </td>
-                <td class="py-1.5">
+                <td class="py-2">
                   <.status_badge status={a.status} class="badge-sm" />
+                </td>
+                <td class="py-2 text-base-content/40">
+                  <.icon name="hero-chevron-right-micro" class="size-4" />
                 </td>
               </tr>
             </tbody>
@@ -101,6 +107,7 @@ defmodule PeggyWeb.FarmLive.Animals do
           <p :if={@animal_count == 0} class="mt-4 text-center text-base-content/60">
             {gettext("No animals registered yet.")}
           </p>
+          <.infinite_scroll has_more={@has_more} total={@animal_count} id="animals-sentinel" />
         </div>
 
         <%!-- Create/Edit modal --%>
@@ -110,7 +117,7 @@ defmodule PeggyWeb.FarmLive.Animals do
           class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
         >
           <div
-            class="bg-base-100 rounded p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            class="bg-base-100 rounded p-4 sm:p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto"
             phx-click-away="cancel"
             phx-window-keydown="cancel"
             phx-key="escape"
@@ -249,7 +256,7 @@ defmodule PeggyWeb.FarmLive.Animals do
      |> assign(filter_stage: "", filter_status: "present", filter_needs_review: false)
      |> assign(form: nil, form_title: nil, form_target: nil)
      |> assign(ac: default_ac())
-     |> assign(:animal_count, 0)
+     |> assign(animal_count: 0, page: 1, has_more: false)
      |> stream(:animals, [])}
   end
 
@@ -266,7 +273,7 @@ defmodule PeggyWeb.FarmLive.Animals do
         filter_status: status,
         filter_needs_review: needs_review
       )
-      |> load_animals()
+      |> load_rows()
       |> maybe_open_new(params)
 
     {:noreply, socket}
@@ -326,6 +333,10 @@ defmodule PeggyWeb.FarmLive.Animals do
 
   def handle_event("cancel", _, socket), do: {:noreply, close_form(socket)}
 
+  def handle_event("load_more", _, socket) do
+    {:noreply, append_rows(socket)}
+  end
+
   def handle_event("validate", %{"animal" => params}, socket) do
     target = socket.assigns.form_target || %Animal{}
     params = reset_stage_if_invalid(params)
@@ -360,7 +371,7 @@ defmodule PeggyWeb.FarmLive.Animals do
          socket
          |> put_flash(:info, gettext("Animal registered."))
          |> close_form()
-         |> load_animals()}
+         |> load_rows()}
 
       {:error, cs} ->
         {:noreply, assign(socket, :form, to_form(cs, as: :animal))}
@@ -374,7 +385,7 @@ defmodule PeggyWeb.FarmLive.Animals do
          socket
          |> put_flash(:info, gettext("Animal updated."))
          |> close_form()
-         |> load_animals()}
+         |> load_rows()}
 
       {:error, cs} ->
         {:noreply, assign(socket, :form, to_form(cs, as: :animal))}
@@ -464,21 +475,34 @@ defmodule PeggyWeb.FarmLive.Animals do
 
   ## Other helpers
 
-  defp load_animals(socket) do
+  defp load_rows(socket) do
+    opts = filter_opts(socket) ++ [limit: @per_page, offset: 0]
     scope = socket.assigns.current_scope
-    stage = if socket.assigns.filter_stage == "", do: nil, else: socket.assigns.filter_stage
-    status = if socket.assigns.filter_status == "", do: nil, else: socket.assigns.filter_status
-
-    animals =
-      Animals.list_animals(scope,
-        stage: stage,
-        status: status,
-        needs_review: socket.assigns.filter_needs_review
-      )
+    rows = Animals.list_animals(scope, opts)
+    total = Animals.count_animals(scope, filter_opts(socket))
 
     socket
-    |> assign(:animal_count, length(animals))
-    |> stream(:animals, animals, reset: true)
+    |> assign(animal_count: total, page: 1, has_more: length(rows) < total)
+    |> stream(:animals, rows, reset: true)
+  end
+
+  defp append_rows(socket) do
+    scope = socket.assigns.current_scope
+    next_page = socket.assigns.page + 1
+    opts = filter_opts(socket) ++ [limit: @per_page, offset: (next_page - 1) * @per_page]
+    rows = Animals.list_animals(scope, opts)
+    loaded = next_page * @per_page
+
+    socket =
+      Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :animals, row) end)
+
+    assign(socket, page: next_page, has_more: loaded < socket.assigns.animal_count)
+  end
+
+  defp filter_opts(socket) do
+    stage = if socket.assigns.filter_stage == "", do: nil, else: socket.assigns.filter_stage
+    status = if socket.assigns.filter_status == "", do: nil, else: socket.assigns.filter_status
+    [stage: stage, status: status, needs_review: socket.assigns.filter_needs_review]
   end
 
   defp form_value(form, field) do

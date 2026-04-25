@@ -166,7 +166,7 @@ defmodule PeggyWeb.FarmLive.HouseDetail do
                     phx-click="delete_pen"
                     phx-value-id={p.id}
                     data-confirm={gettext("Delete pen?")}
-                    class="btn btn-xs btn-ghost text-error"
+                    class="btn btn-sm btn-ghost text-error"
                   >
                     {gettext("Delete")}
                   </button>

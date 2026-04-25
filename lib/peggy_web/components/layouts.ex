@@ -131,7 +131,7 @@ defmodule PeggyWeb.Layouts do
           >
             <li>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/animals"}>
-                {gettext("All Animals")}
+                {gettext("Presents Animal")}
               </.link>
             </li>
             <li :if={Peggy.Policy.can?(@current_scope, :manage_animals)}>

@@ -4,7 +4,7 @@ defmodule Peggy.Animals.Animal do
   import Ecto.Query, only: [from: 2]
 
   @tracking_types ~w(individual batch)
-  @stages ~w(piglet weaner grower finisher sow boar)
+  @stages ~w(weaner grower finisher sow boar)
   @sexes ~w(male female unknown)
   @statuses ~w(active served open lactating dry culled sold slaughtered deceased transferred reversed)
   @present_statuses ~w(active served open lactating dry culled)

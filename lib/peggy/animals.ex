@@ -25,6 +25,24 @@ defmodule Peggy.Animals do
   ## Queries
 
   def list_animals(%Scope{farm: farm}, opts \\ []) do
+    limit = Keyword.get(opts, :limit)
+    offset = Keyword.get(opts, :offset, 0)
+
+    opts
+    |> animals_query(farm)
+    |> maybe_paginate(limit, offset)
+    |> preload(current_pen: [:house], placements: ^active_placement_query())
+    |> Repo.all()
+  end
+
+  def count_animals(%Scope{farm: farm}, opts \\ []) do
+    opts
+    |> animals_query(farm)
+    |> exclude(:order_by)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  defp animals_query(opts, farm) do
     stage = Keyword.get(opts, :stage)
     status = Keyword.get(opts, :status)
     pen_id = Keyword.get(opts, :pen_id)
@@ -38,26 +56,25 @@ defmodule Peggy.Animals do
       |> maybe_filter(:stage, stage)
       |> maybe_filter(:status, status)
       |> maybe_needs_review(needs_review)
-      |> preload(current_pen: [:house], placements: ^active_placement_query())
 
-    query =
-      case pen_id do
-        nil ->
-          base
+    case pen_id do
+      nil ->
+        base
 
-        "" ->
-          base
+      "" ->
+        base
 
-        id ->
-          from a in base,
-            left_join: p in Placement,
-            on: p.animal_id == a.id and is_nil(p.removed_at) and p.pen_id == ^id,
-            where: a.current_pen_id == ^id or not is_nil(p.id),
-            distinct: a.id
-      end
-
-    Repo.all(query)
+      id ->
+        from a in base,
+          left_join: p in Placement,
+          on: p.animal_id == a.id and is_nil(p.removed_at) and p.pen_id == ^id,
+          where: a.current_pen_id == ^id or not is_nil(p.id),
+          distinct: a.id
+    end
   end
+
+  defp maybe_paginate(query, nil, _), do: query
+  defp maybe_paginate(query, limit, offset), do: from(q in query, limit: ^limit, offset: ^offset)
 
   def get_animal!(%Scope{farm: farm}, id) do
     Repo.get_by!(Animal, id: id, farm_id: farm.id)

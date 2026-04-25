@@ -9,7 +9,6 @@ defmodule PeggyWeb.FarmLive.Dashboard do
     "weaner" => "Weaners",
     "grower" => "Growers",
     "finisher" => "Finishers",
-    "piglet" => "Piglet batches",
     "cull" => "Cull"
   }
 
@@ -144,13 +143,20 @@ defmodule PeggyWeb.FarmLive.Dashboard do
                   {gettext("By stage")}
                 </h3>
                 <dl class="mt-1 space-y-0.5 text-sm">
-                  <div
-                    :for={{stage, count} <- stages_for_display(@snapshot.by_stage)}
-                    class="flex justify-between"
+                  <.link
+                    :for={{key, stage, count} <- stages_for_display(@snapshot.by_stage)}
+                    navigate={~p"/farms/#{@current_scope.farm.slug}/animals?stage=#{key}"}
+                    class="group flex items-center justify-between rounded px-2 py-1 -mx-1 bg-base-200/40 hover:bg-primary/10 cursor-pointer transition-colors"
                   >
-                    <dt>{stage}</dt>
-                    <dd class="tabular-nums">{count}</dd>
-                  </div>
+                    <dt class="flex items-center gap-1 text-primary underline underline-offset-2 decoration-dotted">
+                      {stage}
+                      <.icon
+                        name="hero-arrow-right-micro"
+                        class="size-3 opacity-100 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </dt>
+                    <dd class="tabular-nums font-medium">{count}</dd>
+                  </.link>
                 </dl>
               </div>
               <div>
@@ -158,13 +164,20 @@ defmodule PeggyWeb.FarmLive.Dashboard do
                   {gettext("Sow status")}
                 </h3>
                 <dl class="mt-1 space-y-0.5 text-sm">
-                  <div
-                    :for={{status, count} <- sow_statuses_for_display(@snapshot.sow_status)}
-                    class="flex justify-between"
+                  <.link
+                    :for={{key, status, count} <- sow_statuses_for_display(@snapshot.sow_status)}
+                    navigate={~p"/farms/#{@current_scope.farm.slug}/animals?stage=sow&status=#{key}"}
+                    class="group flex items-center justify-between rounded px-2 py-1 -mx-1 bg-base-200/40 hover:bg-primary/10 cursor-pointer transition-colors"
                   >
-                    <dt>{status}</dt>
-                    <dd class="tabular-nums">{count}</dd>
-                  </div>
+                    <dt class="flex items-center gap-1 text-primary underline underline-offset-2 decoration-dotted">
+                      {status}
+                      <.icon
+                        name="hero-arrow-right-micro"
+                        class="size-3 opacity-100 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </dt>
+                    <dd class="tabular-nums font-medium">{count}</dd>
+                  </.link>
                 </dl>
               </div>
             </div>
@@ -211,7 +224,10 @@ defmodule PeggyWeb.FarmLive.Dashboard do
   defp action_row(assigns) do
     ~H"""
     <li>
-      <.link navigate={@href} class="flex items-center justify-between py-2 hover:bg-base-200/50">
+      <.link
+        navigate={@href}
+        class="group flex items-center justify-between gap-2 py-2 px-2 -mx-2 rounded hover:bg-primary/10 transition-colors"
+      >
         <span class="flex items-center gap-2 text-sm">
           <.icon
             name={@icon}
@@ -219,12 +235,18 @@ defmodule PeggyWeb.FarmLive.Dashboard do
           />
           {@label}
         </span>
-        <span class={[
-          "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-          @tone == "warn" && "bg-warning/20 text-warning",
-          @tone != "warn" && "bg-base-200"
-        ]}>
-          {@count}
+        <span class="flex items-center gap-1.5">
+          <span class={[
+            "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+            @tone == "warn" && "bg-warning/20 text-warning",
+            @tone != "warn" && "bg-base-200"
+          ]}>
+            {@count}
+          </span>
+          <.icon
+            name="hero-chevron-right-micro"
+            class="size-4 text-base-content/40 transition-transform group-hover:translate-x-0.5"
+          />
         </span>
       </.link>
     </li>
@@ -248,13 +270,13 @@ defmodule PeggyWeb.FarmLive.Dashboard do
 
   defp stages_for_display(by_stage) do
     @stage_labels
-    |> Enum.map(fn {key, label} -> {label, Map.get(by_stage, key, 0) || 0} end)
-    |> Enum.reject(fn {_label, count} -> count == 0 end)
+    |> Enum.map(fn {key, label} -> {key, label, Map.get(by_stage, key, 0) || 0} end)
+    |> Enum.reject(fn {_key, _label, count} -> count == 0 end)
   end
 
   defp sow_statuses_for_display(sow_status) do
     @sow_status_labels
-    |> Enum.map(fn {key, label} -> {label, Map.get(sow_status, key, 0) || 0} end)
+    |> Enum.map(fn {key, label} -> {key, label, Map.get(sow_status, key, 0) || 0} end)
   end
 
   defp format_pct(nil), do: "—"

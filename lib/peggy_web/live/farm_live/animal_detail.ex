@@ -47,7 +47,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               · {gettext("Sire")}:
               <.link
                 navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.sire.id}"}
-                class="font-mono text-primary hover:underline"
+                class="font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
               >
                 {@animal.sire.ear_tag}
               </.link>
@@ -56,7 +56,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               · {gettext("Dam")}:
               <.link
                 navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.dam.id}"}
-                class="font-mono text-primary hover:underline"
+                class="font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
               >
                 {@animal.dam.ear_tag}
               </.link>
@@ -170,7 +170,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             <li :for={o <- @offspring} class="flex gap-2">
               <.link
                 navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{o.id}"}
-                class="font-mono text-primary hover:underline"
+                class="font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
               >
                 {o.ear_tag || "##{o.id}"}
               </.link>
@@ -275,22 +275,22 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 id={dom_id}
                 class="border-t border-base-200"
               >
-                <td class="py-1.5 whitespace-nowrap">{m.moved_at}</td>
-                <td class="py-1.5">{String.replace(m.reason, "_", " ")}</td>
-                <td class="py-1.5 font-mono">
+                <td class="py-2 whitespace-nowrap">{m.moved_at}</td>
+                <td class="py-2">{String.replace(m.reason, "_", " ")}</td>
+                <td class="py-2 font-mono">
                   {m.from_pen && "#{m.from_pen.house.code}-#{m.from_pen.code}"}
                 </td>
-                <td class="py-1.5 font-mono">
+                <td class="py-2 font-mono">
                   {m.to_pen && "#{m.to_pen.house.code}-#{m.to_pen.code}"}
                 </td>
-                <td class="py-1.5">{m.quantity}</td>
-                <td class="py-1.5 font-mono">{wean_sow_tag(m)}</td>
-                <td class="py-1.5 text-base-content/60">{m.notes}</td>
-                <td :if={@can_move} class="py-1.5 text-right">
+                <td class="py-2">{m.quantity}</td>
+                <td class="py-2 font-mono">{wean_sow_tag(m)}</td>
+                <td class="py-2 text-base-content/60">{m.notes}</td>
+                <td :if={@can_move} class="py-2 text-right">
                   <button
                     :if={m.id == @latest_movement_id}
                     phx-click="undo_last_movement"
-                    class="btn btn-ghost btn-xs text-error"
+                    class="btn btn-ghost btn-sm text-error"
                     data-confirm={
                       gettext("Undo this movement? This will reverse all related state changes.")
                     }
@@ -326,18 +326,18 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 id={dom_id}
                 class="border-t border-base-200"
               >
-                <td class="py-1.5 whitespace-nowrap">{history_date(row)}</td>
-                <td class="py-1.5">{history_event_label(row)}</td>
-                <td class="py-1.5 text-base-content/80">
+                <td class="py-2 whitespace-nowrap">{history_date(row)}</td>
+                <td class="py-2">{history_event_label(row)}</td>
+                <td class="py-2 text-base-content/80">
                   <.history_detail row={row} current_scope={@current_scope} animal={@animal} />
                 </td>
-                <td class="py-1.5 font-mono">{history_from_to(row)}</td>
-                <td class="py-1.5 text-base-content/60">{history_notes(row)}</td>
-                <td :if={@can_move} class="py-1.5 text-right">
+                <td class="py-2 font-mono">{history_from_to(row)}</td>
+                <td class="py-2 text-base-content/60">{history_notes(row)}</td>
+                <td :if={@can_move} class="py-2 text-right">
                   <button
                     :if={history_undoable?(row, @latest_movement_id)}
                     phx-click="undo_last_movement"
-                    class="btn btn-ghost btn-xs text-error"
+                    class="btn btn-ghost btn-sm text-error"
                     data-confirm={
                       gettext("Undo this movement? This will reverse all related state changes.")
                     }
@@ -400,7 +400,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
         >
           <div
-            class="bg-base-100 rounded p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            class="bg-base-100 rounded p-4 sm:p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto"
             phx-click-away="cancel_edit"
             phx-window-keydown="cancel_edit"
             phx-key="escape"
@@ -1044,7 +1044,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         · {gettext("mate")}
         <.link
           navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{mate.id}"}
-          class="font-mono text-primary hover:underline"
+          class="font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
         >
           {mate.ear_tag}
         </.link>
@@ -1098,7 +1098,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
       <.link
         :if={counterpart_sow(@row.data)}
         navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{counterpart_sow(@row.data).id}"}
-        class="font-mono text-primary hover:underline"
+        class="font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
       >
         {gettext("sow")} {counterpart_sow(@row.data).ear_tag}
       </.link>
@@ -1113,7 +1113,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
       <.link
         :if={counterpart_sow(@row.data)}
         navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{counterpart_sow(@row.data).id}"}
-        class="font-mono text-primary hover:underline"
+        class="font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
       >
         {gettext("sow")} {counterpart_sow(@row.data).ear_tag}
       </.link>

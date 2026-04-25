@@ -27,7 +27,7 @@ defmodule PeggyWeb.FarmLive.Locations do
               <div>
                 <.link
                   navigate={~p"/farms/#{@current_scope.farm.slug}/locations/houses/#{h.id}"}
-                  class="font-semibold font-mono hover:underline"
+                  class="font-semibold font-mono text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
                 >
                   {h.code}
                 </.link>
@@ -38,18 +38,18 @@ defmodule PeggyWeb.FarmLive.Locations do
               <div :if={@can_manage} class="flex gap-2">
                 <.link
                   navigate={~p"/farms/#{@current_scope.farm.slug}/locations/houses/#{h.id}"}
-                  class="btn btn-xs btn-ghost"
+                  class="btn btn-sm btn-ghost"
                 >
                   {gettext("Manage pens")}
                 </.link>
-                <button phx-click="edit_house" phx-value-id={h.id} class="btn btn-xs btn-ghost">
+                <button phx-click="edit_house" phx-value-id={h.id} class="btn btn-sm btn-ghost">
                   {gettext("Edit")}
                 </button>
                 <button
                   phx-click="delete_house"
                   phx-value-id={h.id}
                   data-confirm={gettext("Delete house and all child pens?")}
-                  class="btn btn-xs btn-ghost text-error"
+                  class="btn btn-sm btn-ghost text-error"
                 >
                   {gettext("Delete")}
                 </button>

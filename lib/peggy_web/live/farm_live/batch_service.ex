@@ -99,7 +99,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
                             phx-click="pick_similar"
                             phx-value-id={row.tmp_id}
                             phx-value-tag={t}
-                            class="btn btn-xs btn-outline btn-error font-mono"
+                            class="btn btn-sm btn-outline btn-error font-mono"
                           >
                             {t}
                           </button>
@@ -206,7 +206,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
                         type="button"
                         phx-click="remove_row"
                         phx-value-id={row.tmp_id}
-                        class="btn btn-ghost btn-xs"
+                        class="btn btn-ghost btn-sm"
                         title={gettext("Remove row")}
                       >
                         ×

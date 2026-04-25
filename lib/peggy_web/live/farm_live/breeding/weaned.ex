@@ -59,33 +59,33 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                   id={dom_id}
                   class="border-t border-base-200"
                 >
-                  <td class="py-1.5 font-mono font-semibold">
+                  <td class="py-2 font-mono font-semibold">
                     {w.farrowing && w.farrowing.sow && w.farrowing.sow.ear_tag}
                   </td>
-                  <td class="py-1.5">{w.weaned_at}</td>
-                  <td class="py-1.5 text-right">{w.weaned_count}</td>
-                  <td class="py-1.5 text-right">{w.avg_wean_weight_g}</td>
-                  <td class="py-1.5 font-mono">
+                  <td class="py-2">{w.weaned_at}</td>
+                  <td class="py-2 text-right">{w.weaned_count}</td>
+                  <td class="py-2 text-right">{w.avg_wean_weight_g}</td>
+                  <td class="py-2 font-mono">
                     <.link
                       :if={w.batch_animal}
                       navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{w.batch_animal.id}"}
-                      class="text-primary hover:underline"
+                      class="text-primary underline underline-offset-2 decoration-dotted hover:decoration-solid"
                     >
                       {w.batch_animal.ear_tag}
                     </.link>
                   </td>
-                  <td class="py-1.5 font-mono">
+                  <td class="py-2 font-mono">
                     {w.destination_pen &&
                       "#{w.destination_pen.house.code}-#{w.destination_pen.code}"}
                   </td>
-                  <td :if={@can_record} class="py-1.5 text-right">
+                  <td :if={@can_record} class="py-2 text-right">
                     <button
                       phx-click="delete_weaning"
                       phx-value-weaning-id={w.id}
                       data-confirm={
                         gettext("Delete this weaning? The litter batch and sow will be reverted.")
                       }
-                      class="btn btn-ghost btn-xs text-error/70"
+                      class="btn btn-ghost btn-sm text-error/70"
                       title={gettext("Delete weaning")}
                     >
                       <.icon name="hero-trash" class="size-4" />
