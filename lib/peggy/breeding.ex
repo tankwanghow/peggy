@@ -584,7 +584,6 @@ defmodule Peggy.Breeding do
     Animal.changeset(%Animal{}, %{
       "tracking_type" => "individual",
       "ear_tag" => ear_tag,
-      "sex" => "female",
       "stage" => "sow",
       "status" => "open",
       "dob" => backfill_attrs["dob"] || default_dob,
@@ -1139,10 +1138,14 @@ defmodule Peggy.Breeding do
     search = opts |> Keyword.get(:search) |> normalize_search()
     service_type = Keyword.get(opts, :service_type, "all")
     due_window = Keyword.get(opts, :due_window, "all")
+    pen_search = opts |> Keyword.get(:pen_search) |> normalize_search()
+    min_parity = Keyword.get(opts, :min_parity)
+    max_parity = Keyword.get(opts, :max_parity)
 
     q =
       from(s in Service,
         join: sow in assoc(s, :sow),
+        as: :sow,
         where: s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at),
         order_by: [asc: s.served_at],
         preload: [sow: [current_pen: :house], boar: []]
@@ -1151,7 +1154,7 @@ defmodule Peggy.Breeding do
     q =
       if search do
         like = "#{search}%"
-        from [s, sow] in q, where: ilike(sow.ear_tag, ^like)
+        from [sow: sow] in q, where: ilike(sow.ear_tag, ^like)
       else
         q
       end
@@ -1161,6 +1164,9 @@ defmodule Peggy.Breeding do
         t when t in ["natural", "ai"] -> from s in q, where: s.service_type == ^t
         _ -> q
       end
+
+    q = maybe_pen_search_on_sow(q, farm, pen_search)
+    q = maybe_parity_on_sow(q, farm, min_parity, max_parity)
 
     case due_window do
       "7" ->
@@ -1179,6 +1185,82 @@ defmodule Peggy.Breeding do
         q
     end
   end
+
+  # Filter a query whose first binding is a Service or Farrowing (with the
+  # second binding being its sow Animal) by the sow's current pen matching
+  # an ilike term against house/pen code.
+  defp maybe_pen_search_on_sow(query, _farm, nil), do: query
+
+  defp maybe_pen_search_on_sow(query, farm, term) do
+    pen_ids = matching_pen_ids(farm, term)
+
+    if pen_ids == [] do
+      from q in query, where: false
+    else
+      from [sow: sow] in query, where: sow.current_pen_id in ^pen_ids
+    end
+  end
+
+  defp matching_pen_ids(farm, term) do
+    like = "%#{term}%"
+
+    Repo.all(
+      from(p in Peggy.Locations.Pen,
+        join: h in Peggy.Locations.House,
+        on: h.id == p.house_id,
+        where:
+          p.farm_id == ^farm.id and
+            (ilike(p.code, ^like) or ilike(h.code, ^like) or
+               ilike(fragment("? || '-' || ?", h.code, p.code), ^like)),
+        select: p.id
+      )
+    )
+  end
+
+  defp maybe_parity_on_sow(query, _farm, nil, nil), do: query
+
+  defp maybe_parity_on_sow(query, farm, min_parity, max_parity) do
+    farrowing_counts =
+      from(f in Farrowing,
+        where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
+        group_by: f.sow_id,
+        select: %{sow_id: f.sow_id, n: count(f.id)}
+      )
+
+    parity_expr =
+      dynamic([sow: sow, parity_count: fc], coalesce(sow.legacy_parity, 0) + coalesce(fc.n, 0))
+
+    query =
+      from([sow: sow] in query,
+        left_join: fc in subquery(farrowing_counts),
+        as: :parity_count,
+        on: fc.sow_id == sow.id
+      )
+
+    query =
+      case parse_int_filter(min_parity) do
+        nil -> query
+        n -> where(query, ^dynamic(^parity_expr >= ^n))
+      end
+
+    case parse_int_filter(max_parity) do
+      nil -> query
+      n -> where(query, ^dynamic(^parity_expr <= ^n))
+    end
+  end
+
+  defp parse_int_filter(nil), do: nil
+  defp parse_int_filter(""), do: nil
+  defp parse_int_filter(n) when is_integer(n) and n >= 0, do: n
+
+  defp parse_int_filter(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} when n >= 0 -> n
+      _ -> nil
+    end
+  end
+
+  defp parse_int_filter(_), do: nil
 
   @doc """
   Lists gestating sows due to farrow within `days_ahead` days.
@@ -1372,7 +1454,6 @@ defmodule Peggy.Breeding do
       |> Map.merge(%{
         "tracking_type" => "individual",
         "stage" => "sow",
-        "sex" => "female",
         "status" => "served",
         "farm_id" => farm.id,
         "inferred" => true,
@@ -1388,7 +1469,6 @@ defmodule Peggy.Breeding do
           changes: %{
             "ear_tag" => sow.ear_tag,
             "stage" => sow.stage,
-            "sex" => sow.sex,
             "status" => sow.status,
             "created_via" => sow.created_via,
             "inferred" => sow.inferred,
@@ -2040,6 +2120,64 @@ defmodule Peggy.Breeding do
   end
 
   @doc """
+  Batched parity lookup for a list of sow ids.
+
+  Returns `%{sow_id => parity}` where parity is `legacy_parity` plus the
+  count of recorded farrowings. Sows with no entries are absent from the
+  map; callers should default to `0`.
+  """
+  def parities_for(%Scope{farm: farm}, sow_ids) when is_list(sow_ids) do
+    ids = Enum.uniq(sow_ids)
+
+    if ids == [] do
+      %{}
+    else
+      legacy_map =
+        from(a in Animal,
+          where: a.id in ^ids and a.farm_id == ^farm.id,
+          select: {a.id, a.legacy_parity}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      farrowings_map =
+        from(f in Farrowing,
+          where: f.sow_id in ^ids and f.farm_id == ^farm.id and is_nil(f.deleted_at),
+          group_by: f.sow_id,
+          select: {f.sow_id, count(f.id)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      Map.new(ids, fn id ->
+        {id, Map.get(legacy_map, id, 0) + Map.get(farrowings_map, id, 0)}
+      end)
+    end
+  end
+
+  @doc """
+  Average weaning age (in days) across the farm's recorded weanings.
+
+  Returns `nil` if no weanings exist. Used as a fallback so that batch
+  animals (weaners/growers/finishers) can be aged from `weaned_at`
+  without storing a per-animal birth date.
+  """
+  def avg_weaning_age_days(%Scope{farm: farm}) do
+    Repo.one(
+      from(w in Weaning,
+        join: f in Farrowing,
+        on: f.id == w.farrowing_id,
+        where: w.farm_id == ^farm.id and is_nil(w.deleted_at) and is_nil(f.deleted_at),
+        select: avg(fragment("?::date - ?::date", w.weaned_at, f.farrowed_at))
+      )
+    )
+    |> case do
+      nil -> nil
+      d -> d |> Decimal.round(0) |> Decimal.to_integer()
+    end
+  end
+
+  @doc """
   Lists farrowings that have not yet been weaned (sow is lactating).
 
   Options:
@@ -2072,10 +2210,14 @@ defmodule Peggy.Breeding do
     search = opts |> Keyword.get(:search) |> normalize_search()
     age_bucket = Keyword.get(opts, :age_bucket, "all")
     pen_id = Keyword.get(opts, :pen_id)
+    pen_search = opts |> Keyword.get(:pen_search) |> normalize_search()
+    min_parity = Keyword.get(opts, :min_parity)
+    max_parity = Keyword.get(opts, :max_parity)
 
     q =
       from(f in Farrowing,
         join: sow in assoc(f, :sow),
+        as: :sow,
         left_join: w in Weaning,
         on: w.farrowing_id == f.id and is_nil(w.deleted_at),
         where: f.farm_id == ^farm.id and is_nil(w.id) and is_nil(f.deleted_at),
@@ -2086,7 +2228,7 @@ defmodule Peggy.Breeding do
     q =
       if search do
         like = "#{search}%"
-        from [f, sow, w] in q, where: ilike(sow.ear_tag, ^like)
+        from [sow: sow] in q, where: ilike(sow.ear_tag, ^like)
       else
         q
       end
@@ -2096,6 +2238,9 @@ defmodule Peggy.Breeding do
         nil -> q
         id -> from f in q, where: f.pen_id == ^id
       end
+
+    q = maybe_pen_search_on_sow(q, farm, pen_search)
+    q = maybe_parity_on_sow(q, farm, min_parity, max_parity)
 
     case age_bucket do
       "week1" ->

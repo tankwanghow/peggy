@@ -68,6 +68,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     |> Map.put("service_type", Map.get(filters, :service_type, "all"))
     |> Map.put("age", Map.get(filters, :age, "all"))
     |> Map.put("pen_id", Map.get(filters, :pen_id, ""))
+    |> Map.put("pen_search", Map.get(filters, :pen_search, ""))
+    |> Map.put("min_parity", Map.get(filters, :min_parity, ""))
+    |> Map.put("max_parity", Map.get(filters, :max_parity, ""))
   end
 
   def prune_query(q) do
@@ -114,9 +117,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     pen_items = Enum.map(pens, &%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
 
     %{
-      sow_items: animal_items(animals, "female"),
+      sow_items: animal_items(animals, "sow"),
       sow_label: nil,
-      boar_items: animal_items(animals, "male"),
+      boar_items: animal_items(animals, "boar"),
       boar_label: nil,
       pen_items: pen_items,
       pen_label: nil,
@@ -126,9 +129,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     }
   end
 
-  def animal_items(animals, sex) do
+  def animal_items(animals, stage) do
     animals
-    |> Enum.filter(&(&1.sex == sex and &1.ear_tag != nil))
+    |> Enum.filter(&(&1.stage == stage and &1.ear_tag != nil))
     |> Enum.map(&%{id: &1.id, label: &1.ear_tag})
   end
 

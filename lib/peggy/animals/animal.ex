@@ -5,7 +5,6 @@ defmodule Peggy.Animals.Animal do
 
   @tracking_types ~w(individual batch)
   @stages ~w(weaner grower finisher sow boar)
-  @sexes ~w(male female unknown)
   @statuses ~w(active served open lactating dry culled sold slaughtered deceased transferred reversed)
   @present_statuses ~w(active served open lactating dry culled)
   @departed_statuses ~w(sold slaughtered deceased transferred reversed)
@@ -49,7 +48,6 @@ defmodule Peggy.Animals.Animal do
     field :rfid, :string
     field :breed, :string
     field :stage, :string
-    field :sex, :string
     field :dob, :date
     field :quantity, :integer, default: 1
     field :status, :string, default: "active"
@@ -71,7 +69,6 @@ defmodule Peggy.Animals.Animal do
 
   def tracking_types, do: @tracking_types
   def stages, do: @stages
-  def sexes, do: @sexes
   def statuses, do: @statuses
   def present_statuses, do: @present_statuses
   def departed_statuses, do: @departed_statuses
@@ -172,7 +169,6 @@ defmodule Peggy.Animals.Animal do
       :rfid,
       :breed,
       :stage,
-      :sex,
       :dob,
       :quantity,
       :status,
@@ -219,14 +215,13 @@ defmodule Peggy.Animals.Animal do
   done by updating the existing row, not by inserting a second.
 
   Skips the normal batch `quantity > 1` check since a litter of 1 is
-  valid. Does not require sex (mixed litter).
+  valid.
   """
   def piglet_changeset(animal, attrs) do
     animal
     |> cast(attrs, [
       :tracking_type,
       :stage,
-      :sex,
       :ear_tag,
       :dob,
       :quantity,
@@ -261,8 +256,7 @@ defmodule Peggy.Animals.Animal do
     case get_field(cs, :tracking_type) do
       "individual" ->
         cs
-        |> validate_required([:ear_tag, :sex])
-        |> validate_inclusion(:sex, @sexes)
+        |> validate_required([:ear_tag])
         |> force_change(:quantity, 1)
 
       "batch" ->

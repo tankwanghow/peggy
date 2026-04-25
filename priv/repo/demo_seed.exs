@@ -106,7 +106,6 @@ boars =
         tracking_type: "individual",
         ear_tag: "B#{String.pad_leading(Integer.to_string(i), 3, "0")}",
         stage: "boar",
-        sex: "male",
         status: "active",
         breed: DemoSeed.pick(["Duroc", "Pietrain", "Landrace"]),
         dob: DemoSeed.days_ago(300 + :rand.uniform(300)),
@@ -142,7 +141,6 @@ lactating_rows =
     %{
       "ear_tag" => next_tag.(i),
       "stage" => "sow",
-      "sex" => "female",
       "breed" => breed_pick.(),
       "dob" => DemoSeed.days_ago(400 + :rand.uniform(600)),
       "status" => "lactating",
@@ -165,7 +163,6 @@ served_rows =
     %{
       "ear_tag" => next_tag.(i),
       "stage" => "sow",
-      "sex" => "female",
       "breed" => breed_pick.(),
       "dob" => DemoSeed.days_ago(400 + :rand.uniform(600)),
       "status" => "served",
@@ -183,7 +180,6 @@ open_rows =
     %{
       "ear_tag" => next_tag.(i),
       "stage" => "sow",
-      "sex" => "female",
       "breed" => breed_pick.(),
       "dob" => DemoSeed.days_ago(400 + :rand.uniform(600)),
       "status" => "open",
@@ -198,7 +194,6 @@ active_rows =
     %{
       "ear_tag" => next_tag.(i),
       "stage" => "sow",
-      "sex" => "female",
       "breed" => breed_pick.(),
       "dob" => DemoSeed.days_ago(220 + :rand.uniform(60)),
       "status" => "active",
@@ -287,7 +282,6 @@ for pen <- grower_pens do
     Animals.create_animal(scope, %{
       tracking_type: "batch",
       stage: "grower",
-      sex: "unknown",
       status: "active",
       breed: breed_pick.(),
       quantity: qty,
@@ -303,7 +297,6 @@ for pen <- finisher_pens do
     Animals.create_animal(scope, %{
       tracking_type: "batch",
       stage: "finisher",
-      sex: "unknown",
       status: "active",
       breed: breed_pick.(),
       quantity: qty,

@@ -26,11 +26,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
             id="lactating-filters"
             phx-change="filter_lactating"
             phx-submit="filter_lactating"
-            class="flex flex-wrap gap-3 items-end"
+            class="flex gap-1 flex-nowrap items-end overflow-x-auto [&_.fieldset>label]:flex [&_.fieldset>label]:flex-col [&_.fieldset>label]:items-start"
           >
-            <label class="form-control w-full sm:w-56">
+            <label class="form-control w-32">
               <div class="label py-1">
-                <span class="label-text text-xs">{gettext("Search sow tag")}</span>
+                <span class="label-text text-xs">{gettext("Sow tag")}</span>
               </div>
               <input
                 type="text"
@@ -41,42 +41,64 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                 class="input input-sm input-bordered font-mono"
               />
             </label>
-            <label class="form-control w-full sm:w-44">
+            <label class="form-control w-32">
               <div class="label py-1">
                 <span class="label-text text-xs">{gettext("Litter age")}</span>
               </div>
               <select name="age" class="select select-sm select-bordered">
                 <option value="all" selected={@filters.age == "all"}>{gettext("All")}</option>
                 <option value="week1" selected={@filters.age == "week1"}>
-                  {gettext("Week 1 (0–6d)")}
+                  {gettext("Week 1")}
                 </option>
                 <option value="week2" selected={@filters.age == "week2"}>
-                  {gettext("Week 2 (7–13d)")}
+                  {gettext("Week 2")}
                 </option>
                 <option value="week3" selected={@filters.age == "week3"}>
-                  {gettext("Week 3 (14–20d)")}
+                  {gettext("Week 3")}
                 </option>
                 <option value="wean_due" selected={@filters.age == "wean_due"}>
-                  {gettext("Due to wean (21d+)")}
+                  {gettext("Wean due")}
                 </option>
               </select>
             </label>
-            <label class="form-control w-full sm:w-56">
+            <label class="form-control w-28">
               <div class="label py-1">
                 <span class="label-text text-xs">{gettext("Pen")}</span>
               </div>
-              <select name="pen_id" class="select select-sm select-bordered font-mono">
-                <option value="" selected={@filters.pen_id in [nil, ""]}>
-                  {gettext("All pens")}
-                </option>
-                <option
-                  :for={p <- @pens}
-                  value={p.id}
-                  selected={"#{p.id}" == "#{@filters.pen_id}"}
-                >
-                  {p.house.code}-{p.code}
-                </option>
-              </select>
+              <input
+                type="text"
+                name="pen_search"
+                value={@filters.pen_search}
+                phx-debounce="300"
+                placeholder={gettext("H-P")}
+                class="input input-sm input-bordered font-mono"
+              />
+            </label>
+            <label class="form-control w-20">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Min parity")}</span>
+              </div>
+              <input
+                type="number"
+                name="min_parity"
+                value={@filters.min_parity}
+                min="0"
+                phx-debounce="300"
+                class="input input-sm input-bordered"
+              />
+            </label>
+            <label class="form-control w-20">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Max parity")}</span>
+              </div>
+              <input
+                type="number"
+                name="max_parity"
+                value={@filters.max_parity}
+                min="0"
+                phx-debounce="300"
+                class="input input-sm input-bordered"
+              />
             </label>
           </form>
 
@@ -88,6 +110,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   <th class="py-2">{gettext("Farrowed")}</th>
                   <th class="py-2 text-right">{gettext("Born alive")}</th>
                   <th class="py-2 text-right">{gettext("Surviving")}</th>
+                  <th class="py-2 text-right">{gettext("Parity")}</th>
                   <th class="py-2">{gettext("Pen")}</th>
                   <th class="py-2 text-right">{gettext("Days")}</th>
                   <th :if={@can_record} class="py-2"></th>
@@ -122,6 +145,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                       <.icon name="hero-book-open" class="size-3" />
                     </button>
                   </td>
+                  <td class="py-2 text-right font-mono">{entry.parity}</td>
                   <td class="py-2 font-mono">
                     {entry.farrowing.pen &&
                       "#{entry.farrowing.pen.house.code}-#{entry.farrowing.pen.code}"}
@@ -622,7 +646,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     filters = %{
       q: params["q"] || "",
       age: Shared.param_age(params["age"]),
-      pen_id: params["pen_id"] || ""
+      pen_id: params["pen_id"] || "",
+      pen_search: params["pen_search"] || "",
+      min_parity: params["min_parity"] || "",
+      max_parity: params["max_parity"] || ""
     }
 
     {:noreply,
@@ -1030,7 +1057,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     query = %{
       "q" => params["q"] || "",
       "age" => params["age"] || "all",
-      "pen_id" => params["pen_id"] || ""
+      "pen_id" => params["pen_id"] || "",
+      "pen_search" => params["pen_search"] || "",
+      "min_parity" => params["min_parity"] || "",
+      "max_parity" => params["max_parity"] || ""
     }
 
     {:noreply, push_patch(socket, to: Shared.tab_path(socket, "lactating", query))}
@@ -1079,6 +1109,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       search: filters.q,
       age_bucket: filters.age,
       pen_id: filters.pen_id,
+      pen_search: blank_to_nil(filters.pen_search),
+      min_parity: blank_to_nil(filters.min_parity),
+      max_parity: blank_to_nil(filters.max_parity),
       limit: @per_page,
       offset: 0
     ]
@@ -1088,6 +1121,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       |> Enum.map(fn f ->
         %{farrowing: f, surviving: Breeding.surviving_piglet_count(f)}
       end)
+      |> attach_parity(scope)
 
     total = Breeding.count_lactating_sows(scope, opts)
 
@@ -1105,6 +1139,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       search: filters.q,
       age_bucket: filters.age,
       pen_id: filters.pen_id,
+      pen_search: blank_to_nil(filters.pen_search),
+      min_parity: blank_to_nil(filters.min_parity),
+      max_parity: blank_to_nil(filters.max_parity),
       limit: @per_page,
       offset: (next_page - 1) * @per_page
     ]
@@ -1114,6 +1151,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       |> Enum.map(fn f ->
         %{farrowing: f, surviving: Breeding.surviving_piglet_count(f)}
       end)
+      |> attach_parity(scope)
 
     loaded = next_page * @per_page
 
@@ -1134,6 +1172,16 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       ledger_events: [],
       ac: Shared.default_ac(socket.assigns.current_scope)
     )
+  end
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(v), do: v
+
+  defp attach_parity(rows, scope) do
+    sow_ids = Enum.map(rows, & &1.farrowing.sow_id)
+    parities = Breeding.parities_for(scope, sow_ids)
+    Enum.map(rows, &Map.put(&1, :parity, Map.get(parities, &1.farrowing.sow_id, 0)))
   end
 
   defp foster_dest_items(scope, source_farrowing_id) do

@@ -9,7 +9,6 @@ defmodule Peggy.AnimalsFixtures do
         tracking_type: "individual",
         ear_tag: "ET#{System.unique_integer([:positive])}",
         stage: "grower",
-        sex: "female",
         breed: "Landrace"
       })
 

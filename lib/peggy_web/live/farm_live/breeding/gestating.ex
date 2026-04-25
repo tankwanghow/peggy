@@ -27,11 +27,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
             id="gestating-filters"
             phx-change="filter_gestating"
             phx-submit="filter_gestating"
-            class="flex flex-wrap gap-3 items-end"
+            class="flex gap-1 flex-nowrap items-end overflow-x-auto [&_.fieldset>label]:flex [&_.fieldset>label]:flex-col [&_.fieldset>label]:items-start"
           >
-            <label class="form-control w-full sm:w-56">
+            <label class="form-control w-32">
               <div class="label py-1">
-                <span class="label-text text-xs">{gettext("Search sow tag")}</span>
+                <span class="label-text text-xs">{gettext("Sow tag")}</span>
               </div>
               <input
                 type="text"
@@ -42,26 +42,26 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                 class="input input-sm input-bordered font-mono"
               />
             </label>
-            <label class="form-control w-full sm:w-48">
+            <label class="form-control w-32">
               <div class="label py-1">
                 <span class="label-text text-xs">{gettext("Due window")}</span>
               </div>
               <select name="window" class="select select-sm select-bordered">
                 <option value="all" selected={@filters.window == "all"}>{gettext("All")}</option>
                 <option value="7" selected={@filters.window == "7"}>
-                  {gettext("Due in 7 days")}
+                  {gettext("≤ 7 days")}
                 </option>
                 <option value="14" selected={@filters.window == "14"}>
-                  {gettext("Due in 14 days")}
+                  {gettext("≤ 14 days")}
                 </option>
                 <option value="overdue" selected={@filters.window == "overdue"}>
                   {gettext("Overdue")}
                 </option>
               </select>
             </label>
-            <label class="form-control w-full sm:w-40">
+            <label class="form-control w-28">
               <div class="label py-1">
-                <span class="label-text text-xs">{gettext("Service type")}</span>
+                <span class="label-text text-xs">{gettext("Type")}</span>
               </div>
               <select name="service_type" class="select select-sm select-bordered">
                 <option value="all" selected={@filters.service_type == "all"}>
@@ -75,6 +75,45 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                 </option>
               </select>
             </label>
+            <label class="form-control w-28">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Pen")}</span>
+              </div>
+              <input
+                type="text"
+                name="pen_search"
+                value={@filters.pen_search}
+                phx-debounce="300"
+                placeholder={gettext("H-P")}
+                class="input input-sm input-bordered font-mono"
+              />
+            </label>
+            <label class="form-control w-20">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Min parity")}</span>
+              </div>
+              <input
+                type="number"
+                name="min_parity"
+                value={@filters.min_parity}
+                min="0"
+                phx-debounce="300"
+                class="input input-sm input-bordered"
+              />
+            </label>
+            <label class="form-control w-20">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Max parity")}</span>
+              </div>
+              <input
+                type="number"
+                name="max_parity"
+                value={@filters.max_parity}
+                min="0"
+                phx-debounce="300"
+                class="input input-sm input-bordered"
+              />
+            </label>
           </form>
 
           <div class="mt-4 overflow-x-auto">
@@ -84,10 +123,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                   <th class="py-2">{gettext("Sow")}</th>
                   <th class="py-2">{gettext("Pen")}</th>
                   <th class="py-2">{gettext("Boar")}</th>
-                  <th class="py-2">{gettext("Type")}</th>
+                  <th class="py-2 text-right">{gettext("Parity")}</th>
                   <th class="py-2">{gettext("Served")}</th>
-                  <th class="py-2">{gettext("Expected farrow")}</th>
-                  <th class="py-2 text-right">{gettext("Days left")}</th>
+                  <th class="py-2">{gettext("Expected")}</th>
+                  <th class="py-2 text-right">{gettext("Left(d)")}</th>
                   <th :if={@can_record} class="py-2"></th>
                 </tr>
               </thead>
@@ -113,7 +152,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                   <td class="py-2 font-mono">
                     {entry.service.boar && entry.service.boar.ear_tag}
                   </td>
-                  <td class="py-2">{entry.service.service_type}</td>
+                  <td class="py-2 text-right font-mono">{entry.parity}</td>
                   <td class="py-2">{entry.service.served_at}</td>
                   <td class="py-2">{entry.expected_farrow_date}</td>
                   <td class={[
@@ -649,7 +688,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     filters = %{
       q: params["q"] || "",
       window: Shared.param_window(params["window"]),
-      service_type: Shared.param_service_type(params["service_type"])
+      service_type: Shared.param_service_type(params["service_type"]),
+      pen_search: params["pen_search"] || "",
+      min_parity: params["min_parity"] || "",
+      max_parity: params["max_parity"] || ""
     }
 
     socket =
@@ -942,7 +984,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     query = %{
       "q" => params["q"] || "",
       "window" => params["window"] || "all",
-      "service_type" => params["service_type"] || "all"
+      "service_type" => params["service_type"] || "all",
+      "pen_search" => params["pen_search"] || "",
+      "min_parity" => params["min_parity"] || "",
+      "max_parity" => params["max_parity"] || ""
     }
 
     {:noreply, push_patch(socket, to: Shared.tab_path(socket, "gestating", query))}
@@ -1476,11 +1521,14 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       search: filters.q,
       due_window: filters.window,
       service_type: filters.service_type,
+      pen_search: blank_to_nil(filters.pen_search),
+      min_parity: blank_to_nil(filters.min_parity),
+      max_parity: blank_to_nil(filters.max_parity),
       limit: @per_page,
       offset: 0
     ]
 
-    rows = Breeding.list_gestating_sows(scope, opts)
+    rows = Breeding.list_gestating_sows(scope, opts) |> attach_parity(scope)
     total = Breeding.count_gestating_sows(scope, opts)
 
     socket
@@ -1497,11 +1545,14 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       search: filters.q,
       due_window: filters.window,
       service_type: filters.service_type,
+      pen_search: blank_to_nil(filters.pen_search),
+      min_parity: blank_to_nil(filters.min_parity),
+      max_parity: blank_to_nil(filters.max_parity),
       limit: @per_page,
       offset: (next_page - 1) * @per_page
     ]
 
-    rows = Breeding.list_gestating_sows(scope, opts)
+    rows = Breeding.list_gestating_sows(scope, opts) |> attach_parity(scope)
     loaded = next_page * @per_page
 
     socket =
@@ -1520,6 +1571,16 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       frw: nil,
       ac: Shared.default_ac(socket.assigns.current_scope)
     )
+  end
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(v), do: v
+
+  defp attach_parity(rows, scope) do
+    sow_ids = Enum.map(rows, & &1.service.sow_id)
+    parities = Breeding.parities_for(scope, sow_ids)
+    Enum.map(rows, &Map.put(&1, :parity, Map.get(parities, &1.service.sow_id, 0)))
   end
 
   defp days_left(%{expected_farrow_date: efd}) do

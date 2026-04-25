@@ -57,7 +57,6 @@ defmodule PeggyWeb.FarmLive.HerdImport do
                   <th class="py-2 w-8">#</th>
                   <th class="py-2">{gettext("Ear tag")}</th>
                   <th class="py-2">{gettext("Stage")}</th>
-                  <th class="py-2">{gettext("Sex")}</th>
                   <th class="py-2">{gettext("Status")}</th>
                   <th class="py-2">{gettext("DOB")}</th>
                   <th class="py-2">{gettext("Pen")}</th>
@@ -95,13 +94,6 @@ defmodule PeggyWeb.FarmLive.HerdImport do
                         value={s}
                         selected={row.stage == s}
                       >
-                        {String.capitalize(s)}
-                      </option>
-                    </select>
-                  </td>
-                  <td class="py-1 px-1">
-                    <select name={"rows[#{row.tmp_id}][sex]"} class="select select-sm w-full">
-                      <option :for={s <- Animal.sexes()} value={s} selected={row.sex == s}>
                         {String.capitalize(s)}
                       </option>
                     </select>
@@ -286,7 +278,6 @@ defmodule PeggyWeb.FarmLive.HerdImport do
           tracking_type: "individual",
           ear_tag: r.ear_tag,
           stage: r.stage,
-          sex: r.sex,
           status: r.status,
           dob: r.dob,
           current_pen_id: r.pen_id,
@@ -323,7 +314,6 @@ defmodule PeggyWeb.FarmLive.HerdImport do
       tmp_id: gen_tmp_id(),
       ear_tag: nil,
       stage: "sow",
-      sex: "female",
       status: "active",
       dob: nil,
       pen_id: nil,
@@ -339,14 +329,10 @@ defmodule PeggyWeb.FarmLive.HerdImport do
   end
 
   defp merge_row(row, params) do
-    stage = Map.get(params, "stage", row.stage)
-    sex = auto_sex(stage, Map.get(params, "sex", row.sex))
-
     %{
       row
       | ear_tag: Map.get(params, "ear_tag"),
-        stage: stage,
-        sex: sex,
+        stage: Map.get(params, "stage", row.stage),
         status: Map.get(params, "status", row.status),
         dob: Map.get(params, "dob"),
         pen_id: parse_int(Map.get(params, "current_pen_id")),
@@ -356,10 +342,6 @@ defmodule PeggyWeb.FarmLive.HerdImport do
         legacy_parity: Map.get(params, "legacy_parity")
     }
   end
-
-  defp auto_sex("sow", _), do: "female"
-  defp auto_sex("boar", _), do: "male"
-  defp auto_sex(_, sex), do: sex
 
   defp non_empty_rows(rows) do
     Enum.filter(rows, fn r -> r.ear_tag not in [nil, ""] end)

@@ -24,14 +24,13 @@ defmodule Peggy.AnimalsTest do
           tracking_type: "individual",
           ear_tag: "A001",
           stage: "sow",
-          sex: "female",
+
           breed: "Landrace"
         })
 
       assert animal.tracking_type == "individual"
       assert animal.ear_tag == "A001"
       assert animal.stage == "sow"
-      assert animal.sex == "female"
       assert animal.quantity == 1
     end
 
@@ -47,16 +46,14 @@ defmodule Peggy.AnimalsTest do
       assert batch.quantity == 30
     end
 
-    test "individual requires ear_tag and sex", %{scope: scope} do
+    test "individual requires ear_tag", %{scope: scope} do
       assert {:error, cs} =
                Animals.create_animal(scope, %{
                  tracking_type: "individual",
                  stage: "grower"
                })
 
-      errors = errors_on(cs)
-      assert errors[:ear_tag]
-      assert errors[:sex]
+      assert errors_on(cs)[:ear_tag]
     end
 
     test "batch requires quantity > 1", %{scope: scope} do
@@ -77,15 +74,14 @@ defmodule Peggy.AnimalsTest do
                Animals.create_animal(scope, %{
                  tracking_type: "individual",
                  ear_tag: "DUP1",
-                 stage: "grower",
-                 sex: "male"
+                 stage: "grower"
                })
 
       assert errors_on(cs)[:ear_tag]
     end
 
     test "ear_tag may be reused once the prior animal departs", %{scope: scope} do
-      original = animal_fixture(scope, ear_tag: "REUSE1", stage: "sow", sex: "female")
+      original = animal_fixture(scope, ear_tag: "REUSE1", stage: "sow")
 
       original
       |> Ecto.Changeset.change(%{status: "sold"})
@@ -95,8 +91,7 @@ defmodule Peggy.AnimalsTest do
                Animals.create_animal(scope, %{
                  tracking_type: "individual",
                  ear_tag: "REUSE1",
-                 stage: "sow",
-                 sex: "female"
+                 stage: "sow"
                })
 
       assert fresh.id != original.id
@@ -108,8 +103,7 @@ defmodule Peggy.AnimalsTest do
                Animals.create_animal(scope, %{
                  tracking_type: "individual",
                  ear_tag: "X1",
-                 stage: "invalid",
-                 sex: "male"
+                 stage: "invalid"
                })
 
       assert errors_on(cs)[:stage]
@@ -142,15 +136,15 @@ defmodule Peggy.AnimalsTest do
 
   describe "parentage" do
     test "tracks sire and dam", %{scope: scope} do
-      sire = animal_fixture(scope, ear_tag: "SIRE1", sex: "male", stage: "boar")
-      dam = animal_fixture(scope, ear_tag: "DAM1", sex: "female", stage: "sow")
+      sire = animal_fixture(scope, ear_tag: "SIRE1", stage: "boar")
+      dam = animal_fixture(scope, ear_tag: "DAM1", stage: "sow")
 
       {:ok, offspring_animal} =
         Animals.create_animal(scope, %{
           tracking_type: "individual",
           ear_tag: "GILT1",
           stage: "sow",
-          sex: "female",
+
           sire_id: sire.id,
           dam_id: dam.id
         })
@@ -172,7 +166,7 @@ defmodule Peggy.AnimalsTest do
           tracking_type: "individual",
           ear_tag: "M1",
           stage: "grower",
-          sex: "male",
+
           current_pen_id: pen.id
         })
 
@@ -881,15 +875,15 @@ defmodule Peggy.AnimalsTest do
     test "creates multiple individual animals atomically", %{scope: scope, pen: pen} do
       {:ok, animals} =
         Animals.create_batch_animals(scope, [
-          %{ear_tag: "SOW01", stage: "sow", sex: "female", breed: "Landrace"},
+          %{ear_tag: "SOW01", stage: "sow", breed: "Landrace"},
           %{
             ear_tag: "SOW02",
             stage: "sow",
-            sex: "female",
+
             breed: "Yorkshire",
             current_pen_id: pen.id
           },
-          %{ear_tag: "BOAR01", stage: "boar", sex: "male"}
+          %{ear_tag: "BOAR01", stage: "boar"}
         ])
 
       assert length(animals) == 3
@@ -898,7 +892,6 @@ defmodule Peggy.AnimalsTest do
       assert sow1.ear_tag == "SOW01"
       assert sow1.tracking_type == "individual"
       assert sow1.stage == "sow"
-      assert sow1.sex == "female"
 
       sow2 = Enum.at(animals, 1)
       assert sow2.ear_tag == "SOW02"
@@ -907,13 +900,12 @@ defmodule Peggy.AnimalsTest do
       boar = Enum.at(animals, 2)
       assert boar.ear_tag == "BOAR01"
       assert boar.stage == "boar"
-      assert boar.sex == "male"
     end
 
     test "creates placement movement when pen_id given", %{scope: scope, pen: pen} do
       {:ok, [animal]} =
         Animals.create_batch_animals(scope, [
-          %{ear_tag: "SOW10", stage: "sow", sex: "female", current_pen_id: pen.id}
+          %{ear_tag: "SOW10", stage: "sow", current_pen_id: pen.id}
         ])
 
       movements = Animals.list_movements(scope, animal)
@@ -925,8 +917,8 @@ defmodule Peggy.AnimalsTest do
     test "rolls back all on validation error in any row", %{scope: scope} do
       result =
         Animals.create_batch_animals(scope, [
-          %{ear_tag: "SOW20", stage: "sow", sex: "female"},
-          %{ear_tag: "", stage: "sow", sex: "female"}
+          %{ear_tag: "SOW20", stage: "sow"},
+          %{ear_tag: "", stage: "sow"}
         ])
 
       assert {:error, {1, %Ecto.Changeset{}}} = result
@@ -937,8 +929,8 @@ defmodule Peggy.AnimalsTest do
     test "rejects duplicate ear tags in the same batch", %{scope: scope} do
       result =
         Animals.create_batch_animals(scope, [
-          %{ear_tag: "DUP01", stage: "sow", sex: "female"},
-          %{ear_tag: "DUP01", stage: "sow", sex: "female"}
+          %{ear_tag: "DUP01", stage: "sow"},
+          %{ear_tag: "DUP01", stage: "sow"}
         ])
 
       assert {:error, {1, %Ecto.Changeset{}}} = result
@@ -994,7 +986,7 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-001",
-            sex: "female",
+
             stage: "sow",
             status: "active"
           }
@@ -1010,7 +1002,7 @@ defmodule Peggy.AnimalsTest do
                  %{
                    tracking_type: "individual",
                    ear_tag: "IMP-002",
-                   sex: "female",
+
                    stage: "sow",
                    status: "served"
                  }
@@ -1025,7 +1017,7 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-003",
-            sex: "female",
+
             stage: "sow",
             status: "served",
             service_type: "ai",
@@ -1050,7 +1042,7 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-004",
-            sex: "female",
+
             stage: "sow",
             status: "lactating",
             service_type: "ai",
@@ -1083,14 +1075,14 @@ defmodule Peggy.AnimalsTest do
                  %{
                    tracking_type: "individual",
                    ear_tag: "ROLL-1",
-                   sex: "female",
+
                    stage: "sow",
                    status: "active"
                  },
                  %{
                    tracking_type: "individual",
                    ear_tag: "ROLL-2",
-                   sex: "female",
+
                    stage: "sow",
                    status: "served"
                  }
@@ -1106,21 +1098,21 @@ defmodule Peggy.AnimalsTest do
           %{
             tracking_type: "individual",
             ear_tag: "IMP-OPEN",
-            sex: "female",
+
             stage: "sow",
             status: "open"
           },
           %{
             tracking_type: "individual",
             ear_tag: "IMP-DRY",
-            sex: "female",
+
             stage: "sow",
             status: "dry"
           },
           %{
             tracking_type: "individual",
             ear_tag: "IMP-CULL",
-            sex: "female",
+
             stage: "sow",
             status: "culled"
           }
@@ -1135,7 +1127,7 @@ defmodule Peggy.AnimalsTest do
       scope: scope,
       pen: pen
     } do
-      animal = animal_fixture(scope, ear_tag: "U1", sex: "female", stage: "sow")
+      animal = animal_fixture(scope, ear_tag: "U1", stage: "sow")
 
       {:ok, _} =
         Animals.record_movement(scope, animal, %{
@@ -1162,7 +1154,7 @@ defmodule Peggy.AnimalsTest do
       pen2 = pen_fixture(scope, house, code: "P2", capacity: 50)
 
       animal =
-        animal_fixture(scope, ear_tag: "U2", sex: "female", stage: "sow", current_pen_id: pen.id)
+        animal_fixture(scope, ear_tag: "U2", stage: "sow", current_pen_id: pen.id)
 
       {:ok, _} =
         Animals.record_movement(scope, animal, %{
@@ -1185,7 +1177,7 @@ defmodule Peggy.AnimalsTest do
       pen: pen
     } do
       animal =
-        animal_fixture(scope, ear_tag: "U3", sex: "female", stage: "sow", current_pen_id: pen.id)
+        animal_fixture(scope, ear_tag: "U3", stage: "sow", current_pen_id: pen.id)
 
       {:ok, _} =
         Animals.record_movement(scope, animal, %{
@@ -1208,10 +1200,10 @@ defmodule Peggy.AnimalsTest do
       scope: scope,
       pen: pen
     } do
-      boar = animal_fixture(scope, ear_tag: "B1", sex: "male", stage: "boar")
+      boar = animal_fixture(scope, ear_tag: "B1", stage: "boar")
 
       sow =
-        animal_fixture(scope, ear_tag: "S1", sex: "female", stage: "sow", current_pen_id: pen.id)
+        animal_fixture(scope, ear_tag: "S1", stage: "sow", current_pen_id: pen.id)
 
       {:ok, service} =
         Peggy.Breeding.record_service(scope, %{
@@ -1246,7 +1238,7 @@ defmodule Peggy.AnimalsTest do
     end
 
     test "returns error when no movements exist", %{scope: scope} do
-      animal = animal_fixture(scope, ear_tag: "U5", sex: "female", stage: "sow")
+      animal = animal_fixture(scope, ear_tag: "U5", stage: "sow")
       assert {:error, :no_movements} = Animals.undo_last_movement(scope, animal)
     end
 
@@ -1338,7 +1330,7 @@ defmodule Peggy.AnimalsTest do
 
     test "writes audit log entry for undo", %{scope: scope, pen: pen} do
       animal =
-        animal_fixture(scope, ear_tag: "U9", sex: "female", stage: "sow", current_pen_id: pen.id)
+        animal_fixture(scope, ear_tag: "U9", stage: "sow", current_pen_id: pen.id)
 
       {:ok, _} =
         Animals.record_movement(scope, animal, %{
@@ -1361,8 +1353,7 @@ defmodule Peggy.AnimalsTest do
         Animals.create_animal(scope, %{
           tracking_type: "individual",
           ear_tag: "R1",
-          stage: "sow",
-          sex: "female"
+          stage: "sow"
         })
 
       {1, _} =
@@ -1386,8 +1377,7 @@ defmodule Peggy.AnimalsTest do
         Animals.create_animal(scope, %{
           tracking_type: "individual",
           ear_tag: "R2",
-          stage: "sow",
-          sex: "female"
+          stage: "sow"
         })
 
       assert {:ok, _} = Animals.mark_reviewed(scope, animal)
@@ -1401,16 +1391,14 @@ defmodule Peggy.AnimalsTest do
         Animals.create_animal(scope, %{
           tracking_type: "individual",
           ear_tag: "NR1",
-          stage: "sow",
-          sex: "female"
+          stage: "sow"
         })
 
       {:ok, _b} =
         Animals.create_animal(scope, %{
           tracking_type: "individual",
           ear_tag: "NR2",
-          stage: "sow",
-          sex: "female"
+          stage: "sow"
         })
 
       {1, _} =

@@ -4,6 +4,8 @@ defmodule PeggyWeb.FarmLive.Audit do
   alias Peggy.Audit
   alias Peggy.Policy
 
+  @per_page 100
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -69,6 +71,7 @@ defmodule PeggyWeb.FarmLive.Audit do
             </tr>
           </tbody>
         </table>
+        <.infinite_scroll has_more={@has_more} total={@loaded} id="audit-sentinel" />
       </div>
     </Layouts.app>
     """
@@ -80,7 +83,9 @@ defmodule PeggyWeb.FarmLive.Audit do
       {:ok,
        socket
        |> assign(filter_entity: nil, filter_action: nil)
-       |> stream(:audit, list(socket.assigns.current_scope, nil, nil))}
+       |> assign(page: 1, loaded: 0, has_more: false)
+       |> stream(:audit, [])
+       |> load_rows()}
     else
       {:ok,
        socket
@@ -97,11 +102,39 @@ defmodule PeggyWeb.FarmLive.Audit do
     {:noreply,
      socket
      |> assign(filter_entity: et, filter_action: act)
-     |> stream(:audit, list(socket.assigns.current_scope, et, act), reset: true)}
+     |> load_rows()}
   end
 
-  defp list(scope, entity_type, action) do
-    Audit.list(scope, entity_type: entity_type, action: action, limit: 500)
+  def handle_event("load_more", _, socket), do: {:noreply, append_rows(socket)}
+
+  defp load_rows(socket) do
+    rows = list(socket.assigns.current_scope, socket, 0)
+
+    socket
+    |> assign(page: 1, loaded: length(rows), has_more: length(rows) == @per_page)
+    |> stream(:audit, rows, reset: true)
+  end
+
+  defp append_rows(socket) do
+    next_page = socket.assigns.page + 1
+    rows = list(socket.assigns.current_scope, socket, (next_page - 1) * @per_page)
+
+    socket = Enum.reduce(rows, socket, fn r, acc -> stream_insert(acc, :audit, r) end)
+
+    assign(socket,
+      page: next_page,
+      loaded: socket.assigns.loaded + length(rows),
+      has_more: length(rows) == @per_page
+    )
+  end
+
+  defp list(scope, socket, offset) do
+    Audit.list(scope,
+      entity_type: socket.assigns.filter_entity,
+      action: socket.assigns.filter_action,
+      limit: @per_page,
+      offset: offset
+    )
   end
 
   defp format_value(nil), do: ""

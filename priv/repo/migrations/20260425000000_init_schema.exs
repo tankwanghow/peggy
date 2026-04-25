@@ -152,7 +152,6 @@ defmodule Peggy.Repo.Migrations.InitSchema do
       add :rfid, :string
       add :breed, :string
       add :stage, :string, null: false
-      add :sex, :string
       add :dob, :date
       add :quantity, :integer, default: 1, null: false
       add :status, :string, null: false, default: "active"

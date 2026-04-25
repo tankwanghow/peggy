@@ -3,6 +3,7 @@ defmodule PeggyWeb.FarmLive.Animals do
 
   alias Peggy.Animals
   alias Peggy.Animals.Animal
+  alias Peggy.Breeding
   alias Peggy.Locations
   alias Peggy.Policy
 
@@ -12,18 +13,19 @@ defmodule PeggyWeb.FarmLive.Animals do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-6xl">
+      <div class="mx-auto max-w-7xl">
         <.header>
           {gettext("Animals")}
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
         </.header>
 
-        <form phx-change="filter" class="mt-4 flex gap-3 flex-wrap items-end">
+        <form phx-change="filter" phx-submit="filter" class="mt-2 flex gap-1 flex-nowrap items-end overflow-x-auto [&_.fieldset>label]:flex [&_.fieldset>label]:flex-col [&_.fieldset>label]:items-start">
           <.input
             name="stage"
             value={@filter_stage}
             type="select"
             label={gettext("Stage")}
+            class="select select-sm w-28"
             options={[{gettext("All"), ""} | Enum.map(Animal.stages(), &{String.capitalize(&1), &1})]}
           />
           <.input
@@ -31,6 +33,7 @@ defmodule PeggyWeb.FarmLive.Animals do
             value={@filter_status}
             type="select"
             label={gettext("Status")}
+            class="select select-sm w-32"
             options={[
               {gettext("Present (any)"), "present"},
               {gettext("Departed (any)"), "departed"},
@@ -38,17 +41,58 @@ defmodule PeggyWeb.FarmLive.Animals do
               | Enum.map(Animal.statuses(), &{String.capitalize(&1), &1})
             ]}
           />
-          <label class="flex items-center gap-2 cursor-pointer h-10 px-1">
-            <input type="hidden" name="needs_review" value="0" />
-            <input
-              type="checkbox"
-              name="needs_review"
-              value="1"
-              checked={@filter_needs_review}
-              class="checkbox checkbox-sm"
-            />
-            <span class="text-sm">{gettext("Needs review")}</span>
-          </label>
+          <.input
+            name="pen_search"
+            value={@filter_pen_search}
+            type="text"
+            label={gettext("Pen")}
+            class="input input-sm"
+            placeholder={gettext("e.g. H1-P2")}
+          />
+          <.input
+            :if={@filter_stage in ~w(weaner grower finisher)}
+            name="min_age"
+            value={@filter_min_age}
+            type="number"
+            label={gettext("Min age (d)")}
+            class="input input-sm"
+            min="0"
+          />
+          <.input
+            :if={@filter_stage in ~w(weaner grower finisher)}
+            name="max_age"
+            value={@filter_max_age}
+            type="number"
+            label={gettext("Max age (d)")}
+            class="input input-sm"
+            min="0"
+          />
+          <.input
+            :if={@filter_stage == "sow"}
+            name="min_parity"
+            value={@filter_min_parity}
+            type="number"
+            label={gettext("Min parity")}
+            class="input input-sm"
+            min="0"
+          />
+          <.input
+            :if={@filter_stage == "sow"}
+            name="max_parity"
+            value={@filter_max_parity}
+            type="number"
+            label={gettext("Max parity")}
+            class="input input-sm"
+            min="0"
+          />
+          <.input
+            name="needs_review"
+            value={if @filter_needs_review, do: "1", else: ""}
+            type="select"
+            label={gettext("Needs review")}
+            class="select select-sm w-24"
+            options={[{gettext("All"), ""}, {gettext("Yes"), "1"}]}
+          />
         </form>
 
         <div class="mt-4 overflow-x-auto">
@@ -56,9 +100,7 @@ defmodule PeggyWeb.FarmLive.Animals do
             <thead class="text-left text-base-content/60">
               <tr>
                 <th class="py-2">{gettext("Tag / ID")}</th>
-                <th class="py-2">{gettext("Type")}</th>
                 <th class="py-2">{gettext("Stage")}</th>
-                <th class="py-2">{gettext("Sex")}</th>
                 <th class="py-2">{gettext("Breed")}</th>
                 <th class="py-2">{gettext("Pen")}</th>
                 <th class="py-2">{gettext("Status")}</th>
@@ -81,16 +123,11 @@ defmodule PeggyWeb.FarmLive.Animals do
                   </span>
                 </td>
                 <td class="py-2">
-                  <span class={[
-                    "badge badge-sm",
-                    a.tracking_type == "batch" && "badge-secondary"
-                  ]}>
-                    {a.tracking_type}
-                    <span :if={a.tracking_type == "batch"}> ({a.quantity})</span>
+                  {String.capitalize(a.stage)}
+                  <span :if={detail = stage_detail(a, @parity_map, @avg_wean_age)} class="text-base-content/60">
+                    · {detail}
                   </span>
                 </td>
-                <td class="py-2">{String.capitalize(a.stage)}</td>
-                <td class="py-2">{a.sex && String.capitalize(a.sex)}</td>
                 <td class="py-2">{a.breed}</td>
                 <td class="py-2 font-mono">
                   {pen_label(a)}
@@ -157,13 +194,6 @@ defmodule PeggyWeb.FarmLive.Animals do
                 }
                 class="w-full input font-mono"
                 required={form_value(@form, :tracking_type) == "individual"}
-              />
-              <.input
-                :if={form_value(@form, :tracking_type) == "individual"}
-                field={@form[:sex]}
-                type="select"
-                label={gettext("Sex")}
-                options={Enum.map(Animal.sexes(), &{String.capitalize(&1), &1})}
               />
               <.input
                 :if={form_value(@form, :tracking_type) == "batch"}
@@ -254,9 +284,17 @@ defmodule PeggyWeb.FarmLive.Animals do
      socket
      |> assign(can_manage: can_manage, can_move: can_move)
      |> assign(filter_stage: "", filter_status: "present", filter_needs_review: false)
+     |> assign(
+       filter_pen_search: "",
+       filter_min_age: "",
+       filter_max_age: "",
+       filter_min_parity: "",
+       filter_max_parity: ""
+     )
      |> assign(form: nil, form_title: nil, form_target: nil)
      |> assign(ac: default_ac())
      |> assign(animal_count: 0, page: 1, has_more: false)
+     |> assign(parity_map: %{}, avg_wean_age: nil)
      |> stream(:animals, [])}
   end
 
@@ -271,7 +309,12 @@ defmodule PeggyWeb.FarmLive.Animals do
       |> assign(
         filter_stage: stage,
         filter_status: status,
-        filter_needs_review: needs_review
+        filter_needs_review: needs_review,
+        filter_pen_search: Map.get(params, "pen_search", ""),
+        filter_min_age: Map.get(params, "min_age", ""),
+        filter_max_age: Map.get(params, "max_age", ""),
+        filter_min_parity: Map.get(params, "min_parity", ""),
+        filter_max_parity: Map.get(params, "max_parity", "")
       )
       |> load_rows()
       |> maybe_open_new(params)
@@ -284,7 +327,7 @@ defmodule PeggyWeb.FarmLive.Animals do
       open_form(
         socket,
         nil,
-        %Animal{tracking_type: "individual", stage: "sow", sex: "female"},
+        %Animal{tracking_type: "individual", stage: "sow"},
         gettext("Register animal")
       )
     else
@@ -304,6 +347,11 @@ defmodule PeggyWeb.FarmLive.Animals do
     query =
       %{
         "stage" => Map.get(params, "stage", ""),
+        "pen_search" => Map.get(params, "pen_search", ""),
+        "min_age" => Map.get(params, "min_age", ""),
+        "max_age" => Map.get(params, "max_age", ""),
+        "min_parity" => Map.get(params, "min_parity", ""),
+        "max_parity" => Map.get(params, "max_parity", ""),
         "needs_review" =>
           if(Map.get(params, "needs_review") in ["1", "true", "on"], do: "1", else: "")
       }
@@ -323,7 +371,7 @@ defmodule PeggyWeb.FarmLive.Animals do
        open_form(
          socket,
          nil,
-         %Animal{tracking_type: "individual", stage: "sow", sex: "female"},
+         %Animal{tracking_type: "individual", stage: "sow"},
          gettext("Register animal")
        )}
     else
@@ -440,16 +488,16 @@ defmodule PeggyWeb.FarmLive.Animals do
         |> Locations.list_all_pens()
         |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"}),
       pen_label: nil,
-      sire_items: animal_items(active_animals, "male"),
+      sire_items: animal_items(active_animals, "boar"),
       sire_label: nil,
-      dam_items: animal_items(active_animals, "female"),
+      dam_items: animal_items(active_animals, "sow"),
       dam_label: nil
     }
   end
 
-  defp animal_items(animals, sex) do
+  defp animal_items(animals, stage) do
     animals
-    |> Enum.filter(&(&1.sex == sex and &1.ear_tag != nil))
+    |> Enum.filter(&(&1.stage == stage and &1.ear_tag != nil))
     |> Enum.map(&%{id: &1.id, label: &1.ear_tag})
   end
 
@@ -482,7 +530,13 @@ defmodule PeggyWeb.FarmLive.Animals do
     total = Animals.count_animals(scope, filter_opts(socket))
 
     socket
-    |> assign(animal_count: total, page: 1, has_more: length(rows) < total)
+    |> assign(
+      animal_count: total,
+      page: 1,
+      has_more: length(rows) < total,
+      parity_map: parity_map(scope, rows),
+      avg_wean_age: Breeding.avg_weaning_age_days(scope)
+    )
     |> stream(:animals, rows, reset: true)
   end
 
@@ -496,14 +550,54 @@ defmodule PeggyWeb.FarmLive.Animals do
     socket =
       Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :animals, row) end)
 
-    assign(socket, page: next_page, has_more: loaded < socket.assigns.animal_count)
+    assign(socket,
+      page: next_page,
+      has_more: loaded < socket.assigns.animal_count,
+      parity_map: Map.merge(socket.assigns.parity_map, parity_map(scope, rows))
+    )
+  end
+
+  defp parity_map(scope, rows) do
+    sow_ids =
+      rows
+      |> Enum.filter(&(&1.stage == "sow" and &1.tracking_type == "individual"))
+      |> Enum.map(& &1.id)
+
+    Breeding.parities_for(scope, sow_ids)
   end
 
   defp filter_opts(socket) do
     stage = if socket.assigns.filter_stage == "", do: nil, else: socket.assigns.filter_stage
     status = if socket.assigns.filter_status == "", do: nil, else: socket.assigns.filter_status
-    [stage: stage, status: status, needs_review: socket.assigns.filter_needs_review]
+
+    [
+      stage: stage,
+      status: status,
+      needs_review: socket.assigns.filter_needs_review,
+      pen_search: blank_to_nil(socket.assigns.filter_pen_search),
+      min_age_days: parse_int_filter(socket.assigns.filter_min_age),
+      max_age_days: parse_int_filter(socket.assigns.filter_max_age),
+      min_parity: parse_int_filter(socket.assigns.filter_min_parity),
+      max_parity: parse_int_filter(socket.assigns.filter_max_parity)
+    ]
   end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(v), do: v
+
+  defp parse_int_filter(nil), do: nil
+  defp parse_int_filter(""), do: nil
+
+  defp parse_int_filter(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} when n >= 0 -> n
+      _ -> nil
+    end
+  end
+
+  defp parse_int_filter(n) when is_integer(n) and n >= 0, do: n
+  defp parse_int_filter(_), do: nil
 
   defp form_value(form, field) do
     Phoenix.HTML.Form.input_value(form, field)
@@ -512,11 +606,43 @@ defmodule PeggyWeb.FarmLive.Animals do
   # Individuals live in `current_pen`; batches live in a list of active
   # `placements`. For the list view we render each batch's distribution
   # compactly, e.g. "H1/P1 ×40 · H2/P2 ×60".
+  defp stage_detail(%{stage: "sow"} = a, parity_map, _avg) do
+    case Map.get(parity_map, a.id) do
+      nil -> nil
+      0 -> "P0"
+      n -> "P#{n}"
+    end
+  end
+
+  defp stage_detail(%{stage: stage} = a, _parity, avg_wean_age)
+       when stage in ~w(weaner grower finisher) do
+    case batch_age_days(a, avg_wean_age) do
+      nil -> nil
+      d -> "#{d}d"
+    end
+  end
+
+  defp stage_detail(_, _, _), do: nil
+
+  defp batch_age_days(%{farrowing: %{weaning: %{weaned_at: weaned_at}}}, avg)
+       when not is_nil(weaned_at) and is_integer(avg) do
+    Date.diff(Date.utc_today(), weaned_at) + avg
+  end
+
+  defp batch_age_days(%{dob: %Date{} = dob}, _avg) do
+    Date.diff(Date.utc_today(), dob)
+  end
+
+  defp batch_age_days(_, _), do: nil
+
   defp pen_label(%{tracking_type: "batch", placements: [_ | _] = placements}) do
-    placements
-    |> Enum.map_join(" · ", fn p ->
-      "#{p.pen.house.code}-#{p.pen.code}×#{p.quantity}"
-    end)
+    assigns = %{placements: placements}
+
+    ~H"""
+    <span :for={p <- @placements} class="mr-2">
+      {p.pen.house.code}-{p.pen.code} ×<span class="italic text-xs">{p.quantity}</span>
+    </span>
+    """
   end
 
   defp pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}-#{code}"

@@ -17,10 +17,10 @@ defmodule Peggy.ReportsTest do
     pen = pen_fixture(scope, house, code: "F1", capacity: 20)
 
     sow1 =
-      animal_fixture(scope, ear_tag: "S1", sex: "female", stage: "sow", current_pen_id: pen.id)
+      animal_fixture(scope, ear_tag: "S1", stage: "sow", current_pen_id: pen.id)
 
     sow2 =
-      animal_fixture(scope, ear_tag: "S2", sex: "female", stage: "sow", current_pen_id: pen.id)
+      animal_fixture(scope, ear_tag: "S2", stage: "sow", current_pen_id: pen.id)
 
     %{scope: scope, pen: pen, sow1: sow1, sow2: sow2}
   end

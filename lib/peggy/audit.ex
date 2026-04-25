@@ -67,6 +67,7 @@ defmodule Peggy.Audit do
         {:action, nil}, acc -> acc
         {:action, act}, acc -> from a in acc, where: a.action == ^act
         {:limit, n}, acc -> from a in acc, limit: ^n
+        {:offset, n}, acc -> from a in acc, offset: ^n
         _, acc -> acc
       end)
 

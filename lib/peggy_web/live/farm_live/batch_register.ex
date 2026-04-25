@@ -40,7 +40,6 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
                   <th class="py-2 w-8">#</th>
                   <th class="py-2">{gettext("Ear tag")}</th>
                   <th class="py-2">{gettext("Stage")}</th>
-                  <th class="py-2">{gettext("Sex")}</th>
                   <th class="py-2">{gettext("Breed")}</th>
                   <th class="py-2">{gettext("DOB")}</th>
                   <th class="py-2">{gettext("Pen")}</th>
@@ -75,20 +74,6 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
                         :for={s <- Animal.stages_for("individual")}
                         value={s}
                         selected={row.stage == s}
-                      >
-                        {String.capitalize(s)}
-                      </option>
-                    </select>
-                  </td>
-                  <td class="py-1 px-1">
-                    <select
-                      name={"rows[#{row.tmp_id}][sex]"}
-                      class="select  w-full"
-                    >
-                      <option
-                        :for={s <- Animal.sexes()}
-                        value={s}
-                        selected={row.sex == s}
                       >
                         {String.capitalize(s)}
                       </option>
@@ -243,7 +228,6 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
         %{
           ear_tag: r.ear_tag,
           stage: r.stage,
-          sex: r.sex,
           breed: r.breed,
           dob: r.dob,
           current_pen_id: r.pen_id,
@@ -273,7 +257,6 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
       tmp_id: gen_tmp_id(),
       ear_tag: nil,
       stage: "sow",
-      sex: "female",
       breed: nil,
       dob: nil,
       pen_id: nil,
@@ -288,18 +271,12 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
 
   defp merge_row(row, params, assigns) do
     stage = Map.get(params, "stage", row.stage)
-    sex = Map.get(params, "sex", row.sex)
-
-    # Auto-set sex when stage changes
-    sex = auto_sex(stage, sex)
-
     pen_id = parse_int(Map.get(params, "current_pen_id"))
 
     %{
       row
       | ear_tag: Map.get(params, "ear_tag"),
         stage: stage,
-        sex: sex,
         breed: Map.get(params, "breed"),
         dob: Map.get(params, "dob"),
         pen_id: pen_id,
@@ -307,11 +284,6 @@ defmodule PeggyWeb.FarmLive.BatchRegister do
         notes: Map.get(params, "notes")
     }
   end
-
-  # When user picks sow → force female, boar → force male
-  defp auto_sex("sow", _), do: "female"
-  defp auto_sex("boar", _), do: "male"
-  defp auto_sex(_, sex), do: sex
 
   defp non_empty_rows(rows) do
     Enum.filter(rows, fn r ->

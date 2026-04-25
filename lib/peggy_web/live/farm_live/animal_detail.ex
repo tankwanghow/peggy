@@ -31,9 +31,6 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
             <%= if @animal.breed do %>
               · {@animal.breed}
             <% end %>
-            <%= if @animal.sex do %>
-              · {String.capitalize(@animal.sex)}
-            <% end %>
             <%= if @animal.dob do %>
               · {@animal.dob}
             <% end %>
@@ -441,13 +438,6 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                     &{String.capitalize(&1), &1}
                   )
                 }
-              />
-              <.input
-                :if={@animal.tracking_type == "individual"}
-                field={@edit_form[:sex]}
-                type="select"
-                label={gettext("Sex")}
-                options={Enum.map(Animal.sexes(), &{String.capitalize(&1), &1})}
               />
               <.input field={@edit_form[:breed]} type="text" label={gettext("Breed")} />
               <.input field={@edit_form[:dob]} type="date" label={gettext("Date of birth")} />
@@ -906,9 +896,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
       move_pen_label: nil,
       from_pen_items: placement_items(placements),
       from_pen_label: nil,
-      sire_items: animal_items(animals, "male"),
+      sire_items: animal_items(animals, "boar"),
       sire_label: nil,
-      dam_items: animal_items(animals, "female"),
+      dam_items: animal_items(animals, "sow"),
       dam_label: nil
     }
   end
@@ -925,9 +915,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     |> Enum.map(&%{id: &1.id, label: "#{&1.house.code}-#{&1.code}"})
   end
 
-  defp animal_items(animals, sex) do
+  defp animal_items(animals, stage) do
     animals
-    |> Enum.filter(&(&1.sex == sex and &1.ear_tag != nil))
+    |> Enum.filter(&(&1.stage == stage and &1.ear_tag != nil))
     |> Enum.map(&%{id: &1.id, label: &1.ear_tag})
   end
 

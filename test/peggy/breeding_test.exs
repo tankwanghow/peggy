@@ -16,8 +16,8 @@ defmodule Peggy.BreedingTest do
     scope = scope_for(user, farm)
     house = house_fixture(scope, code: "H1", purpose: "farrowing")
     pen = pen_fixture(scope, house, code: "F1", capacity: 20)
-    sow = animal_fixture(scope, ear_tag: "SOW1", sex: "female", stage: "sow")
-    boar = animal_fixture(scope, ear_tag: "BOAR1", sex: "male", stage: "boar")
+    sow = animal_fixture(scope, ear_tag: "SOW1", stage: "sow")
+    boar = animal_fixture(scope, ear_tag: "BOAR1", stage: "boar")
     %{scope: scope, house: house, pen: pen, sow: sow, boar: boar}
   end
 
@@ -113,7 +113,7 @@ defmodule Peggy.BreedingTest do
 
   describe "record_batch_services/2" do
     test "creates multiple services atomically", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
 
       {:ok, services} =
         Breeding.record_batch_services(scope, [
@@ -159,7 +159,7 @@ defmodule Peggy.BreedingTest do
       sow: sow,
       boar: boar
     } do
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
 
       result =
         Breeding.record_batch_services(scope, [
@@ -187,7 +187,7 @@ defmodule Peggy.BreedingTest do
     end
 
     test "writes audit logs for each service", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
 
       {:ok, _} =
         Breeding.record_batch_services(scope, [
@@ -354,7 +354,7 @@ defmodule Peggy.BreedingTest do
     test "per-row pen_id transfers existing sow in different pen",
          %{scope: scope, house: house, pen: pen, boar: boar} do
       other_pen = pen_fixture(scope, house, code: "F-OTHER", capacity: 20)
-      sow = animal_fixture(scope, ear_tag: "BATCH-MOVE", sex: "female", stage: "sow")
+      sow = animal_fixture(scope, ear_tag: "BATCH-MOVE", stage: "sow")
 
       {:ok, _} =
         sow
@@ -383,7 +383,7 @@ defmodule Peggy.BreedingTest do
 
     test "per-row pen_id same as current pen → no movement",
          %{scope: scope, pen: pen, boar: boar} do
-      sow = animal_fixture(scope, ear_tag: "BATCH-SAME", sex: "female", stage: "sow")
+      sow = animal_fixture(scope, ear_tag: "BATCH-SAME", stage: "sow")
 
       {:ok, _} =
         sow
@@ -485,7 +485,7 @@ defmodule Peggy.BreedingTest do
 
     test "existing sow without open service creates inferred service then farrows",
          %{scope: scope, pen: pen} do
-      sow = animal_fixture(scope, ear_tag: "BF-NOSVC", sex: "female", stage: "sow")
+      sow = animal_fixture(scope, ear_tag: "BF-NOSVC", stage: "sow")
 
       {:ok, [farrowing]} =
         Breeding.record_batch_farrowings_with_backfill(scope, [
@@ -723,7 +723,7 @@ defmodule Peggy.BreedingTest do
     test "lists all services for the farm", %{scope: scope, sow: sow, boar: boar} do
       service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-15])
 
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
       service_fixture(scope, sow2, boar_id: boar.id, served_at: ~D[2026-02-01])
 
       services = Breeding.list_services(scope)
@@ -733,7 +733,7 @@ defmodule Peggy.BreedingTest do
     test "filters by sow_id", %{scope: scope, sow: sow, boar: boar} do
       service_fixture(scope, sow, boar_id: boar.id)
 
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
       service_fixture(scope, sow2, boar_id: boar.id)
 
       services = Breeding.list_services(scope, sow_id: sow.id)
@@ -744,7 +744,7 @@ defmodule Peggy.BreedingTest do
     test "filters by result :open", %{scope: scope, sow: sow, boar: boar} do
       service = service_fixture(scope, sow, boar_id: boar.id)
 
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
       s2 = service_fixture(scope, sow2, boar_id: boar.id)
       Breeding.close_service(scope, s2, "abortion", %{result_at: ~D[2026-03-01]})
 
@@ -778,7 +778,7 @@ defmodule Peggy.BreedingTest do
 
     test "filters by sow ear-tag prefix (case-insensitive)",
          %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOWB", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOWB", stage: "sow")
       service_fixture(scope, sow, boar_id: boar.id)
       service_fixture(scope, sow2, boar_id: boar.id)
 
@@ -789,7 +789,7 @@ defmodule Peggy.BreedingTest do
     end
 
     test "filters by service_type", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOWB", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOWB", stage: "sow")
       service_fixture(scope, sow, boar_id: boar.id, service_type: "natural")
       service_fixture(scope, sow2, service_type: "ai")
 
@@ -800,7 +800,7 @@ defmodule Peggy.BreedingTest do
     end
 
     test "due_window narrows by expected farrow date", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOWB", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOWB", stage: "sow")
       # Served 110d ago → due in 4d (within 7-day window)
       service_fixture(scope, sow, boar_id: boar.id, served_at: Date.add(Date.utc_today(), -110))
       # Served 30d ago → due in 84d (not in 7d window)
@@ -822,7 +822,7 @@ defmodule Peggy.BreedingTest do
     test "limit + offset paginate the result", %{scope: scope, boar: boar} do
       sows =
         for i <- 1..5 do
-          animal_fixture(scope, ear_tag: "P#{i}", sex: "female", stage: "sow")
+          animal_fixture(scope, ear_tag: "P#{i}", stage: "sow")
         end
 
       Enum.each(sows, fn s -> service_fixture(scope, s, boar_id: boar.id) end)
@@ -840,7 +840,7 @@ defmodule Peggy.BreedingTest do
 
   describe "lactating sows filters" do
     test "filters by sow ear-tag prefix", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOWB", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOWB", stage: "sow")
       farrowing_fixture(scope, sow, boar_id: boar.id)
       farrowing_fixture(scope, sow2, boar_id: boar.id)
 
@@ -850,7 +850,7 @@ defmodule Peggy.BreedingTest do
     end
 
     test "filters by litter age bucket", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOWB", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOWB", stage: "sow")
       # Recent farrow → week1
       farrowing_fixture(scope, sow, boar_id: boar.id, farrowed_at: Date.add(Date.utc_today(), -2))
       # 25d old → wean_due
@@ -866,7 +866,7 @@ defmodule Peggy.BreedingTest do
     end
 
     test "filters by pen_id", %{scope: scope, sow: sow, boar: boar, house: house, pen: pen} do
-      sow2 = animal_fixture(scope, ear_tag: "SOWB", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOWB", stage: "sow")
       pen2 = pen_fixture(scope, house, code: "F2", capacity: 20)
       farrowing_fixture(scope, sow, boar_id: boar.id, pen_id: pen.id)
       farrowing_fixture(scope, sow2, boar_id: boar.id, pen_id: pen2.id)
@@ -878,7 +878,7 @@ defmodule Peggy.BreedingTest do
 
     test "limit + offset paginate the result", %{scope: scope, boar: boar} do
       for i <- 1..4 do
-        s = animal_fixture(scope, ear_tag: "L#{i}", sex: "female", stage: "sow")
+        s = animal_fixture(scope, ear_tag: "L#{i}", stage: "sow")
         farrowing_fixture(scope, s, boar_id: boar.id)
       end
 
@@ -1302,8 +1302,8 @@ defmodule Peggy.BreedingTest do
 
   describe "list_deleted_farrowings/2" do
     test "returns deleted farrowings newest-first", %{scope: scope, boar: boar, pen: pen} do
-      s1 = animal_fixture(scope, ear_tag: "DF1", sex: "female", stage: "sow")
-      s2 = animal_fixture(scope, ear_tag: "DF2", sex: "female", stage: "sow")
+      s1 = animal_fixture(scope, ear_tag: "DF1", stage: "sow")
+      s2 = animal_fixture(scope, ear_tag: "DF2", stage: "sow")
 
       f1 = farrowing_fixture(scope, s1, boar_id: boar.id, pen_id: pen.id)
       f2 = farrowing_fixture(scope, s2, boar_id: boar.id, pen_id: pen.id)
@@ -1325,7 +1325,7 @@ defmodule Peggy.BreedingTest do
 
   describe "list_deleted_services/2" do
     test "returns deleted services newest-first", %{scope: scope, sow: sow, boar: boar} do
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
 
       s1 = service_fixture(scope, sow, boar_id: boar.id, served_at: ~D[2026-01-01])
       s2 = service_fixture(scope, sow2, boar_id: boar.id, served_at: ~D[2026-01-05])
@@ -1538,7 +1538,7 @@ defmodule Peggy.BreedingTest do
     end
 
     test "auto-promotes sow stage if not already sow", %{scope: scope, boar: boar, pen: pen} do
-      gilt = animal_fixture(scope, ear_tag: "GILT1", sex: "female", stage: "grower")
+      gilt = animal_fixture(scope, ear_tag: "GILT1", stage: "grower")
       service = service_fixture(scope, gilt, boar_id: boar.id)
 
       {:ok, _farrowing} =
@@ -1750,8 +1750,8 @@ defmodule Peggy.BreedingTest do
 
     test "existing batch_tag pools the new litter into the same batch",
          %{scope: scope, pen: pen, boar: boar} do
-      sow1 = animal_fixture(scope, ear_tag: "P-A1", sex: "female", stage: "sow")
-      sow2 = animal_fixture(scope, ear_tag: "P-A2", sex: "female", stage: "sow")
+      sow1 = animal_fixture(scope, ear_tag: "P-A1", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "P-A2", stage: "sow")
 
       f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
       f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
@@ -1808,8 +1808,8 @@ defmodule Peggy.BreedingTest do
 
     test "batch_tag matching a non-weaner or non-active batch is treated as fresh",
          %{scope: scope, pen: pen, boar: boar} do
-      sow1 = animal_fixture(scope, ear_tag: "P-B1", sex: "female", stage: "sow")
-      sow2 = animal_fixture(scope, ear_tag: "P-B2", sex: "female", stage: "sow")
+      sow1 = animal_fixture(scope, ear_tag: "P-B1", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "P-B2", stage: "sow")
 
       f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 6, pen_id: pen.id)
 
@@ -2071,8 +2071,8 @@ defmodule Peggy.BreedingTest do
 
     test "decrements a pooled batch without retiring it, removing the wean movement",
          %{scope: scope, pen: pen, boar: boar} do
-      sow1 = animal_fixture(scope, ear_tag: "PDEL-A", sex: "female", stage: "sow")
-      sow2 = animal_fixture(scope, ear_tag: "PDEL-B", sex: "female", stage: "sow")
+      sow1 = animal_fixture(scope, ear_tag: "PDEL-A", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "PDEL-B", stage: "sow")
 
       f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 8, pen_id: pen.id)
       f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 8, pen_id: pen.id)
@@ -2248,7 +2248,7 @@ defmodule Peggy.BreedingTest do
       boar: boar,
       pen: pen
     } do
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
 
       f1 = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 2, pen_id: pen.id)
       f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 2, pen_id: pen.id)
@@ -2330,7 +2330,7 @@ defmodule Peggy.BreedingTest do
       assert Breeding.surviving_piglet_count(farrowing) == 9
 
       # Fostering setup: second farrowing to be the counterpart.
-      other_sow = animal_fixture(scope, ear_tag: "SOWFOSTER", sex: "female", stage: "sow")
+      other_sow = animal_fixture(scope, ear_tag: "SOWFOSTER", stage: "sow")
       other_pen = pen_fixture(scope, house, code: "FOSP", capacity: 20)
 
       other_f =
@@ -2386,7 +2386,7 @@ defmodule Peggy.BreedingTest do
         pen_id: pen.id
       })
 
-      sow2 = animal_fixture(scope, ear_tag: "SOW2", sex: "female", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "SOW2", stage: "sow")
       s2 = service_fixture(scope, sow2, boar_id: boar.id)
 
       Breeding.record_farrowing(scope, s2, %{
@@ -2580,7 +2580,6 @@ defmodule Peggy.BreedingTest do
       sow = result.sow
       assert sow.ear_tag == "BRANDNEW-9921"
       assert sow.tracking_type == "individual"
-      assert sow.sex == "female"
       assert sow.stage == "sow"
       # status ends at "served" after the service is recorded
       assert sow.status == "served"
@@ -2735,7 +2734,7 @@ defmodule Peggy.BreedingTest do
       boar: boar
     } do
       _ = house
-      sow = animal_fixture(scope, ear_tag: "SAMEPEN-1", sex: "female", stage: "sow")
+      sow = animal_fixture(scope, ear_tag: "SAMEPEN-1", stage: "sow")
 
       {:ok, _} =
         sow
@@ -2766,7 +2765,7 @@ defmodule Peggy.BreedingTest do
       boar: boar
     } do
       other_pen = pen_fixture(scope, house, code: "F2", capacity: 20)
-      sow = animal_fixture(scope, ear_tag: "MOVEME-1", sex: "female", stage: "sow")
+      sow = animal_fixture(scope, ear_tag: "MOVEME-1", stage: "sow")
 
       {:ok, _} =
         sow
@@ -2797,9 +2796,9 @@ defmodule Peggy.BreedingTest do
   describe "Animals.similar_ear_tags/3" do
     test "returns ordered near-matches on the same farm", %{scope: scope} do
       import Peggy.AnimalsFixtures
-      animal_fixture(scope, ear_tag: "PIG001", sex: "female", stage: "sow")
-      animal_fixture(scope, ear_tag: "PIG002", sex: "female", stage: "sow")
-      animal_fixture(scope, ear_tag: "COMPLETELY-UNRELATED", sex: "female", stage: "sow")
+      animal_fixture(scope, ear_tag: "PIG001", stage: "sow")
+      animal_fixture(scope, ear_tag: "PIG002", stage: "sow")
+      animal_fixture(scope, ear_tag: "COMPLETELY-UNRELATED", stage: "sow")
 
       # Exact input tag is excluded from results regardless of threshold.
       assert [] == Peggy.Animals.similar_ear_tags(scope, "PIG001", 0)
@@ -2820,7 +2819,7 @@ defmodule Peggy.BreedingTest do
       departed =
         animal_fixture(scope,
           ear_tag: "GONE01",
-          sex: "female",
+
           stage: "sow",
           status: "sold"
         )
@@ -2911,8 +2910,8 @@ defmodule Peggy.BreedingTest do
     alias Peggy.Breeding.LitterEvent
 
     setup %{scope: scope, boar: boar, house: house, pen: pen} do
-      sow_a = animal_fixture(scope, ear_tag: "FOSTER-A", sex: "female", stage: "sow")
-      sow_b = animal_fixture(scope, ear_tag: "FOSTER-B", sex: "female", stage: "sow")
+      sow_a = animal_fixture(scope, ear_tag: "FOSTER-A", stage: "sow")
+      sow_b = animal_fixture(scope, ear_tag: "FOSTER-B", stage: "sow")
       pen_b = pen_fixture(scope, house, code: "FP-B", capacity: 20)
 
       fa = farrowing_fixture(scope, sow_a, boar_id: boar.id, born_alive: 10, pen_id: pen.id)
@@ -2997,7 +2996,7 @@ defmodule Peggy.BreedingTest do
     test "existing sow without open farrowing: cascades service + farrowing + weaning",
          %{scope: scope, pen: pen} do
       sow =
-        animal_fixture(scope, ear_tag: "WBF-EXIST", sex: "female", stage: "sow", status: "active")
+        animal_fixture(scope, ear_tag: "WBF-EXIST", stage: "sow", status: "active")
 
       attrs = %{
         "weaned_at" => "2026-04-25",
@@ -3052,7 +3051,6 @@ defmodule Peggy.BreedingTest do
       assert sow
       assert sow.inferred == true
       assert sow.stage == "sow"
-      assert sow.sex == "female"
       assert sow.status == "dry"
       assert batch.quantity == 4
     end
@@ -3074,7 +3072,7 @@ defmodule Peggy.BreedingTest do
     test "gestation tolerance violation rolls back the whole cascade",
          %{scope: scope, pen: pen} do
       sow =
-        animal_fixture(scope, ear_tag: "WBF-GEST", sex: "female", stage: "sow", status: "active")
+        animal_fixture(scope, ear_tag: "WBF-GEST", stage: "sow", status: "active")
 
       attrs = %{
         "weaned_at" => "2026-04-25",
@@ -3135,7 +3133,7 @@ defmodule Peggy.BreedingTest do
 
     test "no-open-farrowing path: back-fills service + farrowing for an existing sow",
          %{scope: scope, pen: pen} do
-      sow = animal_fixture(scope, ear_tag: "BW-NOFARR", sex: "female", stage: "sow")
+      sow = animal_fixture(scope, ear_tag: "BW-NOFARR", stage: "sow")
 
       {:ok, [{weaning, batch}]} =
         Breeding.record_batch_weanings_with_backfill(scope, [

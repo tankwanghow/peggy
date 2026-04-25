@@ -273,7 +273,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
      socket
      |> assign(
        can_record: Policy.can?(scope, :record_breeding),
-       boar_items: animal_items(boar_pool, "male"),
+       boar_items: animal_items(boar_pool, "boar"),
        pens_by_label: pens_by_label,
        pens_by_id: pens_by_id,
        rows: Enum.map(1..3, fn _ -> blank_row(today) end),
@@ -542,9 +542,9 @@ defmodule PeggyWeb.FarmLive.BatchService do
   defp row_state_text(%{sow_state: :similar_overridable}),
     do: gettext("new sow (override) — will be registered")
 
-  defp animal_items(animals, sex) do
+  defp animal_items(animals, stage) do
     animals
-    |> Enum.filter(&(&1.sex == sex and &1.ear_tag != nil))
+    |> Enum.filter(&(&1.stage == stage and &1.ear_tag != nil))
     |> Enum.map(&%{id: &1.id, label: &1.ear_tag})
   end
 

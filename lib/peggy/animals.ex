@@ -31,7 +31,11 @@ defmodule Peggy.Animals do
     opts
     |> animals_query(farm)
     |> maybe_paginate(limit, offset)
-    |> preload(current_pen: [:house], placements: ^active_placement_query())
+    |> preload(
+      current_pen: [:house],
+      placements: ^active_placement_query(),
+      farrowing: :weaning
+    )
     |> Repo.all()
   end
 
@@ -46,7 +50,12 @@ defmodule Peggy.Animals do
     stage = Keyword.get(opts, :stage)
     status = Keyword.get(opts, :status)
     pen_id = Keyword.get(opts, :pen_id)
+    pen_search = Keyword.get(opts, :pen_search)
     needs_review = Keyword.get(opts, :needs_review, false)
+    min_age = Keyword.get(opts, :min_age_days)
+    max_age = Keyword.get(opts, :max_age_days)
+    min_parity = Keyword.get(opts, :min_parity)
+    max_parity = Keyword.get(opts, :max_parity)
 
     base =
       from(a in Animal,
@@ -56,20 +65,99 @@ defmodule Peggy.Animals do
       |> maybe_filter(:stage, stage)
       |> maybe_filter(:status, status)
       |> maybe_needs_review(needs_review)
+      |> maybe_age_filter(min_age, max_age)
+      |> maybe_parity_filter(farm, min_parity, max_parity)
 
-    case pen_id do
-      nil ->
-        base
+    base
+    |> maybe_pen_id_filter(pen_id)
+    |> maybe_pen_search_filter(farm, pen_search)
+  end
 
-      "" ->
-        base
+  defp maybe_pen_id_filter(query, id) when id in [nil, ""], do: query
 
-      id ->
-        from a in base,
-          left_join: p in Placement,
-          on: p.animal_id == a.id and is_nil(p.removed_at) and p.pen_id == ^id,
-          where: a.current_pen_id == ^id or not is_nil(p.id),
-          distinct: a.id
+  defp maybe_pen_id_filter(query, id) do
+    from a in query,
+      left_join: p in Placement,
+      on: p.animal_id == a.id and is_nil(p.removed_at) and p.pen_id == ^id,
+      where: a.current_pen_id == ^id or not is_nil(p.id),
+      distinct: a.id
+  end
+
+  defp maybe_pen_search_filter(query, _farm, term) when term in [nil, ""], do: query
+
+  defp maybe_pen_search_filter(query, farm, term) do
+    like = "%#{term}%"
+
+    pen_ids =
+      Repo.all(
+        from(p in Peggy.Locations.Pen,
+          join: h in Peggy.Locations.House,
+          on: h.id == p.house_id,
+          where:
+            p.farm_id == ^farm.id and
+              (ilike(p.code, ^like) or ilike(h.code, ^like) or
+                 ilike(fragment("? || '-' || ?", h.code, p.code), ^like)),
+          select: p.id
+        )
+      )
+
+    if pen_ids == [] do
+      where(query, [a], false)
+    else
+      from a in query,
+        left_join: pl in Placement,
+        on: pl.animal_id == a.id and is_nil(pl.removed_at) and pl.pen_id in ^pen_ids,
+        where: a.current_pen_id in ^pen_ids or not is_nil(pl.id),
+        distinct: a.id
+    end
+  end
+
+  defp maybe_age_filter(query, nil, nil), do: query
+
+  defp maybe_age_filter(query, min_age, max_age) do
+    today = Date.utc_today()
+    query = where(query, [a], not is_nil(a.dob))
+
+    query =
+      case min_age do
+        nil -> query
+        n -> where(query, [a], a.dob <= ^Date.add(today, -n))
+      end
+
+    case max_age do
+      nil -> query
+      n -> where(query, [a], a.dob >= ^Date.add(today, -n))
+    end
+  end
+
+  defp maybe_parity_filter(query, _farm, nil, nil), do: query
+
+  defp maybe_parity_filter(query, farm, min_parity, max_parity) do
+    farrowing_counts =
+      from(f in Peggy.Breeding.Farrowing,
+        where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
+        group_by: f.sow_id,
+        select: %{sow_id: f.sow_id, n: count(f.id)}
+      )
+
+    parity_expr =
+      dynamic([a, fc], coalesce(a.legacy_parity, 0) + coalesce(fc.n, 0))
+
+    query =
+      from(a in query,
+        left_join: fc in subquery(farrowing_counts),
+        on: fc.sow_id == a.id
+      )
+
+    query =
+      case min_parity do
+        nil -> query
+        n -> from([a, fc] in query, where: ^parity_expr >= ^n)
+      end
+
+    case max_parity do
+      nil -> query
+      n -> from([a, fc] in query, where: ^parity_expr <= ^n)
     end
   end
 
@@ -220,7 +308,7 @@ defmodule Peggy.Animals do
 
       base =
         if a.tracking_type == "individual",
-          do: Map.merge(base, %{ear_tag: a.ear_tag, sex: a.sex}),
+          do: Map.put(base, :ear_tag, a.ear_tag),
           else: Map.put(base, :quantity, a.quantity)
 
       if a.breed, do: Map.put(base, :breed, a.breed), else: base
@@ -269,7 +357,7 @@ defmodule Peggy.Animals do
   @doc """
   Creates multiple individual animals atomically (spreadsheet batch entry).
 
-  Each entry is a map with animal fields (`:ear_tag`, `:stage`, `:sex`,
+  Each entry is a map with animal fields (`:ear_tag`, `:stage`,
   `:breed`, `:dob`, `:current_pen_id`, `:notes`). Keys may be atoms or strings.
 
   Returns `{:ok, [animal, ...]}` on success,
