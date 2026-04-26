@@ -1324,11 +1324,15 @@ defmodule Peggy.Breeding do
     min_parity = Keyword.get(opts, :min_parity)
     max_parity = Keyword.get(opts, :max_parity)
 
+    excluded_sow_statuses = ["culled" | Animal.departed_statuses()]
+
     q =
       from(s in Service,
         join: sow in assoc(s, :sow),
         as: :sow,
-        where: s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at),
+        where:
+          s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at) and
+            sow.status not in ^excluded_sow_statuses,
         order_by: [asc: s.served_at],
         preload: [sow: [current_pen: :house], boar: []]
       )

@@ -144,13 +144,15 @@ defmodule Peggy.Reports do
     farrow_cutoff_7d = Date.add(today, 7 - @gestation_days)
     farrow_cutoff_overdue = Date.add(today, -@gestation_days)
 
+    excluded_sow_statuses = ["culled" | Peggy.Animals.Animal.departed_statuses()]
+
     due_to_farrow =
       from(s in "breeding_services",
         join: a in "animals",
         on: a.id == s.sow_id,
         where:
           s.farm_id == ^farm_id and is_nil(s.result) and is_nil(s.deleted_at) and
-            s.served_at <= ^farrow_cutoff_7d,
+            s.served_at <= ^farrow_cutoff_7d and a.status not in ^excluded_sow_statuses,
         order_by: [asc: s.served_at],
         limit: 10,
         select: %{
@@ -171,9 +173,11 @@ defmodule Peggy.Reports do
 
     overdue_farrow_count =
       from(s in "breeding_services",
+        join: a in "animals",
+        on: a.id == s.sow_id,
         where:
           s.farm_id == ^farm_id and is_nil(s.result) and is_nil(s.deleted_at) and
-            s.served_at <= ^farrow_cutoff_overdue,
+            s.served_at <= ^farrow_cutoff_overdue and a.status not in ^excluded_sow_statuses,
         select: count(s.id)
       )
       |> Repo.one()

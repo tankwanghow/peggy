@@ -35,3 +35,7 @@ peggy-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# Legacy data imports — proprietary CSVs and one-off importer scripts that
+# are run locally and should not be committed.
+/legacy data/
+/priv/repo/legacy*.exs
