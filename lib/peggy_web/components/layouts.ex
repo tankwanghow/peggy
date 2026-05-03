@@ -97,6 +97,81 @@ defmodule PeggyWeb.Layouts do
     """
   end
 
+  @doc """
+  Minimal layout used by printable / "preview & print" pages.
+
+  Renders no app navigation, sets A4 page size, and hides anything
+  with class `print-hide` when the browser print dialog is open.
+
+  ## Examples
+
+      <Layouts.print flash={@flash} title="Gestating sows">
+        <table>...</table>
+      </Layouts.print>
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :title, :string, default: nil
+  slot :inner_block, required: true
+
+  def print(assigns) do
+    ~H"""
+    <script>
+      // Print preview is always rendered in light theme so paper output and
+      // on-screen preview match, regardless of the user's site preference.
+      document.documentElement.setAttribute("data-theme", "light");
+    </script>
+    <style>
+      @page {
+        size: A4;
+        margin: 12mm 12mm 16mm 12mm;
+        @bottom-center {
+          content: "Page " counter(page) " of " counter(pages);
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 9pt;
+          color: #000;
+        }
+      }
+      @media print {
+        .print-hide { display: none !important; }
+        html, body { background: white !important; }
+        /* Force everything inside the print sheet to pure black on white. */
+        .print-sheet, .print-sheet * {
+          color: #000 !important;
+          background: transparent !important;
+          border-color: #000 !important;
+          box-shadow: none !important;
+          text-shadow: none !important;
+        }
+        .print-sheet svg, .print-sheet svg * {
+          fill: #000 !important;
+          stroke: #000 !important;
+        }
+        /* Ensure browsers respect our forced colors instead of auto-tweaking. */
+        .print-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      }
+      .print-page {
+        max-width: 186mm; /* A4 minus 12mm margins */
+        margin: 0 auto;
+        padding: 4mm 0;
+      }
+      @media screen {
+        body { background: #f3f4f6; }
+        .print-sheet {
+          background: white;
+          padding: 6mm 16mm 16mm 16mm;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+      }
+    </style>
+    <div class="print-page">
+      <div class="print-sheet">
+        {render_slot(@inner_block)}
+      </div>
+    </div>
+    <.flash_group flash={@flash} />
+    """
+  end
+
   attr :scope, :map, required: true
 
   defp simulated_clock_banner(assigns) do

@@ -1323,6 +1323,8 @@ defmodule Peggy.Breeding do
     pen_search = opts |> Keyword.get(:pen_search) |> normalize_search()
     min_parity = Keyword.get(opts, :min_parity)
     max_parity = Keyword.get(opts, :max_parity)
+    sort = Keyword.get(opts, :sort, "served")
+    dir = Keyword.get(opts, :dir, "asc")
 
     excluded_sow_statuses = ["culled" | Animal.departed_statuses()]
 
@@ -1333,7 +1335,6 @@ defmodule Peggy.Breeding do
         where:
           s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at) and
             sow.status not in ^excluded_sow_statuses,
-        order_by: [asc: s.served_at],
         preload: [sow: [current_pen: :house], boar: []]
       )
 
@@ -1354,21 +1355,71 @@ defmodule Peggy.Breeding do
     q = maybe_pen_search_on_sow(q, farm, pen_search)
     q = maybe_parity_on_sow(q, farm, min_parity, max_parity)
 
-    case due_window do
-      "7" ->
-        cutoff = Date.add(today, 7 - @gestation_days)
-        from s in q, where: s.served_at <= ^cutoff
+    q =
+      case due_window do
+        "7" ->
+          cutoff = Date.add(today, 7 - @gestation_days)
+          from s in q, where: s.served_at <= ^cutoff
 
-      "14" ->
-        cutoff = Date.add(today, 14 - @gestation_days)
-        from s in q, where: s.served_at <= ^cutoff
+        "14" ->
+          cutoff = Date.add(today, 14 - @gestation_days)
+          from s in q, where: s.served_at <= ^cutoff
 
-      "overdue" ->
-        cutoff = Date.add(today, -@gestation_days)
-        from s in q, where: s.served_at <= ^cutoff
+        "overdue" ->
+          cutoff = Date.add(today, -@gestation_days)
+          from s in q, where: s.served_at <= ^cutoff
+
+        _ ->
+          q
+      end
+
+    apply_gestating_sort(q, farm, sort, dir)
+  end
+
+  defp apply_gestating_sort(query, farm, sort, dir) do
+    direction = if dir == "desc", do: :desc, else: :asc
+
+    case sort do
+      "tag" ->
+        from([s, sow: sow] in query,
+          order_by: [{^direction, sow.ear_tag}, {^direction, s.id}]
+        )
+
+      "pen" ->
+        from([s, sow: sow] in query,
+          left_join: p in Peggy.Locations.Pen,
+          on: p.id == sow.current_pen_id,
+          left_join: h in Peggy.Locations.House,
+          on: h.id == p.house_id,
+          order_by: [
+            {:asc, fragment("? IS NULL", p.id)},
+            {^direction, h.code},
+            {^direction, p.code},
+            {^direction, s.id}
+          ]
+        )
+
+      "parity" ->
+        farrowing_counts =
+          from(f in Farrowing,
+            where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
+            group_by: f.sow_id,
+            select: %{sow_id: f.sow_id, n: count(f.id)}
+          )
+
+        from([s, sow: sow] in query,
+          left_join: fc in subquery(farrowing_counts),
+          on: fc.sow_id == sow.id,
+          order_by: [
+            {^direction, fragment("coalesce(?, 0) + coalesce(?, 0)", sow.legacy_parity, fc.n)},
+            {^direction, s.id}
+          ]
+        )
 
       _ ->
-        q
+        # "served" / "expected" / "left" — all keyed off served_at, since
+        # expected_farrow_date and days_left are linear functions of it.
+        from(s in query, order_by: [{^direction, s.served_at}, {^direction, s.id}])
     end
   end
 
@@ -2399,6 +2450,8 @@ defmodule Peggy.Breeding do
     pen_search = opts |> Keyword.get(:pen_search) |> normalize_search()
     min_parity = Keyword.get(opts, :min_parity)
     max_parity = Keyword.get(opts, :max_parity)
+    sort = Keyword.get(opts, :sort, "farrowed")
+    dir = Keyword.get(opts, :dir, "asc")
 
     q =
       from(f in Farrowing,
@@ -2407,7 +2460,6 @@ defmodule Peggy.Breeding do
         left_join: w in Weaning,
         on: w.farrowing_id == f.id and is_nil(w.deleted_at),
         where: f.farm_id == ^farm.id and is_nil(w.id) and is_nil(f.deleted_at),
-        order_by: [asc: f.farrowed_at],
         preload: [:sow, [pen: :house], service: [:boar]]
       )
 
@@ -2428,23 +2480,73 @@ defmodule Peggy.Breeding do
     q = maybe_pen_search_on_sow(q, farm, pen_search)
     q = maybe_parity_on_sow(q, farm, min_parity, max_parity)
 
-    case age_bucket do
-      "week1" ->
-        from f in q, where: f.farrowed_at > ^Date.add(today, -7)
+    q =
+      case age_bucket do
+        "week1" ->
+          from f in q, where: f.farrowed_at > ^Date.add(today, -7)
 
-      "week2" ->
-        from f in q,
-          where: f.farrowed_at <= ^Date.add(today, -7) and f.farrowed_at > ^Date.add(today, -14)
+        "week2" ->
+          from f in q,
+            where: f.farrowed_at <= ^Date.add(today, -7) and f.farrowed_at > ^Date.add(today, -14)
 
-      "week3" ->
-        from f in q,
-          where: f.farrowed_at <= ^Date.add(today, -14) and f.farrowed_at > ^Date.add(today, -21)
+        "week3" ->
+          from f in q,
+            where:
+              f.farrowed_at <= ^Date.add(today, -14) and f.farrowed_at > ^Date.add(today, -21)
 
-      "wean_due" ->
-        from f in q, where: f.farrowed_at <= ^Date.add(today, -21)
+        "wean_due" ->
+          from f in q, where: f.farrowed_at <= ^Date.add(today, -21)
+
+        _ ->
+          q
+      end
+
+    apply_lactating_sort(q, farm, sort, dir)
+  end
+
+  defp apply_lactating_sort(query, farm, sort, dir) do
+    direction = if dir == "desc", do: :desc, else: :asc
+
+    case sort do
+      "tag" ->
+        from([f, sow: sow] in query,
+          order_by: [{^direction, sow.ear_tag}, {^direction, f.id}]
+        )
+
+      "pen" ->
+        from(f in query,
+          left_join: p in Peggy.Locations.Pen,
+          on: p.id == f.pen_id,
+          left_join: h in Peggy.Locations.House,
+          on: h.id == p.house_id,
+          order_by: [
+            {:asc, fragment("? IS NULL", p.id)},
+            {^direction, h.code},
+            {^direction, p.code},
+            {^direction, f.id}
+          ]
+        )
+
+      "parity" ->
+        farrowing_counts =
+          from(f2 in Farrowing,
+            where: f2.farm_id == ^farm.id and is_nil(f2.deleted_at),
+            group_by: f2.sow_id,
+            select: %{sow_id: f2.sow_id, n: count(f2.id)}
+          )
+
+        from([f, sow: sow] in query,
+          left_join: fc in subquery(farrowing_counts),
+          on: fc.sow_id == sow.id,
+          order_by: [
+            {^direction, fragment("coalesce(?, 0) + coalesce(?, 0)", sow.legacy_parity, fc.n)},
+            {^direction, f.id}
+          ]
+        )
 
       _ ->
-        q
+        # "farrowed" / "days" — both keyed off farrowed_at.
+        from(f in query, order_by: [{^direction, f.farrowed_at}, {^direction, f.id}])
     end
   end
 

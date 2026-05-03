@@ -19,6 +19,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
         <.header>
           {gettext("Lactating")}
           <:subtitle>{gettext("Farrowed sows with piglets on the teat")}</:subtitle>
+          <:actions>
+            <.iframe_print_button
+              id="lactating-print-btn"
+              url={print_path(@current_scope.farm.slug, @filters, @sort, @dir)}
+            />
+          </:actions>
         </.header>
 
         <section class="mt-4">
@@ -106,13 +112,40 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
             <table class="table table-sm w-full">
               <thead class="text-left text-base-content/60">
                 <tr>
-                  <th class="py-2">{gettext("Sow")}</th>
-                  <th class="py-2">{gettext("Farrowed")}</th>
+                  <th class="py-2">
+                    <.sort_header label={gettext("Sow")} col="tag" sort={@sort} dir={@dir} />
+                  </th>
+                  <th class="py-2">
+                    <.sort_header
+                      label={gettext("Farrowed")}
+                      col="farrowed"
+                      sort={@sort}
+                      dir={@dir}
+                    />
+                  </th>
                   <th class="py-2 text-right">{gettext("Born alive")}</th>
                   <th class="py-2 text-right">{gettext("Surviving")}</th>
-                  <th class="py-2 text-right">{gettext("Parity")}</th>
-                  <th class="py-2">{gettext("Pen")}</th>
-                  <th class="py-2 text-right">{gettext("Days")}</th>
+                  <th class="py-2 text-right">
+                    <.sort_header
+                      label={gettext("Parity")}
+                      col="parity"
+                      sort={@sort}
+                      dir={@dir}
+                      align="right"
+                    />
+                  </th>
+                  <th class="py-2">
+                    <.sort_header label={gettext("Pen")} col="pen" sort={@sort} dir={@dir} />
+                  </th>
+                  <th class="py-2 text-right">
+                    <.sort_header
+                      label={gettext("Days")}
+                      col="days"
+                      sort={@sort}
+                      dir={@dir}
+                      align="right"
+                    />
+                  </th>
                   <th :if={@can_record} class="py-2"></th>
                 </tr>
               </thead>
@@ -636,7 +669,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
        batch_tag_hint: "",
        wn: nil,
        per_page: @per_page,
-       today: FarmClock.today(scope)
+       today: FarmClock.today(scope),
+       sort: "farrowed",
+       dir: "asc"
      )
      |> stream_configure(:lactating, dom_id: &"farrowing-#{&1.farrowing.id}")
      |> stream(:lactating, [])}
@@ -655,10 +690,22 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
 
     {:noreply,
      socket
-     |> assign(filters: filters, page: 1)
+     |> assign(
+       filters: filters,
+       page: 1,
+       sort: lactating_sort_param(params["sort"]),
+       dir: dir_param(params["dir"])
+     )
      |> load_rows()
      |> maybe_open_from_params(params)}
   end
+
+  @lactating_sort_columns ~w(tag pen parity farrowed days)
+  defp lactating_sort_param(s) when s in @lactating_sort_columns, do: s
+  defp lactating_sort_param(_), do: "farrowed"
+
+  defp dir_param("desc"), do: "desc"
+  defp dir_param(_), do: "asc"
 
   defp maybe_open_from_params(socket, %{"new" => "weaning"}) do
     if socket.assigns.can_record do
@@ -1072,6 +1119,22 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     {:noreply, append_rows(socket)}
   end
 
+  def handle_event("sort", %{"col" => col}, socket) do
+    new_sort = lactating_sort_param(col)
+
+    new_dir =
+      cond do
+        new_sort == socket.assigns.sort and socket.assigns.dir == "asc" -> "desc"
+        new_sort == socket.assigns.sort and socket.assigns.dir == "desc" -> "asc"
+        true -> "asc"
+      end
+
+    {:noreply,
+     push_patch(socket,
+       to: Shared.tab_path(socket, "lactating", %{"sort" => new_sort, "dir" => new_dir})
+     )}
+  end
+
   # ── Helpers ────────────────────────────────────────────────────────
 
   defp do_save_weaning(socket, farrowing, params) do
@@ -1114,6 +1177,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       pen_search: blank_to_nil(filters.pen_search),
       min_parity: blank_to_nil(filters.min_parity),
       max_parity: blank_to_nil(filters.max_parity),
+      sort: socket.assigns.sort,
+      dir: socket.assigns.dir,
       limit: @per_page,
       offset: 0
     ]
@@ -1144,6 +1209,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       pen_search: blank_to_nil(filters.pen_search),
       min_parity: blank_to_nil(filters.min_parity),
       max_parity: blank_to_nil(filters.max_parity),
+      sort: socket.assigns.sort,
+      dir: socket.assigns.dir,
       limit: @per_page,
       offset: (next_page - 1) * @per_page
     ]
@@ -1504,6 +1571,28 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   defp presence(""), do: nil
   defp presence(s) when is_binary(s), do: s
   defp presence(other), do: other
+
+  defp print_path(slug, filters, sort, dir) do
+    query =
+      %{
+        "q" => filters.q,
+        "age" => filters.age,
+        "pen_id" => filters.pen_id,
+        "pen_search" => filters.pen_search,
+        "min_parity" => filters.min_parity,
+        "max_parity" => filters.max_parity,
+        "sort" => sort,
+        "dir" => dir
+      }
+      |> Shared.prune_query()
+
+    base = ~p"/farms/#{slug}/breeding/lactating/print"
+
+    case query do
+      m when map_size(m) == 0 -> base
+      m -> base <> "?" <> URI.encode_query(m)
+    end
+  end
 
   defp resolve_wn_sow(socket, sow_tag) do
     scope = socket.assigns.current_scope

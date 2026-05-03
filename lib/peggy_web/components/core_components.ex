@@ -609,6 +609,127 @@ defmodule PeggyWeb.CoreComponents do
   end
 
   @doc """
+  Sortable column header. Click toggles direction (asc → desc → asc)
+  when the same column is re-clicked, or switches to the new column
+  with default `asc`. Renders a chevron icon on the active column.
+
+  The parent LiveView must handle `phx-click="sort"` with `phx-value-col`.
+
+  ## Example
+
+      <th>
+        <.sort_header label="Tag / ID" col="tag" sort={@sort} dir={@dir} />
+      </th>
+  """
+  attr :label, :string, required: true
+  attr :col, :string, required: true
+  attr :sort, :string, required: true
+  attr :dir, :string, required: true
+  attr :align, :string, default: "left"
+
+  def sort_header(assigns) do
+    ~H"""
+    <button
+      type="button"
+      phx-click="sort"
+      phx-value-col={@col}
+      class={[
+        "inline-flex items-center gap-1 hover:text-base-content cursor-pointer",
+        @align == "right" && "justify-end w-full"
+      ]}
+    >
+      {@label}
+      <.icon
+        :if={@sort == @col and @dir == "asc"}
+        name="hero-chevron-up-micro"
+        class="size-3"
+      />
+      <.icon
+        :if={@sort == @col and @dir == "desc"}
+        name="hero-chevron-down-micro"
+        class="size-3"
+      />
+    </button>
+    """
+  end
+
+  @doc """
+  Renders a "Print" button that loads `url` into a hidden iframe and
+  triggers the browser's native print preview over the current page —
+  no extra tab, no intermediate HTML page to dismiss.
+
+  ## Examples
+
+      <.iframe_print_button id="gestating-print" url={~p"/.../print?..."} />
+  """
+  attr :id, :string, required: true
+  attr :url, :string, required: true
+  attr :label, :string, default: nil
+
+  def iframe_print_button(assigns) do
+    assigns = assign_new(assigns, :label, fn -> Gettext.gettext(PeggyWeb.Gettext, "Print") end)
+
+    ~H"""
+    <button
+      type="button"
+      id={@id}
+      phx-hook=".IframePrint"
+      data-print-url={@url}
+      class="btn btn-sm btn-outline"
+    >
+      <.icon name="hero-printer-micro" class="size-4" />
+      {@label}
+    </button>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".IframePrint">
+      export default {
+        mounted() {
+          this.onClick = () => this.openPrint()
+          this.el.addEventListener("click", this.onClick)
+        },
+        destroyed() {
+          this.el.removeEventListener("click", this.onClick)
+          this.cleanup()
+        },
+        openPrint() {
+          this.cleanup()
+          const url = this.el.dataset.printUrl
+          const iframe = document.createElement("iframe")
+          iframe.style.position = "fixed"
+          iframe.style.right = "0"
+          iframe.style.bottom = "0"
+          iframe.style.width = "0"
+          iframe.style.height = "0"
+          iframe.style.border = "0"
+          iframe.setAttribute("aria-hidden", "true")
+          iframe.src = url
+          this.iframe = iframe
+
+          iframe.addEventListener("load", () => {
+            const w = iframe.contentWindow
+            if (!w) return
+            const cleanup = () => this.cleanup()
+            w.addEventListener("afterprint", cleanup, { once: true })
+            this.fallbackTimer = setTimeout(cleanup, 60000)
+          })
+
+          document.body.appendChild(iframe)
+        },
+        cleanup() {
+          if (this.fallbackTimer) {
+            clearTimeout(this.fallbackTimer)
+            this.fallbackTimer = null
+          }
+          if (this.iframe && this.iframe.parentNode) {
+            this.iframe.parentNode.removeChild(this.iframe)
+          }
+          this.iframe = null
+        }
+      }
+    </script>
+    """
+  end
+
+  @doc """
   Infinite-scroll sentinel. Renders a loading row that triggers `event`
   via `phx-viewport-bottom` when scrolled into view, or an "All loaded"
   message when no more rows are available.

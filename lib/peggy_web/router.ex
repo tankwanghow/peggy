@@ -70,6 +70,7 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/locations", FarmLive.Locations, :index
       live "/farms/:farm_slug/locations/houses/:id", FarmLive.HouseDetail, :show
       live "/farms/:farm_slug/animals", FarmLive.Animals, :index
+      live "/farms/:farm_slug/animals/print", FarmLive.AnimalsPrint, :show
       live "/farms/:farm_slug/animals/batch-register", FarmLive.BatchRegister, :show
       live "/farms/:farm_slug/onboarding/herd", FarmLive.HerdImport, :show
       live "/farms/:farm_slug/animals/bulk-move", FarmLive.BulkMove, :show
@@ -77,7 +78,9 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/animals/:id/batch-entry", FarmLive.BatchEntry, :show
       live "/farms/:farm_slug/breeding", FarmLive.Breeding, :index
       live "/farms/:farm_slug/breeding/gestating", FarmLive.Breeding.Gestating, :index
+      live "/farms/:farm_slug/breeding/gestating/print", FarmLive.Breeding.GestatingPrint, :show
       live "/farms/:farm_slug/breeding/lactating", FarmLive.Breeding.Lactating, :index
+      live "/farms/:farm_slug/breeding/lactating/print", FarmLive.Breeding.LactatingPrint, :show
       live "/farms/:farm_slug/breeding/weaned", FarmLive.Breeding.Weaned, :index
       live "/farms/:farm_slug/breeding/deleted", FarmLive.Breeding.Deleted, :index
       live "/farms/:farm_slug/breeding/batch-service", FarmLive.BatchService, :show

@@ -51,6 +51,7 @@ defmodule Peggy.Animals.Animal do
     field :dob, :date
     field :quantity, :integer, default: 1
     field :status, :string, default: "active"
+    field :status_changed_at, :utc_datetime
     field :legacy_parity, :integer, default: 0
     field :notes, :string
     field :inferred, :boolean, default: false
@@ -172,6 +173,7 @@ defmodule Peggy.Animals.Animal do
       :dob,
       :quantity,
       :status,
+      :status_changed_at,
       :legacy_parity,
       :notes,
       :inferred,

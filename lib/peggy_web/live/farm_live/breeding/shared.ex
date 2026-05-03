@@ -70,6 +70,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     |> Map.put("pen_search", Map.get(filters, :pen_search, ""))
     |> Map.put("min_parity", Map.get(filters, :min_parity, ""))
     |> Map.put("max_parity", Map.get(filters, :max_parity, ""))
+    |> Map.put("sort", Map.get(assigns, :sort, ""))
+    |> Map.put("dir", Map.get(assigns, :dir, ""))
   end
 
   def prune_query(q) do

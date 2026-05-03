@@ -18,6 +18,12 @@ defmodule PeggyWeb.FarmLive.Animals do
         <.header>
           {gettext("Animals")}
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
+          <:actions>
+            <.iframe_print_button
+              id="animals-print-btn"
+              url={print_path(@current_scope.farm.slug, assigns)}
+            />
+          </:actions>
         </.header>
 
         <form
@@ -104,11 +110,28 @@ defmodule PeggyWeb.FarmLive.Animals do
           <table class="table table-sm w-full">
             <thead class="text-left text-base-content/60">
               <tr>
-                <th class="py-2">{gettext("Tag / ID")}</th>
-                <th class="py-2">{gettext("Stage")}</th>
+                <th class="py-2">
+                  <.sort_header label={gettext("Tag / ID")} col="tag" sort={@sort} dir={@dir} />
+                </th>
+                <th class="py-2">
+                  <.sort_header label={gettext("Stage")} col="stage" sort={@sort} dir={@dir} />
+                </th>
                 <th class="py-2">{gettext("Breed")}</th>
-                <th class="py-2">{gettext("Pen")}</th>
-                <th class="py-2">{gettext("Status")}</th>
+                <th class="py-2">
+                  <.sort_header label={gettext("Pen")} col="pen" sort={@sort} dir={@dir} />
+                </th>
+                <th class="py-2">
+                  <.sort_header label={gettext("Status")} col="status" sort={@sort} dir={@dir} />
+                </th>
+                <th :if={show_days_col?(@filter_stage)} class="py-2 text-right">
+                  <.sort_header
+                    label={gettext("Days in status")}
+                    col="days"
+                    sort={@sort}
+                    dir={@dir}
+                    align="right"
+                  />
+                </th>
                 <th class="py-2 w-6"></th>
               </tr>
             </thead>
@@ -142,6 +165,12 @@ defmodule PeggyWeb.FarmLive.Animals do
                 </td>
                 <td class="py-2">
                   <.status_badge status={a.status} class="badge-sm" />
+                </td>
+                <td
+                  :if={show_days_col?(@filter_stage)}
+                  class="py-2 text-right font-mono text-base-content/70"
+                >
+                  {days_in_status(a, @today)}
                 </td>
                 <td class="py-2 text-base-content/40">
                   <.icon name="hero-chevron-right-micro" class="size-4" />
@@ -299,6 +328,7 @@ defmodule PeggyWeb.FarmLive.Animals do
        filter_min_parity: "",
        filter_max_parity: ""
      )
+     |> assign(sort: "tag", dir: "asc")
      |> assign(form: nil, form_title: nil, form_target: nil)
      |> assign(ac: default_ac())
      |> assign(animal_count: 0, page: 1, has_more: false)
@@ -322,7 +352,9 @@ defmodule PeggyWeb.FarmLive.Animals do
         filter_min_age: Map.get(params, "min_age", ""),
         filter_max_age: Map.get(params, "max_age", ""),
         filter_min_parity: Map.get(params, "min_parity", ""),
-        filter_max_parity: Map.get(params, "max_parity", "")
+        filter_max_parity: Map.get(params, "max_parity", ""),
+        sort: sort_param(Map.get(params, "sort")),
+        dir: dir_param(Map.get(params, "dir"))
       )
       |> load_rows()
       |> maybe_open_new(params)
@@ -366,6 +398,28 @@ defmodule PeggyWeb.FarmLive.Animals do
       |> Enum.reject(fn {_k, v} -> v == "" end)
       |> Enum.into(%{})
       |> Map.put("status", status)
+      |> merge_sort(socket)
+
+    {:noreply,
+     push_patch(socket,
+       to: ~p"/farms/#{socket.assigns.current_scope.farm.slug}/animals?#{query}"
+     )}
+  end
+
+  def handle_event("sort", %{"col" => col}, socket) do
+    new_sort = sort_param(col)
+
+    new_dir =
+      cond do
+        new_sort == socket.assigns.sort and socket.assigns.dir == "asc" -> "desc"
+        new_sort == socket.assigns.sort and socket.assigns.dir == "desc" -> "asc"
+        true -> "asc"
+      end
+
+    query =
+      current_query_params(socket)
+      |> Map.put("sort", new_sort)
+      |> Map.put("dir", new_dir)
 
     {:noreply,
      push_patch(socket,
@@ -586,13 +640,74 @@ defmodule PeggyWeb.FarmLive.Animals do
       min_age_days: parse_int_filter(socket.assigns.filter_min_age),
       max_age_days: parse_int_filter(socket.assigns.filter_max_age),
       min_parity: parse_int_filter(socket.assigns.filter_min_parity),
-      max_parity: parse_int_filter(socket.assigns.filter_max_parity)
+      max_parity: parse_int_filter(socket.assigns.filter_max_parity),
+      sort: socket.assigns.sort,
+      dir: socket.assigns.dir
     ]
+  end
+
+  @sort_columns ~w(tag stage pen status days)
+  defp sort_param(s) when s in @sort_columns, do: s
+  defp sort_param(_), do: "tag"
+
+  defp dir_param("desc"), do: "desc"
+  defp dir_param(_), do: "asc"
+
+  defp merge_sort(query, socket) do
+    query
+    |> Map.put("sort", socket.assigns.sort)
+    |> Map.put("dir", socket.assigns.dir)
+  end
+
+  # Snapshots the current URL filters from socket assigns so the sort
+  # event can preserve them when patching back.
+  defp current_query_params(socket) do
+    a = socket.assigns
+
+    %{
+      "stage" => a.filter_stage,
+      "status" => a.filter_status,
+      "pen_search" => a.filter_pen_search,
+      "min_age" => a.filter_min_age,
+      "max_age" => a.filter_max_age,
+      "min_parity" => a.filter_min_parity,
+      "max_parity" => a.filter_max_parity,
+      "needs_review" => if(a.filter_needs_review, do: "1", else: "")
+    }
+    |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
+    |> Enum.into(%{})
+    # `status` is sticky — keep an explicit "" if user opted into All.
+    |> Map.put("status", a.filter_status)
   end
 
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(v), do: v
+
+  defp print_path(slug, assigns) do
+    query =
+      %{
+        "stage" => assigns.filter_stage,
+        "status" => assigns.filter_status,
+        "pen_search" => assigns.filter_pen_search,
+        "min_age" => assigns.filter_min_age,
+        "max_age" => assigns.filter_max_age,
+        "min_parity" => assigns.filter_min_parity,
+        "max_parity" => assigns.filter_max_parity,
+        "needs_review" => if(assigns.filter_needs_review, do: "1", else: ""),
+        "sort" => assigns.sort,
+        "dir" => assigns.dir
+      }
+      |> Enum.reject(fn {_, v} -> v in [nil, ""] end)
+      |> Map.new()
+
+    base = ~p"/farms/#{slug}/animals/print"
+
+    case query do
+      m when map_size(m) == 0 -> base
+      m -> base <> "?" <> URI.encode_query(m)
+    end
+  end
 
   defp parse_int_filter(nil), do: nil
   defp parse_int_filter(""), do: nil
@@ -656,4 +771,30 @@ defmodule PeggyWeb.FarmLive.Animals do
   defp pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}-#{code}"
   defp pen_label(%{current_pen: %{code: code}}), do: code
   defp pen_label(_), do: nil
+
+  # Days since the animal entered its current status. Only meaningful
+  # for sows in a present (on-farm) status — boar status rarely changes
+  # in a way worth surfacing per row, and weaner/grower/finisher batches
+  # roll up multiple animals so a single timestamp is misleading.
+  defp days_in_status(
+         %{stage: "sow", status: status, status_changed_at: %DateTime{} = ts},
+         today
+       )
+       when is_binary(status) do
+    if status in Animal.present_statuses() do
+      Date.diff(today, DateTime.to_date(ts))
+    else
+      nil
+    end
+  end
+
+  defp days_in_status(_, _), do: nil
+
+  # The "Days in status" cell only ever fills for sows (see
+  # days_in_status/2). When the stage filter is set to a non-sow stage
+  # the column would be uniformly blank, so hide it.
+  defp show_days_col?(filter_stage) when filter_stage in ~w(weaner grower finisher boar),
+    do: false
+
+  defp show_days_col?(_), do: true
 end

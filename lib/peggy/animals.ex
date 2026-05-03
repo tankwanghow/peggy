@@ -56,12 +56,11 @@ defmodule Peggy.Animals do
     max_age = Keyword.get(opts, :max_age_days)
     min_parity = Keyword.get(opts, :min_parity)
     max_parity = Keyword.get(opts, :max_parity)
+    sort = Keyword.get(opts, :sort, "tag")
+    dir = Keyword.get(opts, :dir, "asc")
 
     base =
-      from(a in Animal,
-        where: a.farm_id == ^farm.id,
-        order_by: [asc: a.ear_tag, asc: a.id]
-      )
+      from(a in Animal, where: a.farm_id == ^farm.id)
       |> maybe_filter(:stage, stage)
       |> maybe_filter(:status, status)
       |> maybe_needs_review(needs_review)
@@ -71,6 +70,71 @@ defmodule Peggy.Animals do
     base
     |> maybe_pen_id_filter(pen_id)
     |> maybe_pen_search_filter(farm, pen_search)
+    |> apply_sort(sort, dir)
+  end
+
+  # Whitelisted sort columns. `id` is always appended as a tie-breaker
+  # so offset-based pagination is stable across pages even when the
+  # primary key ties.
+  defp apply_sort(query, sort, dir) do
+    direction = if dir == "desc", do: :desc, else: :asc
+
+    case sort do
+      "stage" ->
+        # The Stage column renders "Sow · P12" / "Weaner · 515d", so
+        # stage-sort tiebreaks by parity for sows (the visible suffix).
+        # Non-sow stages use legacy_parity = 0 + 0 farrowings = 0,
+        # which is fine — they fall under the primary stage ordering.
+        farrowing_counts =
+          from(f in Peggy.Breeding.Farrowing,
+            where: is_nil(f.deleted_at),
+            group_by: f.sow_id,
+            select: %{sow_id: f.sow_id, n: count(f.id)}
+          )
+
+        from(a in query,
+          left_join: fc in subquery(farrowing_counts),
+          on: fc.sow_id == a.id,
+          order_by: [
+            {^direction, a.stage},
+            {^direction, fragment("coalesce(?, 0) + coalesce(?, 0)", a.legacy_parity, fc.n)},
+            {^direction, a.id}
+          ]
+        )
+
+      "status" ->
+        from(a in query, order_by: [{^direction, a.status}, {^direction, a.id}])
+
+      "pen" ->
+        # Sort individuals by their current pen's `house.code` then
+        # `pen.code`. Batch animals (and individuals with no current
+        # pen) sort to the end regardless of direction, since their
+        # location lives in `placements` and a single column-sort can't
+        # represent multiple pens meaningfully.
+        from(a in query,
+          left_join: p in Peggy.Locations.Pen,
+          on: p.id == a.current_pen_id,
+          left_join: h in Peggy.Locations.House,
+          on: h.id == p.house_id,
+          order_by: [
+            {:asc, fragment("? IS NULL", p.id)},
+            {^direction, h.code},
+            {^direction, p.code},
+            {^direction, a.id}
+          ]
+        )
+
+      "days" ->
+        # "Days in status" is `today - status_changed_at`. Sorting by
+        # status_changed_at descending = fewest days first; ascending =
+        # most days first. The user-facing `dir` flips that intuition,
+        # so swap the direction to match what the column header implies.
+        flipped = if direction == :asc, do: :desc, else: :asc
+        from(a in query, order_by: [{^flipped, a.status_changed_at}, {^direction, a.id}])
+
+      _ ->
+        from(a in query, order_by: [{^direction, a.ear_tag}, {^direction, a.id}])
+    end
   end
 
   defp maybe_pen_id_filter(query, id) when id in [nil, ""], do: query
@@ -531,6 +595,39 @@ defmodule Peggy.Animals do
 
   def import_herd(_scope, []), do: {:error, :no_rows}
 
+  # Legacy imports carry the date the sow entered her current status via
+  # `last_served_at` / `last_farrowed_at`. Mirror that into
+  # `status_changed_at` so "Days in status" reads correctly post-import.
+  # The DB trigger leaves provided values alone on INSERT.
+  defp maybe_put_status_changed_at(attrs, "served", row) do
+    case row["last_served_at"] |> to_utc_midnight() do
+      nil -> attrs
+      ts -> Map.put(attrs, "status_changed_at", ts)
+    end
+  end
+
+  defp maybe_put_status_changed_at(attrs, "lactating", row) do
+    case row["last_farrowed_at"] |> to_utc_midnight() do
+      nil -> attrs
+      ts -> Map.put(attrs, "status_changed_at", ts)
+    end
+  end
+
+  defp maybe_put_status_changed_at(attrs, _status, _row), do: attrs
+
+  defp to_utc_midnight(nil), do: nil
+  defp to_utc_midnight(""), do: nil
+  defp to_utc_midnight(%Date{} = d), do: DateTime.new!(d, ~T[00:00:00], "Etc/UTC")
+
+  defp to_utc_midnight(s) when is_binary(s) do
+    case Date.from_iso8601(s) do
+      {:ok, d} -> DateTime.new!(d, ~T[00:00:00], "Etc/UTC")
+      _ -> nil
+    end
+  end
+
+  defp to_utc_midnight(_), do: nil
+
   defp insert_herd_row(multi, scope, farm, row, i) do
     status = Map.get(row, "status") || "active"
     tracking_type = Map.get(row, "tracking_type") || "individual"
@@ -541,6 +638,7 @@ defmodule Peggy.Animals do
       |> Map.put("status", status)
       |> Map.put("tracking_type", tracking_type)
       |> Map.drop(["last_served_at", "last_farrowed_at", "born_alive"])
+      |> maybe_put_status_changed_at(status, row)
 
     multi =
       multi
