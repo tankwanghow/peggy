@@ -16,7 +16,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
   def render(assigns) do
     ~H"""
     <Layouts.print flash={@flash} title={gettext("Animals")}>
-      <header class="print-mono mb-2 border-b border-black pb-1">
+      <header class="print-mono pb-1">
         <div class="flex items-baseline justify-between gap-4">
           <div>
             <h1 class="text-xl font-semibold">{gettext("Animals")}</h1>
@@ -33,43 +33,40 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
         </p>
       </header>
 
-      <table class="print-mono w-full border-collapse table-fixed">
+      <table class="print-mono w-full border-collapse table-fixed tracking-tighter">
         <colgroup>
           <col style="width: 20%" />
-          <col style="width: 18%" />
+          <col style="width: 20%" />
+          <col style="width: 14%" />
           <col style="width: 16%" />
-          <col style="width: 12%" />
           <col :if={@show_days} style="width: 10%" />
-          <col style="width: 16%" />
-          <col style="width: 18%" />
+          <col style="width: 20%" />
         </colgroup>
         <thead>
-          <tr class="border-b-2 border-black text-[12px] uppercase leading-tight">
-            <th class="py-0.5 pr-2 text-left">{gettext("Tag / ID")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Stage")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Pen")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Status")}</th>
-            <th :if={@show_days} class="py-0.5 pr-2 text-center">{gettext("Days")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("DestPen")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("Action")}</th>
+          <tr class="text-center">
+            <th class="p-2 border-1">{gettext("Tag / ID")}</th>
+            <th class="p-2 border-1">{gettext("Stage")}</th>
+            <th class="p-2 border-1">{gettext("Pen")}</th>
+            <th class="p-2 border-1">{gettext("Status")}</th>
+            <th :if={@show_days} class="p-2 border-1">{gettext("Days")}</th>
+            <th class="p-2 border-1">{gettext("Action")}</th>
           </tr>
         </thead>
         <tbody>
           <tr
             :for={a <- @rows}
-            class="border-b border-black/40 align-top break-inside-avoid"
+            class="align-top break-inside-avoid font-mono"
           >
-            <td class="py-1.5 pr-2 font-mono font-semibold">{a.ear_tag || "##{a.id}"}</td>
-            <td class="py-1.5 pr-2">
+            <td class="p-2 border-1 font-semibold">{a.ear_tag || "##{a.id}"}</td>
+            <td class="p-2 border-1">
               {String.capitalize(a.stage)}{stage_suffix(a, @parity_map, @avg_wean_age, @today)}
             </td>
-            <td class="py-1.5 pr-2 font-mono">{pen_label(a)}</td>
-            <td class="py-1.5 pr-2">{String.capitalize(a.status)}</td>
-            <td :if={@show_days} class="py-1.5 pr-2 text-center font-mono">
+            <td class="p-2 border-1">{pen_label(a)}</td>
+            <td class="p-2 border-1 text-center">{String.capitalize(a.status)}</td>
+            <td :if={@show_days} class="p-2 border-1 text-center">
               {days_in_status(a, @today)}
             </td>
-            <td class="py-1.5 pr-2"></td>
-            <td class="py-1.5 pr-2"></td>
+            <td class="p-2 border-1"></td>
           </tr>
           <tr :if={@total == 0}>
             <td colspan={if(@show_days, do: 7, else: 6)} class="py-4 text-center">
@@ -164,7 +161,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
   defp stage_suffix(%{stage: "sow", id: id}, parity_map, _avg, _today) do
     case Map.get(parity_map, id) do
       nil -> ""
-      n -> " · P#{n}"
+      n -> "·P#{n}"
     end
   end
 
@@ -172,7 +169,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
        when stage in @batch_stages do
     case batch_age_days(a, avg_wean_age, today) do
       nil -> ""
-      d -> " · #{d}d"
+      d -> "·#{d}d"
     end
   end
 

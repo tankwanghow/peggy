@@ -14,7 +14,7 @@ defmodule PeggyWeb.FarmLive.Breeding.GestatingPrint do
   def render(assigns) do
     ~H"""
     <Layouts.print flash={@flash} title={gettext("Gestating sows")}>
-      <header class="print-mono mb-2 border-b border-black pb-1">
+      <header class="print-mono mb-2 pb-1">
         <div class="flex items-baseline justify-between gap-4">
           <div>
             <h1 class="text-xl font-semibold">
@@ -33,40 +33,40 @@ defmodule PeggyWeb.FarmLive.Breeding.GestatingPrint do
         </p>
       </header>
 
-      <table class="print-mono w-full border-collapse table-fixed">
+      <table class="print-mono w-full border-collapse table-fixed tracking-tighter">
         <colgroup>
-          <col style="width: 22%" />
+          <col style="width: 16%" />
           <col style="width: 14%" />
+          <col style="width: 8%" />
+          <col style="width: 16%" />
           <col style="width: 10%" />
-          <col style="width: 24%" />
-          <col style="width: 10%" />
-          <col style="width: 20%" />
+          <col style="width: 30%" />
         </colgroup>
         <thead>
-          <tr class="border-b-2 border-black text-[12px] uppercase leading-tight">
-            <th class="py-0.5 pr-2 text-left">{gettext("Sow")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Pen")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("Parity")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Expected")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("Left(d)")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("DestPen")}</th>
+          <tr class="text-center">
+            <th class="p-2 border-1">{gettext("Sow")}</th>
+            <th class="p-2 border-1">{gettext("Pen")}</th>
+            <th class="p-2 border-1">{gettext("Prty")}</th>
+            <th class="p-2 border-1">{gettext("Expected")}</th>
+            <th class="p-2 border-1">{gettext("Left(d)")}</th>
+            <th class="p-2 border-1">{gettext("DestPen")}</th>
           </tr>
         </thead>
         <tbody>
           <tr
             :for={entry <- @rows}
-            class="border-b border-black/40 align-top break-inside-avoid"
+            class="align-top break-inside-avoid font-mono"
           >
-            <td class="py-1.5 pr-2 font-mono font-semibold">{entry.service.sow.ear_tag}</td>
-            <td class="py-1.5 pr-2 font-mono">
+            <td class="p-2 border-1 font-semibold">{entry.service.sow.ear_tag}</td>
+            <td class="p-2 border-1">
               {sow_pen_label(entry.service.sow)}
             </td>
-            <td class="py-1.5 pr-2 text-center font-mono">{entry.parity}</td>
-            <td class="py-1.5 pr-2 font-mono">{entry.expected_farrow_date}</td>
-            <td class="py-1.5 pr-2 text-center font-mono">
+            <td class="p-2 border-1 text-center">{entry.parity}</td>
+            <td class="p-2 border-1">{entry.expected_farrow_date}</td>
+            <td class="p-2 border-1 text-center">
               {days_left(entry, @today)}
             </td>
-            <td class="py-1.5 pr-2"></td>
+            <td class="p-2 border-1"></td>
           </tr>
           <tr :if={@total == 0}>
             <td colspan="6" class="py-4 text-center">

@@ -15,7 +15,7 @@ defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
   def render(assigns) do
     ~H"""
     <Layouts.print flash={@flash} title={gettext("Lactating sows")}>
-      <header class="print-mono mb-2 border-b border-black pb-1">
+      <header class="print-mono border-black pb-1">
         <div class="flex items-baseline justify-between gap-4">
           <div>
             <h1 class="text-xl font-semibold">
@@ -34,44 +34,44 @@ defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
         </p>
       </header>
 
-      <table class="print-mono w-full border-collapse table-fixed">
+      <table class="print-mono w-full border-collapse table-fixed tracking-tighter">
         <colgroup>
-          <col style="width: 18%" />
-          <col style="width: 14%" />
-          <col style="width: 10%" />
           <col style="width: 16%" />
-          <col style="width: 12%" />
+          <col style="width: 14%" />
           <col style="width: 8%" />
-          <col style="width: 10%" />
-          <col style="width: 10%" />
+          <col style="width: 18%" />
+          <col style="width: 8%" />
+          <col style="width: 8%" />
+          <col style="width: 14%" />
+          <col style="width: 14%" />
         </colgroup>
         <thead>
-          <tr class="border-b-2 border-black text-[12px] uppercase leading-tight">
-            <th class="py-0.5 pr-2 text-left">{gettext("Sow")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Pen")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("Parity")}</th>
-            <th class="py-0.5 pr-2 text-left">{gettext("Farrowed")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("Surviving")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("Days")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("DestPen")}</th>
-            <th class="py-0.5 pr-2 text-center">{gettext("WeanAmt")}</th>
+          <tr class="text-center">
+            <th class="p-2 border-1">{gettext("Sow")}</th>
+            <th class="p-2 border-1">{gettext("Pen")}</th>
+            <th class="p-2 border-1">{gettext("Prty")}</th>
+            <th class="p-2 border-1">{gettext("FarrAt")}</th>
+            <th class="p-2 border-1">{gettext("SLive")}</th>
+            <th class="p-2 border-1">{gettext("Age")}</th>
+            <th class="p-2 border-1">{gettext("DestPen")}</th>
+            <th class="p-2 border-1">{gettext("WAmt")}</th>
           </tr>
         </thead>
         <tbody>
           <tr
             :for={entry <- @rows}
-            class="border-b border-black/40 align-top break-inside-avoid"
+            class="border-b border-black/40 align-top break-inside-avoid font-mono"
           >
-            <td class="py-1.5 pr-2 font-mono font-semibold">{entry.farrowing.sow.ear_tag}</td>
-            <td class="py-1.5 pr-2 font-mono">{pen_label(entry.farrowing.pen)}</td>
-            <td class="py-1.5 pr-2 text-center font-mono">{entry.parity}</td>
-            <td class="py-1.5 pr-2 font-mono">{entry.farrowing.farrowed_at}</td>
-            <td class="py-1.5 pr-2 text-center font-mono">{entry.surviving}</td>
-            <td class="py-1.5 pr-2 text-center font-mono">
+            <td class="p-2 border-1 font-semibold">{entry.farrowing.sow.ear_tag}</td>
+            <td class="p-2 border-1">{pen_label(entry.farrowing.pen)}</td>
+            <td class="p-2 border-1 text-center">{entry.parity}</td>
+            <td class="p-2 border-1">{entry.farrowing.farrowed_at}</td>
+            <td class="p-2 border-1 text-center">{entry.surviving}</td>
+            <td class="p-2 border-1 text-center">
               {Date.diff(@today, entry.farrowing.farrowed_at)}
             </td>
-            <td class="py-1.5 pr-2"></td>
-            <td class="py-1.5 pr-2"></td>
+            <td class="py-1.5 pr-2 border-1"></td>
+            <td class="py-1.5 pr-2 border-1"></td>
           </tr>
           <tr :if={@total == 0}>
             <td colspan="8" class="py-4 text-center">
