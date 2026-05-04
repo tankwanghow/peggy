@@ -53,8 +53,7 @@ defmodule Peggy.Breeding do
     multi =
       Multi.new()
       |> ensure_sow_serviceable(scope, attrs)
-      |> auto_close_prior_service(scope, attrs)
-      |> Multi.insert(:service, Service.changeset(%Service{}, attrs))
+      |> resolve_service_action(scope, attrs)
       |> update_sow_status(attrs["sow_id"], "served")
       |> audit_after(scope, "service.created", :service, &service_audit_data/1)
 
@@ -91,8 +90,7 @@ defmodule Peggy.Breeding do
 
         m
         |> ensure_sow_serviceable_keyed(scope, attrs, i)
-        |> auto_close_prior_service_keyed(scope, attrs, i)
-        |> Multi.insert({:service, i}, Service.changeset(%Service{}, attrs))
+        |> resolve_service_action_keyed(scope, attrs, i)
         |> update_sow_status_keyed(attrs["sow_id"], "served", i)
         |> audit_after_keyed(scope, "service.created", {:service, i}, i, &service_audit_data/1)
       end)
@@ -244,8 +242,7 @@ defmodule Peggy.Breeding do
 
             m
             |> ensure_sow_serviceable_keyed(scope, attrs, i)
-            |> auto_close_prior_service_keyed(scope, attrs, i)
-            |> Multi.insert({:service, i}, Service.changeset(%Service{}, attrs))
+            |> resolve_service_action_keyed(scope, attrs, i)
             |> update_sow_status_keyed(attrs["sow_id"], "served", i)
             |> maybe_move_existing_sow_keyed(farm.id, attrs["sow_id"], pen_id, served_at, i)
             |> audit_after_keyed(
@@ -683,48 +680,10 @@ defmodule Peggy.Breeding do
     end
   end
 
-  # Keyed variant of auto_close_prior_service for batch entry
-  defp auto_close_prior_service_keyed(multi, scope, attrs, i) do
-    sow_id = to_int(attrs["sow_id"])
-
-    if is_nil(sow_id) do
-      multi
-    else
-      Multi.run(multi, {:close_prior, i}, fn repo, _ ->
-        case repo.one(
-               from(s in Service,
-                 where:
-                   s.farm_id == ^scope.farm.id and
-                     s.sow_id == ^sow_id and
-                     is_nil(s.result) and
-                     is_nil(s.deleted_at),
-                 lock: "FOR UPDATE"
-               )
-             ) do
-          nil ->
-            {:ok, nil}
-
-          prior ->
-            result_at = attrs["served_at"] || to_string(FarmClock.today(scope))
-
-            prior
-            |> Service.close_changeset(%{"result" => "re_service", "result_at" => result_at})
-            |> repo.update()
-        end
-      end)
-      |> Multi.run({:audit_close_prior, i}, fn _repo, changes ->
-        prior = Map.get(changes, {:close_prior, i})
-
-        if prior do
-          Audit.log_now!(scope, "service.closed",
-            entity_type: :service,
-            entity_id: prior.id
-          )
-        end
-
-        {:ok, nil}
-      end)
-    end
+  defp resolve_service_action_keyed(multi, scope, attrs, i) do
+    Multi.run(multi, {:service, i}, fn repo, _ ->
+      do_resolve_service_action(repo, scope, attrs)
+    end)
   end
 
   defp audit_after_keyed(multi, scope, action, key, i, change_fn) do
@@ -744,45 +703,115 @@ defmodule Peggy.Breeding do
     end)
   end
 
-  # Auto-close any prior open service for the same sow.
-  defp auto_close_prior_service(multi, scope, attrs) do
+  # Re-services within this many days of an open service collapse into
+  # the prior row instead of creating a second `breeding_services` row.
+  # This matches farm reality: a sow naturally bred 1–3× during heat is
+  # one service event, not multiple.
+  @collapse_window_days 7
+
+  # Resolves how to apply a new service for a sow:
+  #   - no prior open service     → insert new
+  #   - prior within 7d of new    → collapse into prior
+  #   - prior outside the window  → close prior as re_service, insert new
+  defp resolve_service_action(multi, scope, attrs) do
+    Multi.run(multi, :service, fn repo, _ ->
+      do_resolve_service_action(repo, scope, attrs)
+    end)
+  end
+
+  defp do_resolve_service_action(repo, scope, attrs) do
     sow_id = to_int(attrs["sow_id"])
+    new_served_at = parse_date(attrs["served_at"])
 
-    if is_nil(sow_id) do
-      multi
-    else
-      Multi.run(multi, :close_prior, fn repo, _ ->
-        case repo.one(
-               from(s in Service,
-                 where:
-                   s.farm_id == ^scope.farm.id and
-                     s.sow_id == ^sow_id and
-                     is_nil(s.result) and
-                     is_nil(s.deleted_at),
-                 lock: "FOR UPDATE"
-               )
-             ) do
-          nil ->
-            {:ok, nil}
+    cond do
+      is_nil(sow_id) or is_nil(new_served_at) ->
+        # Validation will catch this — let the changeset surface the error.
+        repo.insert(Service.changeset(%Service{}, attrs))
 
-          prior ->
-            result_at = attrs["served_at"] || to_string(FarmClock.today(scope))
+      true ->
+        prior = lock_open_service(repo, scope, sow_id)
 
-            prior
-            |> Service.close_changeset(%{"result" => "re_service", "result_at" => result_at})
-            |> repo.update()
+        cond do
+          is_nil(prior) ->
+            repo.insert(Service.changeset(%Service{}, attrs))
+
+          collapsible?(prior, new_served_at) ->
+            collapse_into_prior(repo, scope, prior, new_served_at, attrs)
+
+          true ->
+            with {:ok, _} <- close_prior_as_re_service(repo, scope, prior, new_served_at) do
+              repo.insert(Service.changeset(%Service{}, attrs))
+            end
         end
-      end)
-      |> Multi.run(:audit_close_prior, fn _repo, %{close_prior: prior} ->
-        if prior do
-          Audit.log_now!(scope, "service.closed",
-            entity_type: :service,
-            entity_id: prior.id
-          )
-        end
+    end
+  end
 
-        {:ok, nil}
-      end)
+  defp lock_open_service(repo, scope, sow_id) do
+    repo.one(
+      from(s in Service,
+        where:
+          s.farm_id == ^scope.farm.id and
+            s.sow_id == ^sow_id and
+            is_nil(s.result) and
+            is_nil(s.deleted_at),
+        lock: "FOR UPDATE"
+      )
+    )
+  end
+
+  defp collapsible?(%Service{served_at: served_at, last_serviced_at: last}, new_served_at) do
+    last = last || served_at
+    diff = Date.diff(new_served_at, last)
+    new_served_at >= served_at and diff >= 0 and diff <= @collapse_window_days
+  end
+
+  defp collapse_into_prior(repo, scope, prior, new_served_at, attrs) do
+    new_last =
+      if Date.after?(new_served_at, prior.last_serviced_at),
+        do: new_served_at,
+        else: prior.last_serviced_at
+
+    changes = %{
+      mounting_count: (prior.mounting_count || 1) + 1,
+      last_serviced_at: new_last
+    }
+
+    case prior |> Ecto.Changeset.change(changes) |> repo.update() do
+      {:ok, updated} ->
+        Audit.log_now!(scope, "service.mounted",
+          entity_type: :service,
+          entity_id: updated.id,
+          changes: %{
+            "mounting_count" => updated.mounting_count,
+            "last_serviced_at" => to_string(updated.last_serviced_at),
+            "added_served_at" => to_string(new_served_at),
+            "service_type" => attrs["service_type"]
+          }
+        )
+
+        {:ok, updated}
+
+      err ->
+        err
+    end
+  end
+
+  defp close_prior_as_re_service(repo, scope, prior, new_served_at) do
+    result_at = new_served_at || FarmClock.today(scope)
+
+    case prior
+         |> Service.close_changeset(%{"result" => "re_service", "result_at" => result_at})
+         |> repo.update() do
+      {:ok, closed} ->
+        Audit.log_now!(scope, "service.closed",
+          entity_type: :service,
+          entity_id: closed.id
+        )
+
+        {:ok, closed}
+
+      err ->
+        err
     end
   end
 

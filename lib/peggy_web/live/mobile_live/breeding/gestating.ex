@@ -120,6 +120,15 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               <dl class="text-right text-xs leading-snug grid grid-cols-[auto_auto] gap-x-2 items-baseline">
                 <dt class="text-base-content/50">{gettext("Served")}</dt>
                 <dd class="font-mono text-base-content/70">{e.service.served_at}</dd>
+                <dt :if={(e.service.mounting_count || 1) > 1} class="text-base-content/50">
+                  {gettext("Mountings")}
+                </dt>
+                <dd
+                  :if={(e.service.mounting_count || 1) > 1}
+                  class="font-mono font-semibold text-info"
+                >
+                  {e.service.mounting_count} (last {e.service.last_serviced_at})
+                </dd>
                 <dt class="text-base-content/50">{gettext("Expected")}</dt>
                 <dd class="font-mono font-semibold">{e.expected_farrow_date}</dd>
                 <dt :if={e.service.boar} class="text-base-content/50">{gettext("Boar")}</dt>

@@ -8,6 +8,8 @@ defmodule Peggy.Breeding.Service do
   schema "breeding_services" do
     field :service_type, :string
     field :served_at, :date
+    field :last_serviced_at, :date
+    field :mounting_count, :integer, default: 1
     field :result, :string
     field :result_at, :date
     field :result_notes, :string
@@ -33,6 +35,8 @@ defmodule Peggy.Breeding.Service do
     |> cast(attrs, [
       :service_type,
       :served_at,
+      :last_serviced_at,
+      :mounting_count,
       :result,
       :result_at,
       :result_notes,
@@ -45,7 +49,9 @@ defmodule Peggy.Breeding.Service do
       :technician_user_id,
       :farm_id
     ])
+    |> default_last_serviced_at()
     |> validate_required([:service_type, :served_at, :sow_id, :farm_id])
+    |> validate_number(:mounting_count, greater_than_or_equal_to: 1)
     |> validate_inclusion(:service_type, @service_types)
     |> validate_inclusion(:result, @results)
     |> validate_boar_for_natural()
@@ -65,6 +71,15 @@ defmodule Peggy.Breeding.Service do
     |> cast(attrs, [:result, :result_at, :result_notes])
     |> validate_required([:result, :result_at])
     |> validate_inclusion(:result, @results)
+  end
+
+  # last_serviced_at defaults to served_at on insert when not provided.
+  # The collapse logic in Peggy.Breeding pushes it forward on re-service.
+  defp default_last_serviced_at(cs) do
+    case {get_field(cs, :last_serviced_at), get_field(cs, :served_at)} do
+      {nil, %Date{} = served_at} -> put_change(cs, :last_serviced_at, served_at)
+      _ -> cs
+    end
   end
 
   defp validate_boar_for_natural(cs) do
