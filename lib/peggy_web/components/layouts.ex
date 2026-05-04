@@ -57,7 +57,7 @@ defmodule PeggyWeb.Layouts do
             </li>
             <li :if={@current_scope.farm}>
               <.link
-                navigate={~p"/m/#{@current_scope.farm.slug}"}
+                href={~p"/view-mode?#{[mode: "mobile", to: "/m/#{@current_scope.farm.slug}"]}"}
                 class="btn btn-ghost btn-sm"
                 title={gettext("Mobile view")}
               >
@@ -273,7 +273,7 @@ defmodule PeggyWeb.Layouts do
           </li>
           <li :if={@current_scope && @current_scope.farm}>
             <.link
-              navigate={~p"/farms/#{@current_scope.farm.slug}"}
+              href={~p"/view-mode?#{[mode: "desktop", to: "/farms/#{@current_scope.farm.slug}"]}"}
               class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
             >
               <.icon name="hero-computer-desktop" class="size-5 text-base-content/60" />

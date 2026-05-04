@@ -49,7 +49,9 @@ defmodule PeggyWeb.Router do
   ## Authentication routes
 
   scope "/", PeggyWeb do
-    pipe_through [:browser, :require_authenticated_user]
+    pipe_through [:browser, :require_authenticated_user, PeggyWeb.Plugs.AutoRouteByDevice]
+
+    get "/view-mode", ViewModeController, :set
 
     live_session :require_authenticated_user,
       on_mount: [{PeggyWeb.UserAuth, :require_authenticated}, {PeggyWeb.Locale, :default}] do

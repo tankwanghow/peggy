@@ -242,7 +242,9 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
         <%!-- Escape to desktop --%>
         <section class="px-3 pb-6">
           <.link
-            navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.id}"}
+            href={
+              ~p"/view-mode?#{[mode: "desktop", to: "/farms/#{@current_scope.farm.slug}/animals/#{@animal.id}"]}"
+            }
             class="btn btn-block btn-outline"
           >
             <.icon name="hero-computer-desktop" class="size-5" />
