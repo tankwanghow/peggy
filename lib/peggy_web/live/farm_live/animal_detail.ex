@@ -70,6 +70,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           </span>
           <:actions>
             <.link
+              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/#{@animal.id}/trace"}
+              class="btn btn-ghost btn-sm"
+            >
+              <.icon name="hero-share-micro" class="size-4" /> {gettext("Trace")}
+            </.link>
+            <.link
               :if={
                 @can_move && @animal.tracking_type == "batch" &&
                   Peggy.Animals.Animal.present_status?(@animal.status)

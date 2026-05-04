@@ -77,6 +77,7 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/onboarding/herd", FarmLive.HerdImport, :show
       live "/farms/:farm_slug/animals/bulk-move", FarmLive.BulkMove, :show
       live "/farms/:farm_slug/animals/:id", FarmLive.AnimalDetail, :show
+      live "/farms/:farm_slug/animals/:id/trace", FarmLive.AnimalTrace, :show
       live "/farms/:farm_slug/animals/:id/batch-entry", FarmLive.BatchEntry, :show
       live "/farms/:farm_slug/breeding", FarmLive.Breeding, :index
       live "/farms/:farm_slug/breeding/gestating", FarmLive.Breeding.Gestating, :index
@@ -90,6 +91,7 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/breeding/batch-weaning", FarmLive.BatchWeaning, :show
       live "/farms/:farm_slug/breeding/close-services", FarmLive.BatchCloseServices, :show
       live "/farms/:farm_slug/reports", FarmLive.Reports, :index
+      get "/farms/:farm_slug/reports/export", ReportsController, :export
       live "/farms/:farm_slug/tasks", FarmLive.Tasks, :index
       live "/farms/:farm_slug/audit", FarmLive.Audit, :index
 

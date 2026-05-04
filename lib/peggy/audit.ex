@@ -64,6 +64,8 @@ defmodule Peggy.Audit do
       Enum.reduce(opts, q, fn
         {:entity_type, nil}, acc -> acc
         {:entity_type, et}, acc -> from a in acc, where: a.entity_type == ^et
+        {:entity_id, nil}, acc -> acc
+        {:entity_id, id}, acc -> from a in acc, where: a.entity_id == ^to_string(id)
         {:action, nil}, acc -> acc
         {:action, act}, acc -> from a in acc, where: a.action == ^act
         {:limit, n}, acc -> from a in acc, limit: ^n

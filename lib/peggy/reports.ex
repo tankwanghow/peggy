@@ -430,4 +430,194 @@ defmodule Peggy.Reports do
       true -> total_weaned / sow_count * (365 / days)
     end
   end
+
+  # ── CSV exports ────────────────────────────────────────────────────
+
+  @doc """
+  Exports services in range as CSV (iodata). Includes the sow & boar
+  ear tags joined in for analyst-friendly output.
+  """
+  def services_csv(%Scope{farm: %{id: farm_id}}, %{from: from, to: to}) do
+    rows =
+      from(s in Peggy.Breeding.Service,
+        left_join: sow in assoc(s, :sow),
+        left_join: boar in assoc(s, :boar),
+        where:
+          s.farm_id == ^farm_id and is_nil(s.deleted_at) and
+            s.served_at >= ^from and s.served_at <= ^to,
+        order_by: [asc: s.served_at, asc: s.id],
+        select: %{
+          id: s.id,
+          sow_tag: sow.ear_tag,
+          boar_tag: boar.ear_tag,
+          service_type: s.service_type,
+          served_at: s.served_at,
+          last_serviced_at: s.last_serviced_at,
+          mounting_count: s.mounting_count,
+          result: s.result,
+          result_at: s.result_at,
+          notes: s.notes
+        }
+      )
+      |> Repo.all()
+
+    headers = [
+      "id",
+      "sow_tag",
+      "boar_tag",
+      "service_type",
+      "served_at",
+      "last_serviced_at",
+      "mounting_count",
+      "result",
+      "result_at",
+      "notes"
+    ]
+
+    build_csv(headers, rows, fn r ->
+      [
+        r.id,
+        r.sow_tag,
+        r.boar_tag,
+        r.service_type,
+        r.served_at,
+        r.last_serviced_at,
+        r.mounting_count,
+        r.result,
+        r.result_at,
+        r.notes
+      ]
+    end)
+  end
+
+  @doc """
+  Exports farrowings in range as CSV.
+  """
+  def farrowings_csv(%Scope{farm: %{id: farm_id}}, %{from: from, to: to}) do
+    rows =
+      from(f in Peggy.Breeding.Farrowing,
+        left_join: sow in assoc(f, :sow),
+        where:
+          f.farm_id == ^farm_id and is_nil(f.deleted_at) and
+            f.farrowed_at >= ^from and f.farrowed_at <= ^to,
+        order_by: [asc: f.farrowed_at, asc: f.id],
+        select: %{
+          id: f.id,
+          sow_tag: sow.ear_tag,
+          farrowed_at: f.farrowed_at,
+          born_alive: f.born_alive,
+          stillborn: f.stillborn,
+          mummified: f.mummified,
+          total_birth_weight_g: f.total_birth_weight_g,
+          notes: f.notes
+        }
+      )
+      |> Repo.all()
+
+    headers = [
+      "id",
+      "sow_tag",
+      "farrowed_at",
+      "born_alive",
+      "stillborn",
+      "mummified",
+      "total_birth_weight_g",
+      "notes"
+    ]
+
+    build_csv(headers, rows, fn r ->
+      [
+        r.id,
+        r.sow_tag,
+        r.farrowed_at,
+        r.born_alive,
+        r.stillborn,
+        r.mummified,
+        r.total_birth_weight_g,
+        r.notes
+      ]
+    end)
+  end
+
+  @doc """
+  Exports weanings in range as CSV. Joins through the parent farrowing
+  so analysts see the sow tag and farrowed_at without a second lookup.
+  """
+  def weanings_csv(%Scope{farm: %{id: farm_id}}, %{from: from, to: to}) do
+    rows =
+      from(w in Peggy.Breeding.Weaning,
+        join: f in assoc(w, :farrowing),
+        left_join: sow in assoc(f, :sow),
+        where:
+          w.farm_id == ^farm_id and is_nil(w.deleted_at) and
+            w.weaned_at >= ^from and w.weaned_at <= ^to,
+        order_by: [asc: w.weaned_at, asc: w.id],
+        select: %{
+          id: w.id,
+          sow_tag: sow.ear_tag,
+          farrowed_at: f.farrowed_at,
+          weaned_at: w.weaned_at,
+          born_alive: f.born_alive,
+          weaned_count: w.weaned_count,
+          avg_wean_weight_g: w.avg_wean_weight_g
+        }
+      )
+      |> Repo.all()
+
+    headers = [
+      "id",
+      "sow_tag",
+      "farrowed_at",
+      "weaned_at",
+      "born_alive",
+      "weaned_count",
+      "avg_wean_weight_g",
+      "pre_wean_mortality_pct"
+    ]
+
+    build_csv(headers, rows, fn r ->
+      mortality =
+        if r.born_alive in [nil, 0] do
+          nil
+        else
+          Float.round((r.born_alive - r.weaned_count) * 100 / r.born_alive, 1)
+        end
+
+      [
+        r.id,
+        r.sow_tag,
+        r.farrowed_at,
+        r.weaned_at,
+        r.born_alive,
+        r.weaned_count,
+        r.avg_wean_weight_g,
+        mortality
+      ]
+    end)
+  end
+
+  # Tiny CSV builder. Quotes fields containing comma / quote / newline,
+  # doubles internal quotes per RFC 4180. Returns iodata.
+  defp build_csv(headers, rows, row_fn) do
+    [encode_row(headers) | Enum.map(rows, fn row -> encode_row(row_fn.(row)) end)]
+  end
+
+  defp encode_row(cells) do
+    [cells |> Enum.map(&csv_field/1) |> Enum.intersperse(?,), "\r\n"]
+  end
+
+  defp csv_field(nil), do: ""
+  defp csv_field(%Date{} = d), do: Date.to_iso8601(d)
+  defp csv_field(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp csv_field(v) when is_number(v), do: to_string(v)
+
+  defp csv_field(v) when is_binary(v) do
+    if String.contains?(v, [",", "\"", "\n", "\r"]) do
+      [?", String.replace(v, "\"", "\"\""), ?"]
+    else
+      v
+    end
+  end
+
+  defp csv_field(v), do: csv_field(to_string(v))
 end
