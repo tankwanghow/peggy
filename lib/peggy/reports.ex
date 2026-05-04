@@ -431,6 +431,119 @@ defmodule Peggy.Reports do
     end
   end
 
+  # ── Pivot ──────────────────────────────────────────────────────────
+
+  @doc """
+  Builds a time-bucketed aggregate over services / farrowings /
+  weanings. Returns a list of `%{bucket: Date.t(), value: number()}`
+  rows (one per bucket in the range, including zeros for empty
+  buckets so chart x-axes are continuous).
+
+  Opts:
+    * `:source` — `:services | :farrowings | :weanings` (required)
+    * `:metric` — see below (required)
+    * `:bucket` — `:week | :month` (default `:month`)
+    * `:range` — `%{from: Date.t(), to: Date.t()}` (default last 12mo)
+
+  Supported metrics by source:
+    * `:services` → `:count`
+    * `:farrowings` → `:count | :sum_born_alive | :sum_stillborn | :sum_mummified`
+    * `:weanings` → `:count | :sum_weaned`
+  """
+  def pivot(%Scope{farm: %{id: farm_id}} = scope, opts) do
+    source = Keyword.fetch!(opts, :source)
+    metric = Keyword.fetch!(opts, :metric)
+    bucket = Keyword.get(opts, :bucket, :month)
+    range = Keyword.get(opts, :range) || default_range(scope)
+
+    rows = pivot_query(farm_id, source, metric, bucket, range)
+    by_bucket = Map.new(rows, fn {b, v} -> {b, v} end)
+
+    fill_buckets(range, bucket)
+    |> Enum.map(fn date -> %{bucket: date, value: Map.get(by_bucket, date, 0)} end)
+  end
+
+  # The pivot dispatch is closed over a small set of atoms that are
+  # validated in `pivot/2` before reaching here, so it's safe to splice
+  # the bucket / column / aggregation strings into raw SQL — no value
+  # interpolation, only structural choices. Going via SQL avoids
+  # Ecto's restriction against tuples inside dynamic select expressions.
+  defp pivot_query(farm_id, source, metric, bucket, %{from: from, to: to}) do
+    table = source_table(source)
+    date_col = source_date_col(source)
+    agg = metric_sql(metric)
+    unit = bucket_unit(bucket)
+
+    # Cast the date column to timestamp first so date_trunc returns a
+    # TZ-naive timestamp, then cast back to date — keeps the bucket
+    # aligned to the calendar day regardless of session timezone.
+    sql = """
+    SELECT date_trunc('#{unit}', "#{date_col}"::timestamp)::date AS bucket, #{agg}
+    FROM "#{table}"
+    WHERE farm_id = $1 AND deleted_at IS NULL
+      AND "#{date_col}" >= $2 AND "#{date_col}" <= $3
+    GROUP BY 1
+    """
+
+    %{rows: rows} = Repo.query!(sql, [farm_id, from, to])
+    Enum.map(rows, fn [ts, n] -> {to_date(ts), n} end)
+  end
+
+  defp source_table(:services), do: "breeding_services"
+  defp source_table(:farrowings), do: "breeding_farrowings"
+  defp source_table(:weanings), do: "breeding_weanings"
+
+  defp source_date_col(:services), do: "served_at"
+  defp source_date_col(:farrowings), do: "farrowed_at"
+  defp source_date_col(:weanings), do: "weaned_at"
+
+  defp metric_sql(:count), do: "count(id)"
+  defp metric_sql(:sum_born_alive), do: "coalesce(sum(born_alive), 0)"
+  defp metric_sql(:sum_stillborn), do: "coalesce(sum(stillborn), 0)"
+  defp metric_sql(:sum_mummified), do: "coalesce(sum(mummified), 0)"
+  defp metric_sql(:sum_weaned), do: "coalesce(sum(weaned_count), 0)"
+
+  defp bucket_unit(:week), do: "week"
+  defp bucket_unit(:month), do: "month"
+
+  defp to_date(%Date{} = d), do: d
+  defp to_date(%DateTime{} = dt), do: DateTime.to_date(dt)
+  defp to_date(%NaiveDateTime{} = ndt), do: NaiveDateTime.to_date(ndt)
+  defp to_date(other), do: other
+
+  # Inclusive list of bucket-start dates covering the range.
+  defp fill_buckets(%{from: from, to: to}, :week) do
+    start = Date.add(from, -Date.day_of_week(from, :monday) + 1)
+    fill(start, to, 7)
+  end
+
+  defp fill_buckets(%{from: from, to: to}, :month) do
+    start = %{from | day: 1}
+    fill_months(start, to, [])
+  end
+
+  defp fill(curr, to, step) when step > 0 do
+    cond do
+      Date.compare(curr, to) == :gt -> []
+      true -> [curr | fill(Date.add(curr, step), to, step)]
+    end
+  end
+
+  defp fill_months(curr, to, acc) do
+    cond do
+      Date.compare(curr, to) == :gt ->
+        Enum.reverse(acc)
+
+      true ->
+        next_month_year =
+          if curr.month == 12, do: {curr.year + 1, 1}, else: {curr.year, curr.month + 1}
+
+        {y, m} = next_month_year
+        next = Date.new!(y, m, 1)
+        fill_months(next, to, [curr | acc])
+    end
+  end
+
   # ── CSV exports ────────────────────────────────────────────────────
 
   @doc """
