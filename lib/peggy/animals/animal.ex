@@ -78,6 +78,25 @@ defmodule Peggy.Animals.Animal do
   def present_status?(status), do: status in @present_statuses
   def serviceable_status?(status), do: status in @serviceable_statuses
 
+  @doc """
+  Statuses applicable to a given stage. Sows can be in any breeding
+  status; boars never enter served/open/lactating/dry; batches
+  (weaner/grower/finisher) never enter sow-only states. Departed
+  statuses are universal — any animal can leave the farm.
+
+  Pass `nil` (or unknown) to get every status.
+  """
+  def statuses_for_stage("sow"),
+    do: ~w(active served open lactating dry culled) ++ @departed_statuses
+
+  def statuses_for_stage("boar"),
+    do: ~w(active culled) ++ @departed_statuses
+
+  def statuses_for_stage(stage) when stage in ~w(weaner grower finisher),
+    do: ~w(active) ++ @departed_statuses
+
+  def statuses_for_stage(_), do: @statuses
+
   @doc "Short human-readable description of a status, used for UI tooltips."
   def status_description(status), do: Map.get(@status_descriptions, status, "")
 

@@ -55,6 +55,16 @@ defmodule PeggyWeb.Layouts do
             <li class="hidden sm:block text-sm text-base-content/70">
               {@current_scope.user.email}
             </li>
+            <li :if={@current_scope.farm}>
+              <.link
+                navigate={~p"/m/#{@current_scope.farm.slug}"}
+                class="btn btn-ghost btn-sm"
+                title={gettext("Mobile view")}
+              >
+                <.icon name="hero-device-phone-mobile-micro" class="size-4" />
+                <span class="hidden sm:inline ml-1">{gettext("Mobile")}</span>
+              </.link>
+            </li>
             <li>
               <.link navigate={~p"/farms"} class="btn btn-ghost btn-sm">{gettext("My farms")}</.link>
             </li>
@@ -94,6 +104,220 @@ defmodule PeggyWeb.Layouts do
     </main>
 
     <.flash_group flash={@flash} />
+    """
+  end
+
+  @doc """
+  Mobile (phone-floor) layout. Renders the page edge-to-edge with no
+  desktop navbar / farm-nav chrome, since space is tight and the
+  primary controls live inside each mobile LiveView (sticky header,
+  bottom sheets). A small back-to-desktop link sits in the corner so
+  operators can escape if they need a feature mobile doesn't cover yet.
+
+  ## Examples
+
+      <Layouts.mobile flash={@flash} current_scope={@current_scope}>
+        <header>...</header>
+        <ul>...</ul>
+      </Layouts.mobile>
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+  attr :current_scope, :map, default: nil
+  slot :inner_block, required: true
+
+  def mobile(assigns) do
+    ~H"""
+    <main class="min-h-screen bg-base-100">
+      {render_slot(@inner_block)}
+    </main>
+    <.simulated_clock_banner
+      :if={@current_scope && Peggy.FarmClock.simulated?(@current_scope)}
+      scope={@current_scope}
+    />
+    <.flash_group flash={@flash} />
+    """
+  end
+
+  @doc """
+  Mobile layout with bottom tab navigation and a "More" sheet for
+  system actions (theme, switch farm, log out, escape to desktop).
+
+  Pages provide their own top header (sticky search, etc.). The bottom
+  nav is fixed; pad the page content with `pb-20` so the last row
+  isn't hidden behind it.
+
+  Pass `active` as one of `:home | :animals | :breeding` to highlight
+  the current tab.
+
+  ## Examples
+
+      <Layouts.mobile_app flash={@flash} current_scope={@current_scope} active={:home}>
+        <header>...</header>
+        <ul>...</ul>
+      </Layouts.mobile_app>
+  """
+  attr :flash, :map, required: true
+  attr :current_scope, :map, default: nil
+  attr :active, :atom, default: nil
+  slot :inner_block, required: true
+
+  def mobile_app(assigns) do
+    ~H"""
+    <main class="min-h-screen bg-base-100 pb-20">
+      {render_slot(@inner_block)}
+    </main>
+    <.simulated_clock_banner
+      :if={@current_scope && Peggy.FarmClock.simulated?(@current_scope)}
+      scope={@current_scope}
+    />
+    <.mobile_bottom_nav current_scope={@current_scope} active={@active} />
+    <.mobile_more_sheet current_scope={@current_scope} />
+    <.flash_group flash={@flash} />
+    """
+  end
+
+  attr :current_scope, :map, required: true
+  attr :active, :atom, default: nil
+
+  defp mobile_bottom_nav(assigns) do
+    ~H"""
+    <nav class="fixed bottom-0 inset-x-0 z-30 bg-base-100 border-t border-base-300
+                pb-[env(safe-area-inset-bottom)]">
+      <ul class="grid grid-cols-4">
+        <li>
+          <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}"}
+            class={[
+              "flex flex-col items-center gap-1 py-3 active:bg-base-200",
+              @active == :home && "text-primary",
+              @active != :home && "text-base-content/60"
+            ]}
+          >
+            <.icon name="hero-home" class="size-6" />
+            <span class="text-[11px]">{gettext("Home")}</span>
+          </.link>
+        </li>
+        <li>
+          <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}/animals"}
+            class={[
+              "flex flex-col items-center gap-1 py-3 active:bg-base-200",
+              @active == :animals && "text-primary",
+              @active != :animals && "text-base-content/60"
+            ]}
+          >
+            <.icon name="hero-identification" class="size-6" />
+            <span class="text-[11px]">{gettext("Animals")}</span>
+          </.link>
+        </li>
+        <li>
+          <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
+            class={[
+              "flex flex-col items-center gap-1 py-3 active:bg-base-200",
+              @active == :breeding && "text-primary",
+              @active != :breeding && "text-base-content/60"
+            ]}
+          >
+            <.icon name="hero-heart" class="size-6" />
+            <span class="text-[11px]">{gettext("Breeding")}</span>
+          </.link>
+        </li>
+        <li>
+          <button
+            type="button"
+            phx-click={JS.show(to: "#mobile-more-sheet", display: "flex")}
+            class="w-full flex flex-col items-center gap-1 py-3 active:bg-base-200 text-base-content/60"
+          >
+            <.icon name="hero-bars-3" class="size-6" />
+            <span class="text-[11px]">{gettext("More")}</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+    """
+  end
+
+  attr :current_scope, :map, required: true
+
+  defp mobile_more_sheet(assigns) do
+    ~H"""
+    <div
+      id="mobile-more-sheet"
+      class="hidden fixed inset-0 z-40 flex items-end"
+    >
+      <div
+        class="absolute inset-0 bg-black/40"
+        phx-click={JS.hide(to: "#mobile-more-sheet")}
+      >
+      </div>
+      <div class="relative w-full bg-base-100 rounded-t-2xl pb-[env(safe-area-inset-bottom)]">
+        <div class="flex justify-center pt-2 pb-1">
+          <div class="w-10 h-1 rounded-full bg-base-300"></div>
+        </div>
+        <div :if={@current_scope && @current_scope.user} class="px-4 py-2 border-b border-base-200">
+          <div class="text-sm font-semibold">{@current_scope.user.email}</div>
+          <div :if={@current_scope.farm} class="text-xs text-base-content/60 font-mono">
+            {@current_scope.farm.name} ({@current_scope.farm.slug})
+          </div>
+        </div>
+        <ul class="divide-y divide-base-200">
+          <li :if={@current_scope && @current_scope.farm}>
+            <.link
+              navigate={~p"/m/#{@current_scope.farm.slug}/locations"}
+              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
+            >
+              <.icon name="hero-map-pin" class="size-5 text-base-content/60" />
+              <span>{gettext("Locations")}</span>
+            </.link>
+          </li>
+          <li :if={@current_scope && @current_scope.farm}>
+            <.link
+              navigate={~p"/farms/#{@current_scope.farm.slug}"}
+              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
+            >
+              <.icon name="hero-computer-desktop" class="size-5 text-base-content/60" />
+              <span>{gettext("Open desktop view")}</span>
+            </.link>
+          </li>
+          <li>
+            <.link
+              navigate={~p"/farms"}
+              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
+            >
+              <.icon name="hero-arrows-right-left" class="size-5 text-base-content/60" />
+              <span>{gettext("Switch farm")}</span>
+            </.link>
+          </li>
+          <li>
+            <.link
+              navigate={~p"/users/settings"}
+              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
+            >
+              <.icon name="hero-cog-6-tooth" class="size-5 text-base-content/60" />
+              <span>{gettext("Account settings")}</span>
+            </.link>
+          </li>
+          <li>
+            <.link
+              href={~p"/users/log-out"}
+              method="delete"
+              class="flex items-center gap-3 px-4 py-4 active:bg-error/10 text-error"
+            >
+              <.icon name="hero-arrow-left-on-rectangle" class="size-5" />
+              <span>{gettext("Log out")}</span>
+            </.link>
+          </li>
+        </ul>
+        <button
+          type="button"
+          phx-click={JS.hide(to: "#mobile-more-sheet")}
+          class="w-full py-3 text-sm text-base-content/60 border-t border-base-200"
+        >
+          {gettext("Close")}
+        </button>
+      </div>
+    </div>
     """
   end
 

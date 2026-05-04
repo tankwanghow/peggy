@@ -17,9 +17,10 @@ config :peggy, Peggy.Repo,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :peggy, PeggyWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}],
+  # Bound to all interfaces so devices on the same LAN (e.g. a phone on
+  # the same hotspot) can reach the dev server. Dev only — never use
+  # this in prod.
+  http: [ip: {0, 0, 0, 0}],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

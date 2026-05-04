@@ -89,6 +89,14 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/breeding/close-services", FarmLive.BatchCloseServices, :show
       live "/farms/:farm_slug/reports", FarmLive.Reports, :index
       live "/farms/:farm_slug/audit", FarmLive.Audit, :index
+
+      # Mobile (phone) UI — scaffold. Same auth + farm scope as desktop.
+      live "/m/:farm_slug", MobileLive.Dashboard, :show
+      live "/m/:farm_slug/locations", MobileLive.Locations, :index
+      live "/m/:farm_slug/animals", MobileLive.Animals, :index
+      live "/m/:farm_slug/animals/:id", MobileLive.AnimalDetail, :show
+      live "/m/:farm_slug/breeding/gestating", MobileLive.Breeding.Gestating, :index
+      live "/m/:farm_slug/breeding/lactating", MobileLive.Breeding.Lactating, :index
     end
 
     post "/users/update-password", UserSessionController, :update_password

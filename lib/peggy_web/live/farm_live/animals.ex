@@ -45,12 +45,7 @@ defmodule PeggyWeb.FarmLive.Animals do
             type="select"
             label={gettext("Status")}
             class="select select-sm w-32"
-            options={[
-              {gettext("Present (any)"), "present"},
-              {gettext("Departed (any)"), "departed"},
-              {gettext("All"), ""}
-              | Enum.map(Animal.statuses(), &{String.capitalize(&1), &1})
-            ]}
+            options={status_options(@filter_stage)}
           />
           <.input
             name="pen_search"
@@ -382,11 +377,13 @@ defmodule PeggyWeb.FarmLive.Animals do
     # Status is always kept in the URL — an empty `status=` is the
     # explicit "All" choice, distinct from a missing param which
     # defaults to "present". Other filters drop when blank.
-    status = Map.get(params, "status", "present")
+    raw_status = Map.get(params, "status", "present")
+    new_stage = Map.get(params, "stage", "")
+    status = if valid_status_for_stage?(raw_status, new_stage), do: raw_status, else: "present"
 
     query =
       %{
-        "stage" => Map.get(params, "stage", ""),
+        "stage" => new_stage,
         "pen_search" => Map.get(params, "pen_search", ""),
         "min_age" => Map.get(params, "min_age", ""),
         "max_age" => Map.get(params, "max_age", ""),
@@ -789,6 +786,47 @@ defmodule PeggyWeb.FarmLive.Animals do
   end
 
   defp days_in_status(_, _), do: nil
+
+  # Status dropdown options shaped to the active stage filter:
+  #   - sow → breeding-relevant statuses + Serviceable / Breeding herd groupings
+  #   - boar → individual statuses only
+  #   - weaner/grower/finisher → batch-relevant statuses (active + departed)
+  #   - all stages → full set (today's behaviour)
+  # `Present`, `Departed`, and `All` are universal meta-groupings.
+  defp status_options(stage) do
+    base = [{gettext("Present (any)"), "present"}]
+
+    sow_groupings =
+      if stage == "sow" or stage == "" or is_nil(stage) do
+        [
+          {gettext("Serviceable"), "serviceable"},
+          {gettext("Breeding herd"), "breeding_herd"}
+        ]
+      else
+        []
+      end
+
+    tail = [
+      {gettext("Departed (any)"), "departed"},
+      {gettext("All"), ""}
+    ]
+
+    individual_statuses =
+      stage
+      |> Animal.statuses_for_stage()
+      |> Enum.map(&{String.capitalize(&1), &1})
+
+    base ++ sow_groupings ++ tail ++ individual_statuses
+  end
+
+  # When the stage filter changes, the previously selected status may
+  # no longer apply (e.g. switching sow → weaner with status=lactating).
+  # Reset to "present" in that case so the page doesn't render an empty
+  # list with a stale status sticking around.
+  defp valid_status_for_stage?(status, stage) do
+    status in [nil, "", "present", "departed", "serviceable", "breeding_herd", "saleable"] or
+      status in Animal.statuses_for_stage(stage)
+  end
 
   # The "Days in status" cell only ever fills for sows (see
   # days_in_status/2). When the stage filter is set to a non-sow stage

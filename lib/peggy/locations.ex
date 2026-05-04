@@ -44,6 +44,95 @@ defmodule Peggy.Locations do
     )
   end
 
+  @doc """
+  Resolve a "HOUSE-PEN" code (case-insensitive) to a single Pen, or
+  nil if no exact match. Used by the mobile UI to convert text input
+  into a pen_id without an autocomplete picker.
+  """
+  def find_pen_by_code(%Scope{farm: farm}, code) when is_binary(code) do
+    case String.split(String.upcase(String.trim(code)), "-", parts: 2) do
+      [house_code, pen_code]
+      when house_code != "" and pen_code != "" ->
+        Repo.one(
+          from p in Pen,
+            join: h in House,
+            on: h.id == p.house_id,
+            where:
+              p.farm_id == ^farm.id and p.status == "active" and
+                fragment("upper(?) = ?", h.code, ^house_code) and
+                fragment("upper(?) = ?", p.code, ^pen_code),
+            preload: [house: h]
+        )
+
+      _ ->
+        nil
+    end
+  end
+
+  def find_pen_by_code(_scope, _), do: nil
+
+  @doc """
+  Returns each active pen with its current animal occupancy:
+
+      [%{pen: pen, individuals: n, batch_quantity: n, total: n}, ...]
+
+  `individuals` counts present-status individual animals whose
+  `current_pen_id` is the pen. `batch_quantity` sums active
+  `placements.quantity` for present-status batch animals in that pen.
+  Used by the mobile locations browser to show "what's in pen X?"
+  without N+1 queries.
+  """
+  def pen_summary(%Scope{farm: farm} = scope) do
+    pens = list_all_pens(scope)
+    pen_ids = Enum.map(pens, & &1.id)
+
+    indiv_map = individual_counts(farm, pen_ids)
+    batch_map = batch_quantities(farm, pen_ids)
+
+    Enum.map(pens, fn pen ->
+      i = Map.get(indiv_map, pen.id, 0)
+      b = Map.get(batch_map, pen.id, 0)
+      %{pen: pen, individuals: i, batch_quantity: b, total: i + b}
+    end)
+  end
+
+  defp individual_counts(_farm, []), do: %{}
+
+  defp individual_counts(farm, pen_ids) do
+    present_statuses = Peggy.Animals.Animal.present_statuses()
+
+    Repo.all(
+      from a in Peggy.Animals.Animal,
+        where:
+          a.farm_id == ^farm.id and
+            a.tracking_type == "individual" and
+            a.status in ^present_statuses and
+            a.current_pen_id in ^pen_ids,
+        group_by: a.current_pen_id,
+        select: {a.current_pen_id, count(a.id)}
+    )
+    |> Map.new()
+  end
+
+  defp batch_quantities(_farm, []), do: %{}
+
+  defp batch_quantities(farm, pen_ids) do
+    Repo.all(
+      from p in Peggy.Animals.Placement,
+        join: a in Peggy.Animals.Animal,
+        on: a.id == p.animal_id,
+        where:
+          a.farm_id == ^farm.id and
+            a.tracking_type == "batch" and
+            a.status == "active" and
+            is_nil(p.removed_at) and
+            p.pen_id in ^pen_ids,
+        group_by: p.pen_id,
+        select: {p.pen_id, sum(p.quantity)}
+    )
+    |> Map.new(fn {id, sum} -> {id, sum || 0} end)
+  end
+
   def change_house(%House{} = h, attrs \\ %{}), do: House.changeset(h, attrs)
   def change_pen(%Pen{} = p, attrs \\ %{}), do: Pen.changeset(p, attrs)
 

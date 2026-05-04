@@ -1,0 +1,1264 @@
+defmodule PeggyWeb.MobileLive.Breeding.Gestating do
+  @moduledoc """
+  Mobile-first Gestating tab.
+
+  Designed for barn-floor use on a phone:
+    - card-per-sow with a colour-coded "days until farrow" headline
+    - sticky search bar with collapsible filter drawer (due window,
+      service type, pen, parity)
+    - bottom action sheet that swaps in place between Farrow / Close
+      service forms; destructive Delete service is intentionally
+      desktop-only.
+  """
+  use PeggyWeb, :live_view
+
+  alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
+  alias Peggy.Breeding.{Farrowing, Service}
+  alias PeggyWeb.FarmLive.Breeding.Shared
+
+  @per_page 25
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.mobile_app flash={@flash} current_scope={@current_scope} active={:breeding}>
+      <div>
+        <%!-- Sticky top bar --%>
+        <header class="sticky top-0 z-10 bg-base-100 border-b border-base-200 px-3 py-2">
+          <form phx-change="search" phx-submit="search" class="flex gap-2 items-center">
+            <input
+              type="search"
+              name="q"
+              value={@filters.q}
+              placeholder={gettext("Sow tag…")}
+              inputmode="numeric"
+              phx-debounce="300"
+              autocomplete="off"
+              class="input input-bordered input-lg flex-1 font-mono text-base"
+            />
+            <button
+              type="button"
+              phx-click="open_filters"
+              class="btn btn-ghost btn-square btn-lg relative"
+              aria-label={gettext("Filters")}
+            >
+              <.icon name="hero-funnel" class="size-6" />
+              <span
+                :if={active_filter_count(@filters) > 0}
+                class="absolute -top-1 -right-1 badge badge-sm badge-primary"
+              >
+                {active_filter_count(@filters)}
+              </span>
+            </button>
+            <button
+              :if={@can_record}
+              type="button"
+              phx-click="service_open"
+              class="btn btn-square btn-lg bg-pink-500 hover:bg-pink-600 border-pink-500 text-white"
+              aria-label={gettext("Record service")}
+            >
+              <.icon name="hero-heart" class="size-6" />
+            </button>
+          </form>
+        </header>
+
+        <%!-- Tab switch (Lactating / Gestating) — small dual link strip --%>
+        <nav class="px-3 pt-2 flex gap-2 text-xs">
+          <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
+            class="px-3 py-1 rounded-full bg-primary text-primary-content font-semibold"
+          >
+            {gettext("Gestating")}
+          </.link>
+          <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
+            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+          >
+            {gettext("Lactating")}
+          </.link>
+        </nav>
+
+        <%!-- Cards --%>
+        <ul id="gestating-cards" phx-update="stream" class="px-3 py-2 space-y-2">
+          <li
+            :for={{dom_id, e} <- @streams.gestating}
+            id={dom_id}
+            phx-click="open_actions"
+            phx-value-service-id={e.service.id}
+            class="p-4 rounded-xl border border-base-300 bg-base-100 shadow-sm
+                   active:bg-base-200 cursor-pointer touch-manipulation"
+          >
+            <div class="flex items-baseline justify-between">
+              <span class="font-mono font-bold text-xl">{e.service.sow.ear_tag}</span>
+              <span class="text-sm text-base-content/50">
+                {gettext("Parity")}
+                <span class="font-mono font-bold text-info ml-1">{e.parity}</span>
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2 text-sm text-base-content/70">
+              <.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
+              <span class="font-mono">{sow_pen_label(e.service.sow)}</span>
+              <span class="ml-auto text-base-content/50">
+                {gettext("Type")}
+                <span class="uppercase font-semibold ml-1">{e.service.service_type}</span>
+              </span>
+            </div>
+
+            <div class="mt-1 flex items-end justify-between gap-3">
+              <div>
+                <div class={[
+                  "text-xl font-mono font-bold leading-none",
+                  days_left_color(days_left(e, @today))
+                ]}>
+                  {days_left_display(days_left(e, @today))}
+                </div>
+                <div class="text-[10px] uppercase tracking-wide text-base-content/50 mt-1">
+                  {days_left_label(days_left(e, @today))}
+                </div>
+              </div>
+              <dl class="text-right text-xs leading-snug grid grid-cols-[auto_auto] gap-x-2 items-baseline">
+                <dt class="text-base-content/50">{gettext("Served")}</dt>
+                <dd class="font-mono text-base-content/70">{e.service.served_at}</dd>
+                <dt class="text-base-content/50">{gettext("Expected")}</dt>
+                <dd class="font-mono font-semibold">{e.expected_farrow_date}</dd>
+                <dt :if={e.service.boar} class="text-base-content/50">{gettext("Boar")}</dt>
+                <dd :if={e.service.boar} class="font-mono">{e.service.boar.ear_tag}</dd>
+              </dl>
+            </div>
+          </li>
+        </ul>
+
+        <p :if={@total == 0} class="px-4 py-8 text-center text-sm text-base-content/60">
+          {gettext("No gestating sows match the filters.")}
+        </p>
+
+        <.infinite_scroll
+          has_more={@has_more}
+          total={@total}
+          id="gestating-mobile-sentinel"
+        />
+
+        <%!-- Action sheet --%>
+        <div
+          :if={@action_sheet_for}
+          class="fixed inset-0 z-40 bg-black/40 flex items-end"
+          phx-click="close_actions"
+        >
+          <div
+            class="w-full bg-base-100 rounded-t-2xl pb-[env(safe-area-inset-bottom)]
+                   max-h-[90vh] overflow-y-auto"
+            phx-click="ignore_click"
+          >
+            <div class="flex justify-center pt-2 pb-1">
+              <div class="w-10 h-1 rounded-full bg-base-300"></div>
+            </div>
+
+            <div class="px-4 py-2 border-b border-base-200 flex items-center gap-3">
+              <button
+                :if={@sheet_mode != :menu}
+                phx-click="action_back"
+                class="btn btn-ghost btn-square btn-sm"
+                aria-label={gettext("Back")}
+              >
+                <.icon name="hero-chevron-left" class="size-5" />
+              </button>
+              <div class={["flex-1", @sheet_mode == :menu && "text-center"]}>
+                <div class="font-mono font-bold text-lg">{@sheet_sow_tag}</div>
+                <div :if={@sheet_service} class="text-xs text-base-content/60">
+                  {gettext("Expected")} {expected_for(@sheet_service)} · {days_left_label(
+                    days_left_for(@sheet_service, @today)
+                  )}
+                  {days_left_display(days_left_for(@sheet_service, @today))}
+                </div>
+              </div>
+            </div>
+
+            <%!-- Action menu --%>
+            <div
+              :if={@sheet_mode == :menu and @can_record}
+              class="grid grid-cols-2 gap-px bg-base-200"
+            >
+              <button
+                phx-click="action_farrow"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-success/10"
+              >
+                <.icon name="hero-sparkles" class="size-7 text-success" />
+                <span class="text-xs">{gettext("Farrow")}</span>
+              </button>
+              <button
+                phx-click="action_close"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-error/10"
+              >
+                <.icon name="hero-x-circle" class="size-7 text-error" />
+                <span class="text-xs">{gettext("Close service")}</span>
+              </button>
+            </div>
+
+            <p
+              :if={@sheet_mode == :menu and not @can_record}
+              class="px-4 py-6 text-center text-sm text-base-content/60"
+            >
+              {gettext("View-only — you don't have permission to record breeding.")}
+            </p>
+
+            <%!-- Farrow form --%>
+            <.form
+              :let={f}
+              :if={@sheet_mode == :farrow and @farrow_form}
+              for={@farrow_form}
+              phx-change="validate_farrow"
+              phx-submit="save_farrow"
+              class="px-4 py-3 space-y-4"
+            >
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Farrowed at")}</span>
+                <input
+                  type="date"
+                  name="farrowing[farrowed_at]"
+                  value={Phoenix.HTML.Form.input_value(f, :farrowed_at)}
+                  class="input input-bordered input-lg w-full mt-1"
+                />
+              </label>
+
+              <div class="grid grid-cols-3 gap-2">
+                <label class="block">
+                  <span class="text-xs uppercase text-base-content/60">
+                    {gettext("Born alive")}
+                  </span>
+                  <input
+                    type="number"
+                    name="farrowing[born_alive]"
+                    value={Phoenix.HTML.Form.input_value(f, :born_alive)}
+                    min="0"
+                    inputmode="numeric"
+                    class="input input-bordered input-lg w-full mt-1 text-2xl font-mono text-success"
+                  />
+                </label>
+                <label class="block">
+                  <span class="text-xs uppercase text-base-content/60">
+                    {gettext("Stillborn")}
+                  </span>
+                  <input
+                    type="number"
+                    name="farrowing[stillborn]"
+                    value={Phoenix.HTML.Form.input_value(f, :stillborn)}
+                    min="0"
+                    inputmode="numeric"
+                    class="input input-bordered input-lg w-full mt-1 text-2xl font-mono text-error"
+                  />
+                </label>
+                <label class="block">
+                  <span class="text-xs uppercase text-base-content/60">
+                    {gettext("Mummified")}
+                  </span>
+                  <input
+                    type="number"
+                    name="farrowing[mummified]"
+                    value={Phoenix.HTML.Form.input_value(f, :mummified)}
+                    min="0"
+                    inputmode="numeric"
+                    class="input input-bordered input-lg w-full mt-1 text-2xl font-mono text-warning"
+                  />
+                </label>
+              </div>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">
+                  {gettext("Notes (optional)")}
+                </span>
+                <textarea
+                  name="farrowing[notes]"
+                  rows="2"
+                  class="textarea textarea-bordered w-full mt-1"
+                >{Phoenix.HTML.Form.input_value(f, :notes)}</textarea>
+              </label>
+
+              <p :if={@farrow_error} class="text-sm text-error">{@farrow_error}</p>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" phx-click="action_back" class="btn btn-lg btn-ghost">
+                  {gettext("Cancel")}
+                </button>
+                <button
+                  type="submit"
+                  phx-disable-with={gettext("Saving…")}
+                  class="btn btn-lg btn-primary"
+                >
+                  {gettext("Record farrowing")}
+                </button>
+              </div>
+            </.form>
+
+            <%!-- Close service form --%>
+            <.form
+              :let={f}
+              :if={@sheet_mode == :close and @close_form}
+              for={@close_form}
+              phx-change="validate_close"
+              phx-submit="save_close"
+              class="px-4 py-3 space-y-4"
+            >
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Result")}</span>
+                <select
+                  name="service[result]"
+                  class="select select-bordered select-lg w-full mt-1"
+                >
+                  <option
+                    value="abortion"
+                    selected={Phoenix.HTML.Form.input_value(f, :result) == "abortion"}
+                  >
+                    {gettext("Abortion")}
+                  </option>
+                  <option
+                    value="death"
+                    selected={Phoenix.HTML.Form.input_value(f, :result) == "death"}
+                  >
+                    {gettext("Death")}
+                  </option>
+                  <option value="cull" selected={Phoenix.HTML.Form.input_value(f, :result) == "cull"}>
+                    {gettext("Cull")}
+                  </option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Date")}</span>
+                <input
+                  type="date"
+                  name="service[result_at]"
+                  value={Phoenix.HTML.Form.input_value(f, :result_at)}
+                  class="input input-bordered input-lg w-full mt-1"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">
+                  {gettext("Notes (optional)")}
+                </span>
+                <textarea
+                  name="service[result_notes]"
+                  rows="2"
+                  class="textarea textarea-bordered w-full mt-1"
+                >{Phoenix.HTML.Form.input_value(f, :result_notes)}</textarea>
+              </label>
+
+              <p :if={@close_error} class="text-sm text-error">{@close_error}</p>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" phx-click="action_back" class="btn btn-lg btn-ghost">
+                  {gettext("Cancel")}
+                </button>
+                <button
+                  type="submit"
+                  phx-disable-with={gettext("Closing…")}
+                  class="btn btn-lg btn-error"
+                >
+                  {gettext("Close service")}
+                </button>
+              </div>
+            </.form>
+
+            <button
+              :if={@sheet_mode == :menu}
+              phx-click="close_actions"
+              class="w-full py-3 text-sm text-base-content/60 border-t border-base-200"
+            >
+              {gettext("Close")}
+            </button>
+          </div>
+        </div>
+
+        <%!-- Filter drawer --%>
+        <div
+          :if={@filter_drawer_open}
+          class="fixed inset-0 z-40 bg-black/40 flex justify-end"
+          phx-click="close_filters"
+        >
+          <aside
+            class="w-80 max-w-[85vw] h-full bg-base-100 shadow-xl overflow-y-auto
+                   pb-[env(safe-area-inset-bottom)] flex flex-col"
+            phx-click="ignore_click"
+          >
+            <header class="px-4 py-3 border-b border-base-200 flex items-center justify-between">
+              <h2 class="font-semibold">{gettext("Filters")}</h2>
+              <button
+                phx-click="close_filters"
+                class="btn btn-ghost btn-square btn-sm"
+                aria-label={gettext("Close")}
+              >
+                <.icon name="hero-x-mark" class="size-5" />
+              </button>
+            </header>
+            <form phx-change="filter" phx-submit="filter" class="p-4 space-y-4 flex-1">
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Due window")}</span>
+                <select name="window" class="select select-bordered select-lg w-full mt-1">
+                  <option value="all" selected={@filters.window == "all"}>{gettext("All")}</option>
+                  <option value="7" selected={@filters.window == "7"}>{gettext("≤ 7 days")}</option>
+                  <option value="14" selected={@filters.window == "14"}>
+                    {gettext("≤ 14 days")}
+                  </option>
+                  <option value="overdue" selected={@filters.window == "overdue"}>
+                    {gettext("Overdue")}
+                  </option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Service type")}</span>
+                <select name="service_type" class="select select-bordered select-lg w-full mt-1">
+                  <option value="all" selected={@filters.service_type == "all"}>
+                    {gettext("All")}
+                  </option>
+                  <option value="ai" selected={@filters.service_type == "ai"}>{gettext("AI")}</option>
+                  <option value="natural" selected={@filters.service_type == "natural"}>
+                    {gettext("Natural")}
+                  </option>
+                </select>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Pen")}</span>
+                <input
+                  type="text"
+                  name="pen_search"
+                  value={@filters.pen_search}
+                  placeholder="H-P"
+                  phx-debounce="300"
+                  class="input input-bordered input-lg w-full font-mono mt-1"
+                />
+              </label>
+
+              <div class="grid grid-cols-2 gap-3">
+                <label class="block">
+                  <span class="text-xs uppercase text-base-content/60">{gettext("Min parity")}</span>
+                  <input
+                    type="number"
+                    name="min_parity"
+                    value={@filters.min_parity}
+                    min="0"
+                    inputmode="numeric"
+                    class="input input-bordered input-lg w-full mt-1"
+                  />
+                </label>
+                <label class="block">
+                  <span class="text-xs uppercase text-base-content/60">{gettext("Max parity")}</span>
+                  <input
+                    type="number"
+                    name="max_parity"
+                    value={@filters.max_parity}
+                    min="0"
+                    inputmode="numeric"
+                    class="input input-bordered input-lg w-full mt-1"
+                  />
+                </label>
+              </div>
+            </form>
+            <footer
+              :if={active_filter_count(@filters) > 0}
+              class="px-4 py-3 border-t border-base-200"
+            >
+              <button phx-click="reset_filters" class="btn btn-ghost w-full">
+                {gettext("Reset filters")}
+              </button>
+            </footer>
+          </aside>
+        </div>
+
+        <%!-- Service sheet --%>
+        <div
+          :if={@service_open}
+          class="fixed inset-0 z-40 bg-black/40 flex items-end"
+          phx-click="service_close"
+        >
+          <form
+            phx-change="service_validate"
+            phx-submit="service_save"
+            phx-click="ignore_click"
+            class="w-full bg-base-100 rounded-t-2xl pb-[env(safe-area-inset-bottom)]
+                   max-h-[90vh] overflow-y-auto"
+          >
+            <div class="flex justify-center pt-2 pb-1">
+              <div class="w-10 h-1 rounded-full bg-base-300"></div>
+            </div>
+            <div class="px-4 py-2 border-b border-base-200 text-center">
+              <div class="font-semibold">{gettext("Record service")}</div>
+            </div>
+
+            <div class="px-4 py-4 space-y-3">
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Sow ear tag")}</span>
+                <input
+                  type="text"
+                  name="sow_tag"
+                  value={@service_sow_tag}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  spellcheck="false"
+                  class={[
+                    "input input-bordered input-lg w-full mt-1 font-mono",
+                    @service_sow_state == :existing && "border-success focus:border-success",
+                    @service_sow_state in [:not_found, :not_serviceable] &&
+                      "border-error focus:border-error"
+                  ]}
+                />
+                <span class={[
+                  "text-xs mt-1 block",
+                  @service_sow_state == :existing && "text-success",
+                  @service_sow_state in [:not_found, :not_serviceable] && "text-error",
+                  @service_sow_state == :empty && "text-base-content/50"
+                ]}>
+                  {service_sow_state_text(@service_sow_state, @service_sow_status)}
+                </span>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Service type")}</span>
+                <select
+                  name="service_type"
+                  class="select select-bordered select-lg w-full mt-1"
+                >
+                  <option value="ai" selected={@service_type == "ai"}>{gettext("AI")}</option>
+                  <option value="natural" selected={@service_type == "natural"}>
+                    {gettext("Natural")}
+                  </option>
+                </select>
+              </label>
+
+              <label :if={@service_type == "natural"} class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Boar ear tag")}</span>
+                <input
+                  type="text"
+                  name="boar_tag"
+                  value={@service_boar_tag}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  class={[
+                    "input input-bordered input-lg w-full mt-1 font-mono",
+                    @service_boar_state == :resolved && "border-success focus:border-success",
+                    @service_boar_state == :not_found && "border-error focus:border-error"
+                  ]}
+                />
+                <span class={[
+                  "text-xs mt-1 block",
+                  @service_boar_state == :resolved && "text-success",
+                  @service_boar_state == :not_found && "text-error",
+                  @service_boar_state == :empty && "text-base-content/50"
+                ]}>
+                  {service_boar_state_text(@service_boar_state)}
+                </span>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Served at")}</span>
+                <input
+                  type="date"
+                  name="served_at"
+                  value={@service_served_at}
+                  class="input input-bordered input-lg w-full mt-1"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">
+                  {gettext("Pen (HOUSE-PEN, optional)")}
+                </span>
+                <input
+                  type="text"
+                  name="pen_code"
+                  value={@service_pen_code}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  placeholder="EB-12"
+                  class={[
+                    "input input-bordered input-lg w-full mt-1 font-mono",
+                    @service_pen_state == :resolved && "border-success focus:border-success",
+                    @service_pen_state == :not_found && "border-error focus:border-error"
+                  ]}
+                />
+                <span class={[
+                  "text-xs mt-1 block",
+                  @service_pen_state == :resolved && "text-success",
+                  @service_pen_state == :not_found && "text-error",
+                  @service_pen_state == :empty && "text-base-content/50"
+                ]}>
+                  {gestating_pen_state_text(@service_pen_state)}
+                </span>
+              </label>
+
+              <p :if={@service_error} class="text-sm text-error">{@service_error}</p>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" phx-click="service_close" class="btn btn-lg btn-ghost">
+                  {gettext("Cancel")}
+                </button>
+                <button
+                  type="submit"
+                  phx-disable-with={gettext("Saving…")}
+                  disabled={not service_save_enabled?(assigns)}
+                  class="btn btn-lg btn-primary"
+                >
+                  {gettext("Save service")}
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Layouts.mobile_app>
+    """
+  end
+
+  # ── Mount ──────────────────────────────────────────────────────────
+
+  @impl true
+  def mount(_params, _session, socket) do
+    scope = socket.assigns.current_scope
+
+    {:ok,
+     socket
+     |> assign(
+       can_record: Policy.can?(scope, :record_breeding),
+       today: FarmClock.today(scope),
+       per_page: @per_page,
+       filter_drawer_open: false,
+       action_sheet_for: nil,
+       sheet_mode: :menu,
+       sheet_service: nil,
+       sheet_sow_tag: nil,
+       farrow_form: nil,
+       farrow_error: nil,
+       close_form: nil,
+       close_error: nil,
+       service_open: false,
+       service_sow_tag: "",
+       service_sow_state: :empty,
+       service_sow_status: nil,
+       service_sow_id: nil,
+       service_boar_tag: "",
+       service_boar_state: :empty,
+       service_boar_id: nil,
+       service_type: "ai",
+       service_served_at: to_string(FarmClock.today(scope)),
+       service_pen_code: "",
+       service_pen_state: :empty,
+       service_pen_id: nil,
+       service_error: nil
+     )
+     |> stream_configure(:gestating, dom_id: &"service-#{&1.service.id}")
+     |> stream(:gestating, [])}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    filters = %{
+      q: params["q"] || "",
+      window: Shared.param_window(params["window"]),
+      service_type: Shared.param_service_type(params["service_type"]),
+      pen_search: params["pen_search"] || "",
+      min_parity: params["min_parity"] || "",
+      max_parity: params["max_parity"] || ""
+    }
+
+    {:noreply,
+     socket
+     |> assign(filters: filters, page: 1)
+     |> load_rows()}
+  end
+
+  # ── Events ─────────────────────────────────────────────────────────
+
+  @impl true
+  def handle_event("search", %{"q" => q}, socket),
+    do: {:noreply, push_patch_filters(socket, %{"q" => q})}
+
+  def handle_event("filter", params, socket) do
+    {:noreply,
+     push_patch_filters(socket, %{
+       "window" => params["window"] || "all",
+       "service_type" => params["service_type"] || "all",
+       "pen_search" => params["pen_search"] || "",
+       "min_parity" => params["min_parity"] || "",
+       "max_parity" => params["max_parity"] || ""
+     })}
+  end
+
+  def handle_event("reset_filters", _, socket) do
+    {:noreply,
+     push_patch(socket,
+       to: ~p"/m/#{socket.assigns.current_scope.farm.slug}/breeding/gestating"
+     )}
+  end
+
+  def handle_event("open_filters", _, socket),
+    do: {:noreply, assign(socket, :filter_drawer_open, true)}
+
+  def handle_event("close_filters", _, socket),
+    do: {:noreply, assign(socket, :filter_drawer_open, false)}
+
+  def handle_event("ignore_click", _, socket), do: {:noreply, socket}
+
+  def handle_event("open_actions", %{"service-id" => id}, socket) do
+    scope = socket.assigns.current_scope
+
+    service =
+      Breeding.get_service!(scope, String.to_integer(id))
+      |> Peggy.Repo.preload([:boar, :sow])
+
+    {:noreply,
+     socket
+     |> reset_sheet_state()
+     |> assign(
+       action_sheet_for: service.id,
+       sheet_mode: :menu,
+       sheet_service: service,
+       sheet_sow_tag: service.sow.ear_tag
+     )}
+  end
+
+  def handle_event("close_actions", _, socket), do: {:noreply, reset_sheet(socket)}
+
+  def handle_event("action_back", _, socket) do
+    {:noreply,
+     socket
+     |> reset_sheet_state()
+     |> assign(sheet_mode: :menu)}
+  end
+
+  # Farrow
+
+  def handle_event("action_farrow", _, socket) do
+    today = socket.assigns.today
+
+    cs =
+      Breeding.change_farrowing(%Farrowing{
+        farrowed_at: today,
+        born_alive: 0,
+        stillborn: 0,
+        mummified: 0
+      })
+
+    {:noreply,
+     assign(socket,
+       sheet_mode: :farrow,
+       farrow_form: to_form(cs, as: :farrowing),
+       farrow_error: nil
+     )}
+  end
+
+  def handle_event("validate_farrow", %{"farrowing" => params}, socket) do
+    cs =
+      Breeding.change_farrowing(%Farrowing{}, params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, farrow_form: to_form(cs, as: :farrowing), farrow_error: nil)}
+  end
+
+  def handle_event("save_farrow", %{"farrowing" => params}, socket) do
+    if socket.assigns.can_record do
+      service = socket.assigns.sheet_service
+
+      case Breeding.record_farrowing(socket.assigns.current_scope, service, params) do
+        {:ok, _farrowing} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:info, gettext("Farrowing recorded."))}
+
+        {:error, :service_already_closed} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:error, gettext("Service is already closed."))}
+
+        {:error, :sow_not_served} ->
+          {:noreply,
+           assign(socket,
+             farrow_error: gettext("Sow status must be served to record farrowing.")
+           )}
+
+        {:error, :gestation_out_of_range} ->
+          {:noreply,
+           assign(socket,
+             farrow_error:
+               gettext("Farrowed date must be within 3 days of the 114-day gestation.")
+           )}
+
+        {:error, %Ecto.Changeset{} = cs} ->
+          {:noreply, assign(socket, farrow_form: to_form(cs, as: :farrowing))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  # Close service
+
+  def handle_event("action_close", _, socket) do
+    today = socket.assigns.today
+    service = socket.assigns.sheet_service
+
+    cs =
+      Service.close_changeset(service, %{"result" => "abortion", "result_at" => today})
+      |> Map.put(:action, nil)
+
+    {:noreply,
+     assign(socket,
+       sheet_mode: :close,
+       close_form: to_form(cs, as: :service),
+       close_error: nil
+     )}
+  end
+
+  def handle_event("validate_close", %{"service" => params}, socket) do
+    cs =
+      Service.close_changeset(socket.assigns.sheet_service, params)
+      |> Map.put(:action, :validate)
+
+    {:noreply, assign(socket, close_form: to_form(cs, as: :service), close_error: nil)}
+  end
+
+  def handle_event("save_close", %{"service" => params}, socket) do
+    if socket.assigns.can_record do
+      service = socket.assigns.sheet_service
+      result = Map.get(params, "result")
+
+      case Breeding.close_service(socket.assigns.current_scope, service, result, params) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:info, gettext("Service closed."))}
+
+        {:error, :already_closed} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:error, gettext("Service is already closed."))}
+
+        {:error, %Ecto.Changeset{} = cs} ->
+          {:noreply, assign(socket, close_form: to_form(cs, as: :service))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("load_more", _, socket) do
+    {:noreply, append_rows(socket)}
+  end
+
+  # ── Record service ──
+
+  def handle_event("service_open", _, socket) do
+    if socket.assigns.can_record do
+      {:noreply,
+       assign(socket,
+         service_open: true,
+         service_sow_tag: "",
+         service_sow_state: :empty,
+         service_sow_status: nil,
+         service_sow_id: nil,
+         service_boar_tag: "",
+         service_boar_state: :empty,
+         service_boar_id: nil,
+         service_type: "ai",
+         service_served_at: to_string(socket.assigns.today),
+         service_pen_code: "",
+         service_pen_state: :empty,
+         service_pen_id: nil,
+         service_error: nil
+       )}
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("service_close", _, socket), do: {:noreply, reset_service(socket)}
+
+  def handle_event("service_validate", params, socket) do
+    socket
+    |> assign(
+      service_type: Map.get(params, "service_type", socket.assigns.service_type),
+      service_served_at: Map.get(params, "served_at", socket.assigns.service_served_at),
+      service_error: nil
+    )
+    |> resolve_service_sow(params["sow_tag"])
+    |> resolve_service_boar(params["boar_tag"])
+    |> resolve_service_pen(params["pen_code"])
+    |> then(&{:noreply, &1})
+  end
+
+  def handle_event("service_save", params, socket) do
+    if socket.assigns.can_record do
+      socket =
+        socket
+        |> resolve_service_sow(params["sow_tag"])
+        |> resolve_service_boar(params["boar_tag"])
+        |> resolve_service_pen(params["pen_code"])
+
+      cond do
+        socket.assigns.service_sow_state != :existing ->
+          {:noreply,
+           assign(socket,
+             service_error: gettext("Pick a serviceable sow before saving.")
+           )}
+
+        socket.assigns.service_type == "natural" and is_nil(socket.assigns.service_boar_id) ->
+          {:noreply,
+           assign(socket,
+             service_error: gettext("Boar tag is required for natural service.")
+           )}
+
+        true ->
+          attrs =
+            %{
+              "sow_id" => socket.assigns.service_sow_id,
+              "service_type" => socket.assigns.service_type,
+              "served_at" => params["served_at"]
+            }
+            |> maybe_put("boar_id", socket.assigns.service_boar_id)
+            |> maybe_put("pen_id", socket.assigns.service_pen_id)
+
+          case Breeding.record_service_with_backfill(socket.assigns.current_scope, attrs) do
+            {:ok, _} ->
+              {:noreply,
+               socket
+               |> reset_service()
+               |> load_rows()
+               |> put_flash(:info, gettext("Service recorded."))}
+
+            {:error, %Ecto.Changeset{} = cs} ->
+              {:noreply, assign(socket, service_error: Shared.format_cs_error(cs))}
+
+            {:error, reason} ->
+              {:noreply, assign(socket, service_error: humanize(reason))}
+          end
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  # ── Helpers ────────────────────────────────────────────────────────
+
+  defp push_patch_filters(socket, overrides) do
+    base = current_filter_query(socket)
+    merged = Map.merge(base, overrides) |> prune_filter_query()
+    slug = socket.assigns.current_scope.farm.slug
+
+    path =
+      case merged do
+        m when map_size(m) == 0 -> ~p"/m/#{slug}/breeding/gestating"
+        m -> ~p"/m/#{slug}/breeding/gestating?#{m}"
+      end
+
+    push_patch(socket, to: path)
+  end
+
+  defp current_filter_query(%{assigns: %{filters: f}}) do
+    %{
+      "q" => f.q,
+      "window" => f.window,
+      "service_type" => f.service_type,
+      "pen_search" => f.pen_search,
+      "min_parity" => f.min_parity,
+      "max_parity" => f.max_parity
+    }
+  end
+
+  defp prune_filter_query(q) do
+    q
+    |> Enum.reject(fn
+      {_k, ""} -> true
+      {_k, nil} -> true
+      {"window", "all"} -> true
+      {"service_type", "all"} -> true
+      _ -> false
+    end)
+    |> Map.new()
+  end
+
+  defp active_filter_count(f) do
+    [
+      f.window != "all",
+      f.service_type != "all",
+      f.pen_search != "",
+      f.min_parity != "",
+      f.max_parity != ""
+    ]
+    |> Enum.count(& &1)
+  end
+
+  defp load_rows(socket) do
+    scope = socket.assigns.current_scope
+    f = socket.assigns.filters
+
+    opts = [
+      search: f.q,
+      due_window: f.window,
+      service_type: f.service_type,
+      pen_search: blank_to_nil(f.pen_search),
+      min_parity: blank_to_nil(f.min_parity),
+      max_parity: blank_to_nil(f.max_parity),
+      limit: @per_page,
+      offset: 0
+    ]
+
+    rows = Breeding.list_gestating_sows(scope, opts) |> attach_parity(scope)
+    total = Breeding.count_gestating_sows(scope, opts)
+
+    socket
+    |> assign(total: total, page: 1, has_more: length(rows) < total)
+    |> stream(:gestating, rows, reset: true)
+  end
+
+  defp append_rows(socket) do
+    scope = socket.assigns.current_scope
+    f = socket.assigns.filters
+    next_page = socket.assigns.page + 1
+
+    opts = [
+      search: f.q,
+      due_window: f.window,
+      service_type: f.service_type,
+      pen_search: blank_to_nil(f.pen_search),
+      min_parity: blank_to_nil(f.min_parity),
+      max_parity: blank_to_nil(f.max_parity),
+      limit: @per_page,
+      offset: (next_page - 1) * @per_page
+    ]
+
+    rows = Breeding.list_gestating_sows(scope, opts) |> attach_parity(scope)
+    loaded = next_page * @per_page
+
+    socket =
+      Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :gestating, row) end)
+
+    assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
+  end
+
+  defp attach_parity(rows, scope) do
+    sow_ids = Enum.map(rows, & &1.service.sow_id)
+    parities = Breeding.parities_for(scope, sow_ids)
+    Enum.map(rows, &Map.put(&1, :parity, Map.get(parities, &1.service.sow_id, 0)))
+  end
+
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(v), do: v
+
+  defp reset_sheet(socket) do
+    socket
+    |> reset_sheet_state()
+    |> assign(
+      action_sheet_for: nil,
+      sheet_mode: :menu,
+      sheet_service: nil,
+      sheet_sow_tag: nil
+    )
+  end
+
+  defp reset_sheet_state(socket) do
+    assign(socket,
+      farrow_form: nil,
+      farrow_error: nil,
+      close_form: nil,
+      close_error: nil
+    )
+  end
+
+  defp days_left(%{expected_farrow_date: efd}, today), do: Date.diff(efd, today)
+
+  defp days_left_for(service, today) do
+    Date.diff(Breeding.expected_farrow_date(service), today)
+  end
+
+  defp expected_for(service), do: Breeding.expected_farrow_date(service)
+
+  # Headline number is signed: positive = days remaining, negative = overdue.
+  defp days_left_display(d) when d >= 0, do: "#{d}d"
+  defp days_left_display(d), do: "#{d}d"
+
+  defp days_left_label(d) when d <= 0, do: gettext("Overdue")
+  defp days_left_label(d) when d <= 7, do: gettext("Due in")
+  defp days_left_label(_), do: gettext("Due in")
+
+  defp days_left_color(d) when d <= 0, do: "text-error"
+  defp days_left_color(d) when d <= 7, do: "text-warning"
+  defp days_left_color(d) when d <= 14, do: "text-info"
+  defp days_left_color(_), do: "text-success"
+
+  defp sow_pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}),
+    do: "#{hcode}-#{code}"
+
+  defp sow_pen_label(%{current_pen: %{code: code}}), do: code
+  defp sow_pen_label(_), do: "—"
+
+  # ── Service sheet helpers ──
+
+  @serviceable_statuses ~w(active open dry served)
+
+  defp reset_service(socket) do
+    assign(socket,
+      service_open: false,
+      service_sow_tag: "",
+      service_sow_state: :empty,
+      service_sow_status: nil,
+      service_sow_id: nil,
+      service_boar_tag: "",
+      service_boar_state: :empty,
+      service_boar_id: nil,
+      service_type: "ai",
+      service_served_at: to_string(socket.assigns.today),
+      service_pen_code: "",
+      service_pen_state: :empty,
+      service_pen_id: nil,
+      service_error: nil
+    )
+  end
+
+  defp resolve_service_sow(socket, nil), do: resolve_service_sow(socket, "")
+
+  defp resolve_service_sow(socket, tag) when is_binary(tag) do
+    tag = String.trim(tag)
+
+    cond do
+      tag == "" ->
+        assign(socket,
+          service_sow_tag: "",
+          service_sow_state: :empty,
+          service_sow_status: nil,
+          service_sow_id: nil
+        )
+
+      true ->
+        case Animals.find_by_ear_tag(socket.assigns.current_scope, tag) do
+          nil ->
+            assign(socket,
+              service_sow_tag: tag,
+              service_sow_state: :not_found,
+              service_sow_status: nil,
+              service_sow_id: nil
+            )
+
+          %{status: status} = sow when status in @serviceable_statuses ->
+            assign(socket,
+              service_sow_tag: tag,
+              service_sow_state: :existing,
+              service_sow_status: status,
+              service_sow_id: sow.id
+            )
+
+          %{status: status} ->
+            assign(socket,
+              service_sow_tag: tag,
+              service_sow_state: :not_serviceable,
+              service_sow_status: status,
+              service_sow_id: nil
+            )
+        end
+    end
+  end
+
+  defp resolve_service_boar(socket, nil), do: resolve_service_boar(socket, "")
+
+  defp resolve_service_boar(socket, tag) when is_binary(tag) do
+    tag = String.trim(tag)
+
+    cond do
+      tag == "" ->
+        assign(socket,
+          service_boar_tag: "",
+          service_boar_state: :empty,
+          service_boar_id: nil
+        )
+
+      true ->
+        case Animals.find_by_ear_tag(socket.assigns.current_scope, tag) do
+          %{stage: "boar", id: id} ->
+            assign(socket,
+              service_boar_tag: tag,
+              service_boar_state: :resolved,
+              service_boar_id: id
+            )
+
+          _ ->
+            assign(socket,
+              service_boar_tag: tag,
+              service_boar_state: :not_found,
+              service_boar_id: nil
+            )
+        end
+    end
+  end
+
+  defp resolve_service_pen(socket, nil), do: resolve_service_pen(socket, "")
+
+  defp resolve_service_pen(socket, code) when is_binary(code) do
+    code = String.trim(code)
+
+    cond do
+      code == "" ->
+        assign(socket,
+          service_pen_code: "",
+          service_pen_state: :empty,
+          service_pen_id: nil
+        )
+
+      true ->
+        case Locations.find_pen_by_code(socket.assigns.current_scope, code) do
+          nil ->
+            assign(socket,
+              service_pen_code: code,
+              service_pen_state: :not_found,
+              service_pen_id: nil
+            )
+
+          pen ->
+            assign(socket,
+              service_pen_code: code,
+              service_pen_state: :resolved,
+              service_pen_id: pen.id
+            )
+        end
+    end
+  end
+
+  defp service_save_enabled?(%{
+         service_sow_state: :existing,
+         service_type: type,
+         service_boar_id: bid
+       }) do
+    type != "natural" or not is_nil(bid)
+  end
+
+  defp service_save_enabled?(_), do: false
+
+  defp service_sow_state_text(:existing, _), do: "✓ Serviceable sow"
+  defp service_sow_state_text(:not_serviceable, status), do: "✗ Sow status: #{status}"
+  defp service_sow_state_text(:not_found, _), do: "⚠ No sow with that tag"
+  defp service_sow_state_text(_, _), do: "Type the sow's ear tag"
+
+  defp service_boar_state_text(:resolved), do: "✓"
+  defp service_boar_state_text(:not_found), do: "⚠ No boar with that tag"
+  defp service_boar_state_text(_), do: "Type the boar's ear tag"
+
+  defp gestating_pen_state_text(:resolved), do: "✓"
+  defp gestating_pen_state_text(:not_found), do: "⚠ No active pen with that code"
+  defp gestating_pen_state_text(_), do: "Optional — moves the sow to this pen"
+
+  defp maybe_put(map, _key, nil), do: map
+  defp maybe_put(map, key, value), do: Map.put(map, key, value)
+
+  defp humanize(reason) when is_atom(reason),
+    do: reason |> Atom.to_string() |> String.replace("_", " ")
+
+  defp humanize(reason), do: inspect(reason)
+end
