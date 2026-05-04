@@ -44,6 +44,8 @@ defmodule Peggy.Policy do
   defp allowed?(:worker, :read_breeding), do: true
   defp allowed?(:worker, :view_reports), do: true
   defp allowed?(:worker, :record_data), do: true
+  defp allowed?(:worker, :view_tasks), do: true
+  defp allowed?(:worker, :manage_tasks), do: true
   defp allowed?(:worker, _), do: false
 
   # Vet: read + write treatments/vaccinations only.

@@ -7,16 +7,14 @@ defmodule Peggy.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      PeggyWeb.Telemetry,
-      Peggy.Repo,
-      {DNSCluster, query: Application.get_env(:peggy, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: Peggy.PubSub},
-      # Start a worker by calling: Peggy.Worker.start_link(arg)
-      # {Peggy.Worker, arg},
-      # Start to serve requests, typically the last entry
-      PeggyWeb.Endpoint
-    ]
+    children =
+      [
+        PeggyWeb.Telemetry,
+        Peggy.Repo,
+        {DNSCluster, query: Application.get_env(:peggy, :dns_cluster_query) || :ignore},
+        {Phoenix.PubSub, name: Peggy.PubSub},
+        PeggyWeb.Endpoint
+      ] ++ scheduler_child()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -30,5 +28,15 @@ defmodule Peggy.Application do
   def config_change(changed, _new, removed) do
     PeggyWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  # Hourly task scheduler. Disabled in test (controlled by config) so
+  # tests don't fire timers and create stray rows.
+  defp scheduler_child do
+    if Application.get_env(:peggy, :start_scheduler, true) do
+      [Peggy.Scheduler]
+    else
+      []
+    end
   end
 end

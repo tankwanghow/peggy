@@ -22,6 +22,7 @@ defmodule PeggyWeb.Plugs.AutoRouteByDevice do
     "",
     "/animals",
     "/locations",
+    "/tasks",
     "/breeding/gestating",
     "/breeding/lactating"
   ]

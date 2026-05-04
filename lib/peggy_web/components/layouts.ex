@@ -264,6 +264,15 @@ defmodule PeggyWeb.Layouts do
         <ul class="divide-y divide-base-200">
           <li :if={@current_scope && @current_scope.farm}>
             <.link
+              navigate={~p"/m/#{@current_scope.farm.slug}/tasks"}
+              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
+            >
+              <.icon name="hero-check-circle" class="size-5 text-base-content/60" />
+              <span>{gettext("Tasks")}</span>
+            </.link>
+          </li>
+          <li :if={@current_scope && @current_scope.farm}>
+            <.link
               navigate={~p"/m/#{@current_scope.farm.slug}/locations"}
               class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
             >
@@ -561,6 +570,12 @@ defmodule PeggyWeb.Layouts do
           href={~p"/farms/#{@current_scope.farm.slug}/reports"}
           icon="hero-chart-bar-micro"
           label={gettext("Reports")}
+        />
+        <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :view_tasks)}
+          href={~p"/farms/#{@current_scope.farm.slug}/tasks"}
+          icon="hero-check-circle-micro"
+          label={gettext("Tasks")}
         />
         <.farm_nav_link
           :if={Peggy.Policy.can?(@current_scope, :view_audit)}

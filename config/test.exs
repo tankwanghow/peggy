@@ -3,6 +3,10 @@ import Config
 # Only in tests, remove the complexity from the password hashing algorithm
 config :bcrypt_elixir, :log_rounds, 1
 
+# Tasks scheduler is opt-in for tests; enable per-test via
+# `Application.put_env/3` if you need to exercise tick/0.
+config :peggy, :start_scheduler, false
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used
