@@ -298,6 +298,141 @@ Dashboard answers "what needs my attention today" in one screen for an owner on 
 
 ---
 
+## Phase 8.5 — Legacy CSV importer (2–3 days)
+
+Owner-only admin page for migrating an existing herd + breeding
+history into a Peggy farm from another system's CSV export. Distinct
+from Phase 3's `HerdImport` LiveView (a spreadsheet-style onboarding
+grid) — this is a multi-file CSV upload + dry-run preview + commit
+flow.
+
+### Goals
+- Import five CSV files in one run (locations, sows, services,
+  farrowings, weanings) without writing a single migration script per
+  source system.
+- Two-phase: validate everything in memory first, render a per-file
+  report, only commit on user confirm.
+- Reuse existing context fns — `Animals.create_animal`,
+  `Breeding.record_service_with_backfill`,
+  `Breeding.record_farrowing_with_backfill`,
+  `Breeding.record_weaning_with_backfill` — so the cascade that
+  back-fills missing parents (sow auto-registered when only services
+  exist; inferred service synthesized when farrowing has no parent)
+  works the same for CSV-imported rows as for hand-entered ones.
+- Tag every created row with `created_via: "csv_import:<run_id>"` so a
+  later rollback task can find them.
+
+### Non-goals
+- Streaming gigabyte-size files — capped at 10k rows per file (split
+  the export into chunks for larger histories).
+- Schema migration — the CSV format is documented in
+  [`IMPORT_LEGACY_DATA.md`](IMPORT_LEGACY_DATA.md); changing column
+  names is a breaking change with a versioning bump.
+- Live progress bar during commit — single transaction per file, fast
+  enough to finish before the LV would render a meaningful update.
+
+### CSV files
+
+| File              | Required? | Purpose                                |
+|-------------------|-----------|----------------------------------------|
+| `locations.csv`   | optional  | Houses + pens (denormalized).          |
+| `sows.csv`        | yes       | Breeding herd.                         |
+| `services.csv`    | optional  | Mating / AI events.                    |
+| `farrowings.csv`  | optional  | Birth events.                          |
+| `weanings.csv`    | optional  | Weaning events.                        |
+
+Full column specs, validation rules, and examples live in
+[`IMPORT_LEGACY_DATA.md`](IMPORT_LEGACY_DATA.md). That doc is the
+contract for both human operators and AI agents preparing CSVs.
+
+### UX — 3-step LiveView
+
+Route: `/farms/:slug/admin/import` (new), gated `:owner` only.
+Linked from the Settings page (and the desktop farm-nav under
+"Settings" submenu when added).
+
+1. **Upload** — `allow_upload` slots for each file. Each slot links
+   to a "Download template" returning a header-only CSV.
+2. **Validation report** — per-file table with row counts + warnings
+   + errors. **Commit** button disabled while errors > 0.
+3. **Commit** — runs each file's transaction; success screen shows
+   per-file outcome counts and a link to the audit `import.run`
+   entry.
+
+### Validation strategy
+
+Two classes of issues per row:
+
+- **Errors** block commit: missing required column, blank required
+  field, bad date format, unknown enum value, duplicate keys within
+  a file, negative integers in count fields.
+- **Warnings** allow commit: unknown pen (sow lands without one),
+  unknown sow ear-tag in services/farrowings/weanings (auto-backfill
+  cascade kicks in, flagged `needs_review`).
+
+Cross-file references resolve against a combined index: existing DB
+rows + freshly-parsed rows from earlier files in the run. So a
+`services.csv` row that references a sow only present in `sows.csv`
+gets a clean ✓ rather than the unknown-sow warning.
+
+### Commit semantics
+
+- One transaction per file (`locations` → `sows` → `services` →
+  `farrowings` → `weanings`). On any per-row failure inside a file,
+  abort that file's transaction; earlier files keep their results.
+- A single `import.run` audit event records the run-id + per-file
+  counts. Each created row gets `created_via:
+  "csv_import:#{run_id}"` so a later rollback task can delete them
+  wholesale.
+- Idempotency: re-importing the same `sows.csv` rejects duplicate
+  ear_tags as errors (existing `unsafe_validate_unique`). For
+  partial re-imports, the operator edits the CSV.
+
+### Permission model
+
+- `:owner` only initially. Add `:import_data` policy action so it
+  can be selectively granted later (e.g. a migration consultant
+  with manager role).
+- Auto-route plug pass-through: the import page is desktop-only —
+  no mobile equivalent. The audit log on each animal's Trace page
+  is the read-only mobile counterpart.
+
+### Build order
+
+- [x] **`Peggy.Imports` schema + parsers** — column lists per file,
+      `parse_and_validate/2`, helpers, NimbleCSV dep.
+- [x] **Per-file validators** — sows / services / farrowings /
+      weanings / locations. Errors-vs-warnings classification.
+- [x] **Cross-file resolution** — sow_index combines existing DB +
+      `sows.csv` pending; pen_index combines existing + `locations.csv`
+      pending.
+- [x] **Unit tests** — 30 cases covering happy paths, every error
+      and warning kind, file-level errors, summary aggregation.
+- [x] **`IMPORT_LEGACY_DATA.md`** — user/agent CSV-prep guide.
+- [x] **`Peggy.Imports.commit/2`** — per-file transactions, tags
+      rows with `created_via:"csv_import:<run_id>"`, single
+      `import.run` audit event with per-file counts. 5 commit
+      tests covering happy path + locations/sows ordering + audit.
+- [x] **3-step LiveView** at `/farms/:slug/admin/import` — upload
+      slots (5 files, 5 MB cap), validation report (summary +
+      per-file warning/error blocks, 50-row cap with "+N more"),
+      commit screen (run id + per-file outcomes + restart).
+- [x] **Template downloads** — `DataImportController` serves
+      header-only CSV per file from `/admin/import/template/:type`.
+- [x] **Farm-nav entry** — "Import" link visible to anyone with
+      `:import_data` (manager + owner). Policy action added.
+- [x] **Rollback** — `Peggy.Imports.list_runs/1` and
+      `Peggy.Imports.rollback/2` exposed via a "Past imports"
+      section on the importer page (visible on the Upload step).
+      Each row has a confirmed Rollback button that deletes
+      animals + services + farrowings + weanings tagged with
+      that run id, in dependency-safe order, inside one
+      transaction. Logs an `import.rollback` audit row. FK
+      violations from post-import dependencies surface as a flash
+      and roll the whole rollback back.
+
+---
+
 ## Phase 9 — Non-functional polish (2–3 days)
 
 - i18n: translate the `ms` and `zh` `.po` files (plumbing landed in Phase 1 — `gettext` wrapping, `PeggyWeb.Locale` plug + `on_mount` hook reading `user.locale`, `en`/`ms`/`zh` locales configured); add a locale switcher in user settings

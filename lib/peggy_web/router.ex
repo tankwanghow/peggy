@@ -75,6 +75,8 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/animals/print", FarmLive.AnimalsPrint, :show
       live "/farms/:farm_slug/animals/batch-register", FarmLive.BatchRegister, :show
       live "/farms/:farm_slug/onboarding/herd", FarmLive.HerdImport, :show
+      live "/farms/:farm_slug/admin/import", FarmLive.DataImport, :show
+      get "/farms/:farm_slug/admin/import/template/:type", DataImportController, :template
       live "/farms/:farm_slug/animals/bulk-move", FarmLive.BulkMove, :show
       live "/farms/:farm_slug/animals/:id", FarmLive.AnimalDetail, :show
       live "/farms/:farm_slug/animals/:id/trace", FarmLive.AnimalTrace, :show

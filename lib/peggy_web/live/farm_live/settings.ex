@@ -12,6 +12,48 @@ defmodule PeggyWeb.FarmLive.Settings do
       <div class="mx-auto max-w-3xl">
         <.header>{gettext("Farm settings - %{name}", name: @current_scope.farm.name)}</.header>
 
+        <section
+          :if={
+            Peggy.Policy.can?(@current_scope, :view_audit) or
+              Peggy.Policy.can?(@current_scope, :import_data)
+          }
+          class="mt-6"
+        >
+          <h2 class="text-lg font-semibold">{gettext("Tools")}</h2>
+          <ul class="mt-3 grid gap-3 sm:grid-cols-2">
+            <li :if={Peggy.Policy.can?(@current_scope, :import_data)}>
+              <.link
+                navigate={~p"/farms/#{@current_scope.farm.slug}/admin/import"}
+                class="flex items-center gap-3 rounded-md border border-base-200 bg-base-100 p-3 active:bg-base-200 hover:bg-base-200/50"
+              >
+                <.icon name="hero-arrow-up-tray" class="size-5 text-primary" />
+                <div class="flex-1">
+                  <div class="font-semibold">{gettext("Import legacy data")}</div>
+                  <div class="text-xs text-base-content/60">
+                    {gettext("Upload CSVs from another farm-management system.")}
+                  </div>
+                </div>
+                <.icon name="hero-chevron-right-micro" class="size-4 text-base-content/40" />
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :view_audit)}>
+              <.link
+                navigate={~p"/farms/#{@current_scope.farm.slug}/audit"}
+                class="flex items-center gap-3 rounded-md border border-base-200 bg-base-100 p-3 active:bg-base-200 hover:bg-base-200/50"
+              >
+                <.icon name="hero-clipboard-document-list" class="size-5 text-base-content/70" />
+                <div class="flex-1">
+                  <div class="font-semibold">{gettext("Audit log")}</div>
+                  <div class="text-xs text-base-content/60">
+                    {gettext("Immutable history of every change on this farm.")}
+                  </div>
+                </div>
+                <.icon name="hero-chevron-right-micro" class="size-4 text-base-content/40" />
+              </.link>
+            </li>
+          </ul>
+        </section>
+
         <section class="mt-8">
           <h2 class="text-lg font-semibold">{gettext("Farm profile")}</h2>
           <.form

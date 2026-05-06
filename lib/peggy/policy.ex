@@ -25,6 +25,7 @@ defmodule Peggy.Policy do
   defp allowed?(:owner, _), do: true
 
   # Manager: everything except destructive farm admin.
+  defp allowed?(:manager, :import_data), do: true
   defp allowed?(:manager, :manage_farm_settings), do: true
   defp allowed?(:manager, :invite_member), do: true
   defp allowed?(:manager, :change_member_role), do: true
