@@ -48,6 +48,14 @@ defmodule PeggyWeb.FarmLive.Animals do
             options={status_options(@filter_stage)}
           />
           <.input
+            name="tag_search"
+            value={@filter_tag_search}
+            type="text"
+            label={gettext("Tag / ID")}
+            class="input input-sm"
+            placeholder={gettext("e.g. 12345 or #42")}
+          />
+          <.input
             name="pen_search"
             value={@filter_pen_search}
             type="text"
@@ -318,6 +326,7 @@ defmodule PeggyWeb.FarmLive.Animals do
      |> assign(filter_stage: "", filter_status: "present", filter_needs_review: false)
      |> assign(
        filter_pen_search: "",
+       filter_tag_search: "",
        filter_min_age: "",
        filter_max_age: "",
        filter_min_parity: "",
@@ -344,6 +353,7 @@ defmodule PeggyWeb.FarmLive.Animals do
         filter_status: status,
         filter_needs_review: needs_review,
         filter_pen_search: Map.get(params, "pen_search", ""),
+        filter_tag_search: Map.get(params, "tag_search", ""),
         filter_min_age: Map.get(params, "min_age", ""),
         filter_max_age: Map.get(params, "max_age", ""),
         filter_min_parity: Map.get(params, "min_parity", ""),
@@ -385,6 +395,7 @@ defmodule PeggyWeb.FarmLive.Animals do
       %{
         "stage" => new_stage,
         "pen_search" => Map.get(params, "pen_search", ""),
+        "tag_search" => Map.get(params, "tag_search", ""),
         "min_age" => Map.get(params, "min_age", ""),
         "max_age" => Map.get(params, "max_age", ""),
         "min_parity" => Map.get(params, "min_parity", ""),
@@ -634,6 +645,7 @@ defmodule PeggyWeb.FarmLive.Animals do
       status: status,
       needs_review: socket.assigns.filter_needs_review,
       pen_search: blank_to_nil(socket.assigns.filter_pen_search),
+      tag_search: blank_to_nil(socket.assigns.filter_tag_search),
       min_age_days: parse_int_filter(socket.assigns.filter_min_age),
       max_age_days: parse_int_filter(socket.assigns.filter_max_age),
       min_parity: parse_int_filter(socket.assigns.filter_min_parity),
@@ -665,6 +677,7 @@ defmodule PeggyWeb.FarmLive.Animals do
       "stage" => a.filter_stage,
       "status" => a.filter_status,
       "pen_search" => a.filter_pen_search,
+      "tag_search" => a.filter_tag_search,
       "min_age" => a.filter_min_age,
       "max_age" => a.filter_max_age,
       "min_parity" => a.filter_min_parity,
@@ -687,6 +700,7 @@ defmodule PeggyWeb.FarmLive.Animals do
         "stage" => assigns.filter_stage,
         "status" => assigns.filter_status,
         "pen_search" => assigns.filter_pen_search,
+        "tag_search" => assigns.filter_tag_search,
         "min_age" => assigns.filter_min_age,
         "max_age" => assigns.filter_max_age,
         "min_parity" => assigns.filter_min_parity,

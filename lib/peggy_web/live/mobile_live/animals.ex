@@ -75,25 +75,24 @@ defmodule PeggyWeb.MobileLive.Animals do
               <.status_badge status={a.status} class="badge-sm" />
             </div>
 
-            <div class="mt-1 flex items-center gap-2 text-sm text-base-content/70">
+            <div class="flex items-center gap-2 text-sm text-base-content/70">
               <span>
                 {String.capitalize(a.stage)}<span
                   :if={detail = stage_suffix(a, @parity_map, @avg_wean_age, @today)}
                   class="text-base-content/60"
                 >{detail}</span>
-              </span>
+              </span> - 
+              <div
+                :if={line = footer_line(a, @event_map, @today, @avg_wean_age)}
+                class="text-xs"
+              >
+                <span class="text-base-content/50">{elem(line, 0)}</span>
+                <span class="font-mono font-semibold">{elem(line, 1)}</span>
+              </div>
               <span class="ml-auto inline-flex items-center gap-1">
                 <.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
                 <span class="font-mono">{pen_label(a)}</span>
               </span>
-            </div>
-
-            <div
-              :if={days = days_in_status(a, @today)}
-              class="mt-2 flex items-baseline justify-between text-xs"
-            >
-              <span class="text-base-content/50">{gettext("Days in status")}</span>
-              <span class="font-mono font-semibold">{days}d</span>
             </div>
           </li>
         </ul>
@@ -151,6 +150,19 @@ defmodule PeggyWeb.MobileLive.Animals do
                     {label}
                   </option>
                 </select>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Tag / ID")}</span>
+                <input
+                  type="text"
+                  name="tag_search"
+                  value={@filters.tag_search}
+                  placeholder={gettext("e.g. 12345 or #42")}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  class="input input-bordered input-lg w-full font-mono mt-1"
+                />
               </label>
 
               <label class="block">
@@ -431,6 +443,7 @@ defmodule PeggyWeb.MobileLive.Animals do
        batch_stages: @batch_stages,
        filter_drawer_open: false,
        parity_map: %{},
+       event_map: %{},
        can_manage: Policy.can?(scope, :manage_animals),
        register_form: nil,
        register_tracking: "individual",
@@ -448,6 +461,7 @@ defmodule PeggyWeb.MobileLive.Animals do
       stage: params["stage"] || "",
       status: status_param(params["status"], params["stage"]),
       pen_search: params["pen_search"] || "",
+      tag_search: params["tag_search"] || "",
       min_age: params["min_age"] || "",
       max_age: params["max_age"] || "",
       min_parity: params["min_parity"] || "",
@@ -477,6 +491,7 @@ defmodule PeggyWeb.MobileLive.Animals do
        "stage" => new_stage,
        "status" => status,
        "pen_search" => params["pen_search"] || "",
+       "tag_search" => params["tag_search"] || "",
        "min_age" => params["min_age"] || "",
        "max_age" => params["max_age"] || "",
        "min_parity" => params["min_parity"] || "",
@@ -600,6 +615,7 @@ defmodule PeggyWeb.MobileLive.Animals do
       "stage" => f.stage,
       "status" => f.status,
       "pen_search" => f.pen_search,
+      "tag_search" => f.tag_search,
       "min_age" => f.min_age,
       "max_age" => f.max_age,
       "min_parity" => f.min_parity,
@@ -635,6 +651,7 @@ defmodule PeggyWeb.MobileLive.Animals do
       f.stage != "",
       f.status not in ["present", "", nil],
       f.pen_search != "",
+      f.tag_search != "",
       f.min_age != "",
       f.max_age != "",
       f.min_parity != "",
@@ -654,7 +671,8 @@ defmodule PeggyWeb.MobileLive.Animals do
       total: total,
       page: 1,
       has_more: length(rows) < total,
-      parity_map: parity_map(scope, rows)
+      parity_map: parity_map(scope, rows),
+      event_map: event_map(scope, rows)
     )
     |> stream(:animals, rows, reset: true)
   end
@@ -671,7 +689,8 @@ defmodule PeggyWeb.MobileLive.Animals do
     assign(socket,
       page: next_page,
       has_more: loaded < socket.assigns.total,
-      parity_map: Map.merge(socket.assigns.parity_map, parity_map(scope, rows))
+      parity_map: Map.merge(socket.assigns.parity_map, parity_map(scope, rows)),
+      event_map: Map.merge(socket.assigns.event_map, event_map(scope, rows))
     )
   end
 
@@ -683,6 +702,7 @@ defmodule PeggyWeb.MobileLive.Animals do
       status: blank_to_nil(f.status),
       needs_review: f.needs_review,
       pen_search: blank_to_nil(f.pen_search),
+      tag_search: blank_to_nil(f.tag_search),
       min_age_days: parse_int(f.min_age),
       max_age_days: parse_int(f.max_age),
       min_parity: parse_int(f.min_parity),
@@ -707,6 +727,82 @@ defmodule PeggyWeb.MobileLive.Animals do
 
     Breeding.parities_for(scope, sow_ids)
   end
+
+  defp event_map(scope, rows) do
+    sow_ids =
+      rows
+      |> Enum.filter(&(&1.stage == "sow" and &1.tracking_type == "individual"))
+      |> Enum.map(& &1.id)
+
+    Breeding.last_event_dates_for(scope, sow_ids)
+  end
+
+  # Bottom line of the card. Tries to surface the next actionable date
+  # (e.g. expected farrowing for a served sow); falls back to "Days in
+  # status" for sows where no breeding event applies, and to total head
+  # count for batches.
+  defp footer_line(%{stage: "sow", status: "served", id: id}, event_map, today, _avg) do
+    case event_map do
+      %{^id => %{served_at: %Date{} = served_at}} ->
+        due = Date.add(served_at, Breeding.gestation_days())
+        days = Date.diff(due, today)
+        {gettext("Farrow due"), due_text(days)}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp footer_line(%{stage: "sow", status: "lactating", id: id}, event_map, today, avg) do
+    case event_map do
+      %{^id => %{farrowed_at: %Date{} = farrowed_at}} when is_integer(avg) ->
+        due = Date.add(farrowed_at, avg)
+        days = Date.diff(due, today)
+        {gettext("Wean due"), due_text(days)}
+
+      %{^id => %{farrowed_at: %Date{} = farrowed_at}} ->
+        {gettext("Farrowed"), "#{Date.diff(today, farrowed_at)}d ago"}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp footer_line(%{stage: "sow", status: status, id: id}, event_map, today, _avg)
+       when status in ~w(open dry) do
+    case event_map do
+      %{^id => %{weaned_at: %Date{} = weaned_at}} ->
+        {gettext("Weaned"), "#{Date.diff(today, weaned_at)}d ago"}
+
+      _ ->
+        nil
+    end
+  end
+
+  defp footer_line(%{tracking_type: "batch"} = a, _event_map, _today, _avg) do
+    case batch_total_head(a) do
+      0 -> nil
+      n -> {gettext("Head"), Integer.to_string(n)}
+    end
+  end
+
+  defp footer_line(%{stage: "sow"} = a, _event_map, today, _avg) do
+    case days_in_status(a, today) do
+      nil -> nil
+      d -> {gettext("Days in status"), "#{d}d"}
+    end
+  end
+
+  defp footer_line(_, _, _, _), do: nil
+
+  defp due_text(d) when d > 0, do: "in #{d}d"
+  defp due_text(0), do: gettext("today")
+  defp due_text(d), do: "#{-d}d overdue"
+
+  defp batch_total_head(%{placements: [_ | _] = placements}),
+    do: Enum.reduce(placements, 0, &(&1.quantity + &2))
+
+  defp batch_total_head(_), do: 0
 
   defp stage_suffix(%{stage: "sow", id: id}, parity_map, _avg, _today) do
     case Map.get(parity_map, id) do

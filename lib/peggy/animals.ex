@@ -51,6 +51,7 @@ defmodule Peggy.Animals do
     status = Keyword.get(opts, :status)
     pen_id = Keyword.get(opts, :pen_id)
     pen_search = Keyword.get(opts, :pen_search)
+    tag_search = Keyword.get(opts, :tag_search)
     needs_review = Keyword.get(opts, :needs_review, false)
     min_age = Keyword.get(opts, :min_age_days)
     max_age = Keyword.get(opts, :max_age_days)
@@ -70,6 +71,7 @@ defmodule Peggy.Animals do
     base
     |> maybe_pen_id_filter(pen_id)
     |> maybe_pen_search_filter(farm, pen_search)
+    |> maybe_tag_search_filter(tag_search)
     |> apply_sort(sort, dir)
   end
 
@@ -145,6 +147,22 @@ defmodule Peggy.Animals do
       on: p.animal_id == a.id and is_nil(p.removed_at) and p.pen_id == ^id,
       where: a.current_pen_id == ^id or not is_nil(p.id),
       distinct: a.id
+  end
+
+  defp maybe_tag_search_filter(query, term) when term in [nil, ""], do: query
+
+  defp maybe_tag_search_filter(query, term) do
+    raw = String.trim(term)
+    stripped = String.trim_leading(raw, "#")
+    like = "%#{raw}%"
+
+    case Integer.parse(stripped) do
+      {id, ""} ->
+        from(a in query, where: ilike(a.ear_tag, ^like) or ilike(a.rfid, ^like) or a.id == ^id)
+
+      _ ->
+        from(a in query, where: ilike(a.ear_tag, ^like) or ilike(a.rfid, ^like))
+    end
   end
 
   defp maybe_pen_search_filter(query, _farm, term) when term in [nil, ""], do: query

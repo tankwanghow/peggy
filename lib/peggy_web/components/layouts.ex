@@ -262,6 +262,13 @@ defmodule PeggyWeb.Layouts do
           </div>
         </div>
         <ul class="divide-y divide-base-200">
+          <li class="flex items-center justify-between gap-3 px-4 py-3">
+            <span class="flex items-center gap-3">
+              <.icon name="hero-swatch" class="size-5 text-base-content/60" />
+              <span>{gettext("Theme")}</span>
+            </span>
+            <.theme_toggle />
+          </li>
           <li :if={@current_scope && @current_scope.farm}>
             <.link
               navigate={~p"/m/#{@current_scope.farm.slug}/tasks"}
@@ -433,7 +440,7 @@ defmodule PeggyWeb.Layouts do
   defp farm_nav(assigns) do
     ~H"""
     <nav class="border-b border-base-300 bg-base-200/50 px-4 sm:px-6 lg:px-8 overflow-visible">
-      <div class="mx-auto max-w-5xl flex items-center gap-1 flex-wrap text-sm overflow-visible">
+      <div class="mx-auto max-w-5xl flex items-center justify-center gap-1 flex-wrap text-sm overflow-visible">
         <.farm_nav_link
           href={~p"/farms/#{@current_scope.farm.slug}"}
           icon="hero-home-micro"
@@ -576,12 +583,6 @@ defmodule PeggyWeb.Layouts do
           href={~p"/farms/#{@current_scope.farm.slug}/tasks"}
           icon="hero-check-circle-micro"
           label={gettext("Tasks")}
-        />
-        <.farm_nav_link
-          :if={Peggy.Policy.can?(@current_scope, :view_audit)}
-          href={~p"/farms/#{@current_scope.farm.slug}/audit"}
-          icon="hero-clipboard-document-list-micro"
-          label={gettext("Audit")}
         />
         <.farm_nav_link
           :if={Peggy.Policy.can?(@current_scope, :manage_farm_settings)}

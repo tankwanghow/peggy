@@ -109,6 +109,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
       stage: blank_to_nil(params["stage"]),
       status: status_param(params["status"]),
       pen_search: blank_to_nil(params["pen_search"]),
+      tag_search: blank_to_nil(params["tag_search"]),
       min_age: parse_int(params["min_age"]),
       max_age: parse_int(params["max_age"]),
       min_parity: parse_int(params["min_parity"]),
@@ -121,6 +122,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
       status: filters.status,
       needs_review: filters.needs_review,
       pen_search: filters.pen_search,
+      tag_search: filters.tag_search,
       min_age_days: filters.min_age,
       max_age_days: filters.max_age,
       min_parity: filters.min_parity,
@@ -243,6 +245,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
     [
       filters.stage && "stage=#{filters.stage}",
       filters.status && "status=#{filters.status}",
+      filters.tag_search && "tag~#{filters.tag_search}",
       filters.pen_search && "pen~#{filters.pen_search}",
       filters.min_age && "age≥#{filters.min_age}d",
       filters.max_age && "age≤#{filters.max_age}d",

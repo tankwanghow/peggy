@@ -2422,6 +2422,72 @@ defmodule Peggy.Breeding do
   end
 
   @doc """
+  Bulk lookup of the most recent service / farrowing / weaning dates
+  per sow, used by list views to render a single "next event" line
+  without firing N+1 queries.
+
+  Returns `%{sow_id => %{served_at: Date | nil, farrowed_at: Date | nil,
+  weaned_at: Date | nil}}`. `served_at` is the latest *open* service
+  (no result set); `farrowed_at` and `weaned_at` are the latest
+  non-deleted records joined back to the sow. Sows with no breeding
+  history at all are absent from the map; callers can default.
+  """
+  def last_event_dates_for(%Scope{farm: farm}, sow_ids) when is_list(sow_ids) do
+    ids = Enum.uniq(sow_ids)
+
+    if ids == [] do
+      %{}
+    else
+      services =
+        from(s in Service,
+          where:
+            s.farm_id == ^farm.id and s.sow_id in ^ids and
+              is_nil(s.result) and is_nil(s.deleted_at),
+          group_by: s.sow_id,
+          select: {s.sow_id, max(s.served_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      farrowings =
+        from(f in Farrowing,
+          where: f.farm_id == ^farm.id and f.sow_id in ^ids and is_nil(f.deleted_at),
+          group_by: f.sow_id,
+          select: {f.sow_id, max(f.farrowed_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      weanings =
+        from(w in Weaning,
+          join: f in Farrowing,
+          on: f.id == w.farrowing_id,
+          where:
+            w.farm_id == ^farm.id and f.sow_id in ^ids and
+              is_nil(w.deleted_at) and is_nil(f.deleted_at),
+          group_by: f.sow_id,
+          select: {f.sow_id, max(w.weaned_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      ids
+      |> Enum.flat_map(fn id ->
+        served = Map.get(services, id)
+        farrowed = Map.get(farrowings, id)
+        weaned = Map.get(weanings, id)
+
+        if served || farrowed || weaned do
+          [{id, %{served_at: served, farrowed_at: farrowed, weaned_at: weaned}}]
+        else
+          []
+        end
+      end)
+      |> Map.new()
+    end
+  end
+
+  @doc """
   Average weaning age (in days) across the farm's recorded weanings.
 
   Returns `nil` if no weanings exist. Used as a fallback so that batch
