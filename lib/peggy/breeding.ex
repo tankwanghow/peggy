@@ -1528,6 +1528,320 @@ defmodule Peggy.Breeding do
 
   defp parse_int_filter(_), do: nil
 
+  # ── Serviceable sows / gilts (read helpers) ────────────────────────
+
+  @doc """
+  Lists breeding females that are eligible for a new service right now —
+  stage `"sow"` whose status is in `Animal.serviceable_statuses/0`
+  (`active` / `open` / `dry`). Excludes `served` (currently gestating)
+  and lactating sows.
+
+  Each row is shaped:
+
+      %{
+        animal: %Animal{current_pen: pen_with_house | nil},
+        parity: integer,
+        last_event_kind: :weaned | :served | :farrowed | nil,
+        last_event_date: Date.t() | nil,
+        days_idle: non_neg_integer | nil
+      }
+
+  `last_event_*` are derived from the most recent of:
+  weaning, open service, farrowing. For sows with no breeding history
+  on file (typical for first-cycle gilts), both fields are `nil` and
+  `days_idle` is `nil`.
+
+  Options:
+    * `:search` — case-insensitive ear-tag prefix
+    * `:status` — `"all"` (default) | one of `Animal.serviceable_statuses/0`
+    * `:pen_search` — case-insensitive `house-pen` ilike
+    * `:min_parity` / `:max_parity`
+    * `:sort` — `"tag" | "pen" | "parity" | "idle" | "status"` (default `"idle"`)
+    * `:dir` — `"asc" | "desc"`
+    * `:limit` (default 25) / `:offset` (default 0); `:all` disables pagination
+  """
+  def list_serviceable(scope, opts \\ [])
+
+  def list_serviceable(%Scope{farm: farm} = scope, opts) do
+    rows =
+      farm
+      |> serviceable_query(opts)
+      |> apply_pagination(opts)
+      |> Repo.all()
+
+    decorate_serviceable(scope, rows)
+  end
+
+  @doc """
+  Counts serviceable females matching the same filter opts as
+  `list_serviceable/2` (ignores `:limit`/`:offset`).
+  """
+  def count_serviceable(%Scope{farm: farm}, opts \\ []) do
+    farm |> serviceable_query(opts) |> exclude(:order_by) |> Repo.aggregate(:count, :id)
+  end
+
+  defp serviceable_query(farm, opts) do
+    search = opts |> Keyword.get(:search) |> normalize_search()
+    status_filter = Keyword.get(opts, :status, "all")
+    pen_search = opts |> Keyword.get(:pen_search) |> normalize_search()
+    min_parity = Keyword.get(opts, :min_parity)
+    max_parity = Keyword.get(opts, :max_parity)
+    sort = Keyword.get(opts, :sort, "idle")
+    dir = Keyword.get(opts, :dir, "asc")
+
+    statuses =
+      case status_filter do
+        s when is_binary(s) and s != "all" ->
+          if s in Animal.serviceable_statuses(), do: [s], else: Animal.serviceable_statuses()
+
+        _ ->
+          Animal.serviceable_statuses()
+      end
+
+    q =
+      from(a in Animal,
+        as: :animal,
+        where:
+          a.farm_id == ^farm.id and a.stage == "sow" and
+            a.status in ^statuses,
+        preload: [current_pen: :house]
+      )
+
+    q =
+      if search do
+        like = "#{search}%"
+        from a in q, where: ilike(a.ear_tag, ^like)
+      else
+        q
+      end
+
+    q = maybe_pen_search_on_animal(q, farm, pen_search)
+    q = maybe_parity_on_animal(q, farm, min_parity, max_parity)
+
+    apply_serviceable_sort(q, farm, sort, dir)
+  end
+
+  defp maybe_pen_search_on_animal(query, _farm, nil), do: query
+
+  defp maybe_pen_search_on_animal(query, farm, term) do
+    pen_ids = matching_pen_ids(farm, term)
+
+    if pen_ids == [] do
+      from q in query, where: false
+    else
+      from [animal: a] in query, where: a.current_pen_id in ^pen_ids
+    end
+  end
+
+  defp maybe_parity_on_animal(query, _farm, nil, nil), do: query
+
+  defp maybe_parity_on_animal(query, farm, min_parity, max_parity) do
+    farrowing_counts =
+      from(f in Farrowing,
+        where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
+        group_by: f.sow_id,
+        select: %{sow_id: f.sow_id, n: count(f.id)}
+      )
+
+    parity_expr =
+      dynamic([animal: a, parity_count: fc], coalesce(a.legacy_parity, 0) + coalesce(fc.n, 0))
+
+    query =
+      from([animal: a] in query,
+        left_join: fc in subquery(farrowing_counts),
+        as: :parity_count,
+        on: fc.sow_id == a.id
+      )
+
+    query =
+      case parse_int_filter(min_parity) do
+        nil -> query
+        n -> where(query, ^dynamic(^parity_expr >= ^n))
+      end
+
+    case parse_int_filter(max_parity) do
+      nil -> query
+      n -> where(query, ^dynamic(^parity_expr <= ^n))
+    end
+  end
+
+  defp apply_serviceable_sort(query, farm, sort, dir) do
+    direction = if dir == "desc", do: :desc, else: :asc
+
+    case sort do
+      "tag" ->
+        from([animal: a] in query,
+          order_by: [{^direction, a.ear_tag}, {^direction, a.id}]
+        )
+
+      "status" ->
+        from([animal: a] in query,
+          order_by: [{^direction, a.status}, {^direction, a.ear_tag}, {^direction, a.id}]
+        )
+
+      "pen" ->
+        from([animal: a] in query,
+          left_join: p in Peggy.Locations.Pen,
+          on: p.id == a.current_pen_id,
+          left_join: h in Peggy.Locations.House,
+          on: h.id == p.house_id,
+          order_by: [
+            {:asc, fragment("? IS NULL", p.id)},
+            {^direction, h.code},
+            {^direction, p.code},
+            {^direction, a.id}
+          ]
+        )
+
+      "parity" ->
+        farrowing_counts =
+          from(f in Farrowing,
+            where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
+            group_by: f.sow_id,
+            select: %{sow_id: f.sow_id, n: count(f.id)}
+          )
+
+        from([animal: a] in query,
+          left_join: fc in subquery(farrowing_counts),
+          on: fc.sow_id == a.id,
+          order_by: [
+            {^direction, fragment("coalesce(?, 0) + coalesce(?, 0)", a.legacy_parity, fc.n)},
+            {^direction, a.id}
+          ]
+        )
+
+      _ ->
+        # "idle" — sort by latest event date. asc dir = freshest first
+        # (smallest days_idle), desc = stalest first. Sows with no events
+        # always sort to the very end.
+        services =
+          from(s in Service,
+            where: s.farm_id == ^farm.id and is_nil(s.deleted_at) and is_nil(s.result),
+            group_by: s.sow_id,
+            select: %{sow_id: s.sow_id, last_at: max(s.served_at)}
+          )
+
+        farrowings =
+          from(f in Farrowing,
+            where: f.farm_id == ^farm.id and is_nil(f.deleted_at),
+            group_by: f.sow_id,
+            select: %{sow_id: f.sow_id, last_at: max(f.farrowed_at)}
+          )
+
+        weanings =
+          from(w in Weaning,
+            join: f in Farrowing,
+            on: f.id == w.farrowing_id,
+            where: w.farm_id == ^farm.id and is_nil(w.deleted_at) and is_nil(f.deleted_at),
+            group_by: f.sow_id,
+            select: %{sow_id: f.sow_id, last_at: max(w.weaned_at)}
+          )
+
+        idle_dir = if direction == :asc, do: :desc, else: :asc
+
+        from([animal: a] in query,
+          left_join: sm in subquery(services),
+          on: sm.sow_id == a.id,
+          left_join: fm in subquery(farrowings),
+          on: fm.sow_id == a.id,
+          left_join: wm in subquery(weanings),
+          on: wm.sow_id == a.id,
+          order_by: [
+            {:asc, fragment("greatest(?, ?, ?) IS NULL", sm.last_at, fm.last_at, wm.last_at)},
+            {^idle_dir, fragment("greatest(?, ?, ?)", sm.last_at, fm.last_at, wm.last_at)},
+            {^direction, a.id}
+          ]
+        )
+    end
+  end
+
+  defp decorate_serviceable(_scope, []), do: []
+
+  defp decorate_serviceable(scope, animals) do
+    sow_ids = Enum.map(animals, & &1.id)
+    today = FarmClock.today(scope)
+    parities = parities_for(scope, sow_ids)
+    last_events = serviceable_last_events_for(scope, sow_ids)
+
+    Enum.map(animals, fn a ->
+      {kind, date} = Map.get(last_events, a.id, {nil, nil})
+
+      %{
+        animal: a,
+        parity: Map.get(parities, a.id, 0),
+        last_event_kind: kind,
+        last_event_date: date,
+        days_idle: date && Date.diff(today, date)
+      }
+    end)
+  end
+
+  # Returns %{sow_id => {kind, date}} where kind picks the latest of
+  # weaning > farrowing > open service (dates equal → weaning wins,
+  # since it's the lifecycle-terminating event for that pregnancy).
+  defp serviceable_last_events_for(%Scope{farm: farm}, sow_ids) when is_list(sow_ids) do
+    ids = Enum.uniq(sow_ids)
+
+    if ids == [] do
+      %{}
+    else
+      services =
+        from(s in Service,
+          where:
+            s.farm_id == ^farm.id and s.sow_id in ^ids and
+              is_nil(s.deleted_at) and is_nil(s.result),
+          group_by: s.sow_id,
+          select: {s.sow_id, max(s.served_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      farrowings =
+        from(f in Farrowing,
+          where: f.farm_id == ^farm.id and f.sow_id in ^ids and is_nil(f.deleted_at),
+          group_by: f.sow_id,
+          select: {f.sow_id, max(f.farrowed_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      weanings =
+        from(w in Weaning,
+          join: f in Farrowing,
+          on: f.id == w.farrowing_id,
+          where:
+            w.farm_id == ^farm.id and f.sow_id in ^ids and
+              is_nil(w.deleted_at) and is_nil(f.deleted_at),
+          group_by: f.sow_id,
+          select: {f.sow_id, max(w.weaned_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      ids
+      |> Enum.flat_map(fn id ->
+        candidates =
+          [
+            {:weaned, Map.get(weanings, id)},
+            {:farrowed, Map.get(farrowings, id)},
+            {:served, Map.get(services, id)}
+          ]
+          |> Enum.reject(fn {_, d} -> is_nil(d) end)
+
+        case candidates do
+          [] ->
+            []
+
+          list ->
+            # Sort by date desc; on tie, weaned > farrowed > served (defined by list order)
+            {kind, date} = Enum.max_by(list, fn {_, d} -> d end, Date)
+            [{id, {kind, date}}]
+        end
+      end)
+      |> Map.new()
+    end
+  end
+
   @doc """
   Lists gestating sows due to farrow within `days_ahead` days.
   """

@@ -3273,4 +3273,200 @@ defmodule Peggy.BreedingTest do
       assert {:error, :no_entries} = Breeding.record_batch_weanings_with_backfill(scope, [])
     end
   end
+
+  describe "list_serviceable/2" do
+    # Outer setup gives us SOW1 (status=active, stage=sow), so the
+    # baseline serviceable count is 3 once we add OPEN1 and DRY1 below.
+    setup %{scope: scope} do
+      open_sow = animal_fixture(scope, ear_tag: "OPEN1", stage: "sow")
+      set_status!(open_sow, "open")
+
+      dry_sow = animal_fixture(scope, ear_tag: "DRY1", stage: "sow")
+      set_status!(dry_sow, "dry")
+
+      %{open_sow: open_sow, dry_sow: dry_sow}
+    end
+
+    test "returns all serviceable sows by default", %{scope: scope} do
+      rows = Breeding.list_serviceable(scope)
+
+      assert length(rows) == 3
+      assert Breeding.count_serviceable(scope) == 3
+
+      tags = Enum.map(rows, & &1.animal.ear_tag) |> Enum.sort()
+      assert tags == ["DRY1", "OPEN1", "SOW1"]
+    end
+
+    test "excludes served sows (currently gestating)", %{scope: scope, sow: sow, boar: boar} do
+      service_fixture(scope, sow, boar_id: boar.id)
+
+      tags = Breeding.list_serviceable(scope) |> Enum.map(& &1.animal.ear_tag)
+      refute "SOW1" in tags
+      assert Breeding.count_serviceable(scope) == 2
+    end
+
+    test "excludes lactating sows", %{scope: scope, sow: sow, boar: boar} do
+      farrowing_fixture(scope, sow, boar_id: boar.id)
+
+      assert Breeding.count_serviceable(scope) == 2
+      refute Enum.any?(Breeding.list_serviceable(scope), &(&1.animal.id == sow.id))
+    end
+
+    test "excludes departed sows", %{scope: scope, open_sow: open_sow} do
+      set_status!(open_sow, "sold")
+
+      assert Breeding.count_serviceable(scope) == 2
+    end
+
+    test "excludes culled sows", %{scope: scope, dry_sow: dry_sow} do
+      set_status!(dry_sow, "culled")
+
+      assert Breeding.count_serviceable(scope) == 2
+    end
+
+    test "excludes boars and batch animals", %{scope: scope} do
+      animal_fixture(scope, ear_tag: "BOAR2", stage: "boar")
+
+      Peggy.Animals.create_animal(scope, %{
+        tracking_type: "batch",
+        stage: "weaner",
+        quantity: 10
+      })
+
+      assert Breeding.count_serviceable(scope) == 3
+    end
+
+    test "filters by ear-tag prefix (case-insensitive)", %{scope: scope} do
+      assert [%{animal: %{ear_tag: "OPEN1"}}] = Breeding.list_serviceable(scope, search: "open")
+      assert Breeding.count_serviceable(scope, search: "open") == 1
+    end
+
+    test "filters by status", %{scope: scope} do
+      assert [%{animal: %{ear_tag: "OPEN1"}}] = Breeding.list_serviceable(scope, status: "open")
+      assert [%{animal: %{ear_tag: "DRY1"}}] = Breeding.list_serviceable(scope, status: "dry")
+      # Only outer SOW1 is `active` by default.
+      assert [%{animal: %{ear_tag: "SOW1"}}] = Breeding.list_serviceable(scope, status: "active")
+    end
+
+    test "decorates row with parity (gilt = 0, multiparous = farrowing count)",
+         %{scope: scope, boar: boar, dry_sow: dry_sow} do
+      farrowing_fixture(scope, dry_sow, boar_id: boar.id)
+      set_status!(dry_sow, "dry")
+
+      rows = Breeding.list_serviceable(scope) |> Map.new(&{&1.animal.ear_tag, &1})
+
+      assert rows["OPEN1"].parity == 0
+      assert rows["DRY1"].parity == 1
+    end
+
+    test "decorates last_event with weaned_at when most recent",
+         %{scope: scope, boar: boar, dry_sow: dry_sow} do
+      f =
+        farrowing_fixture(scope, dry_sow,
+          boar_id: boar.id,
+          farrowed_at: ~D[2026-02-01],
+          served_at: Date.add(~D[2026-02-01], -114)
+        )
+
+      {:ok, _, _} =
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-02-25],
+          weaned_count: 8,
+          batch_tag: "WB-DRY1",
+          destination_pen_id: f.pen_id
+        })
+
+      set_status!(dry_sow, "dry")
+
+      [row] = Breeding.list_serviceable(scope, search: "dry1")
+      assert row.last_event_kind == :weaned
+      assert row.last_event_date == ~D[2026-02-25]
+      assert row.days_idle == Date.diff(Date.utc_today(), ~D[2026-02-25])
+    end
+
+    test "decorates last_event_kind: nil when no breeding history (gilt-like)",
+         %{scope: scope} do
+      [row] = Breeding.list_serviceable(scope, search: "open1")
+      assert row.last_event_kind == nil
+      assert row.last_event_date == nil
+      assert row.days_idle == nil
+    end
+
+    test "limit + offset paginate the result", %{scope: scope} do
+      for i <- 1..5 do
+        s = animal_fixture(scope, ear_tag: "PAG#{i}", stage: "sow")
+        set_status!(s, "open")
+      end
+
+      total = Breeding.count_serviceable(scope, search: "PAG")
+      assert total == 5
+
+      page1 = Breeding.list_serviceable(scope, search: "PAG", limit: 2, offset: 0, sort: "tag")
+      page2 = Breeding.list_serviceable(scope, search: "PAG", limit: 2, offset: 2, sort: "tag")
+      page3 = Breeding.list_serviceable(scope, search: "PAG", limit: 2, offset: 4, sort: "tag")
+
+      assert length(page1) == 2
+      assert length(page2) == 2
+      assert length(page3) == 1
+
+      tags_in_order =
+        (page1 ++ page2 ++ page3) |> Enum.map(& &1.animal.ear_tag)
+
+      assert tags_in_order == Enum.sort(tags_in_order)
+    end
+
+    test "sort: tag ascending and descending orders by ear tag", %{scope: scope} do
+      asc =
+        Breeding.list_serviceable(scope, sort: "tag", dir: "asc")
+        |> Enum.map(& &1.animal.ear_tag)
+
+      desc =
+        Breeding.list_serviceable(scope, sort: "tag", dir: "desc")
+        |> Enum.map(& &1.animal.ear_tag)
+
+      assert asc == Enum.sort(asc)
+      assert desc == Enum.sort(asc, :desc)
+    end
+
+    test "sort: idle puts sows with no history at the end",
+         %{scope: scope, boar: boar, open_sow: open_sow} do
+      f =
+        farrowing_fixture(scope, open_sow,
+          boar_id: boar.id,
+          farrowed_at: ~D[2026-02-01],
+          served_at: Date.add(~D[2026-02-01], -114)
+        )
+
+      {:ok, _, _} =
+        Breeding.record_weaning(scope, f, %{
+          weaned_at: ~D[2026-02-25],
+          weaned_count: 8,
+          batch_tag: "WB-OPEN1",
+          destination_pen_id: f.pen_id
+        })
+
+      set_status!(open_sow, "open")
+
+      tags =
+        Breeding.list_serviceable(scope, sort: "idle", dir: "asc")
+        |> Enum.map(& &1.animal.ear_tag)
+
+      # OPEN1 has the most recent event → first; SOW1 / DRY1 (no history)
+      # sink to the tail.
+      assert hd(tags) == "OPEN1"
+      assert List.last(tags) in ["SOW1", "DRY1"]
+    end
+  end
+
+  # Test-only helper: flip an animal's status without going through the
+  # transition guard (some test setups need to land directly on `open`,
+  # `dry`, etc. without simulating the full lifecycle).
+  defp set_status!(animal, status) do
+    {:ok, updated} =
+      animal
+      |> Ecto.Changeset.change(%{status: status})
+      |> Peggy.Repo.update()
+
+    updated
+  end
 end

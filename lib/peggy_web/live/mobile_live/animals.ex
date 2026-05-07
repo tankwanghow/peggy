@@ -81,7 +81,8 @@ defmodule PeggyWeb.MobileLive.Animals do
                   :if={detail = stage_suffix(a, @parity_map, @avg_wean_age, @today)}
                   class="text-base-content/60"
                 >{detail}</span>
-              </span> - 
+              </span>
+              -
               <div
                 :if={line = footer_line(a, @event_map, @today, @avg_wean_age)}
                 class="text-xs"

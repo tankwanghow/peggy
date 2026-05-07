@@ -82,6 +82,7 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/animals/:id/trace", FarmLive.AnimalTrace, :show
       live "/farms/:farm_slug/animals/:id/batch-entry", FarmLive.BatchEntry, :show
       live "/farms/:farm_slug/breeding", FarmLive.Breeding, :index
+      live "/farms/:farm_slug/breeding/serviceable", FarmLive.Breeding.Serviceable, :index
       live "/farms/:farm_slug/breeding/gestating", FarmLive.Breeding.Gestating, :index
       live "/farms/:farm_slug/breeding/gestating/print", FarmLive.Breeding.GestatingPrint, :show
       live "/farms/:farm_slug/breeding/lactating", FarmLive.Breeding.Lactating, :index
@@ -103,6 +104,7 @@ defmodule PeggyWeb.Router do
       live "/m/:farm_slug/tasks", MobileLive.Tasks, :index
       live "/m/:farm_slug/animals", MobileLive.Animals, :index
       live "/m/:farm_slug/animals/:id", MobileLive.AnimalDetail, :show
+      live "/m/:farm_slug/breeding/serviceable", MobileLive.Breeding.Serviceable, :index
       live "/m/:farm_slug/breeding/gestating", MobileLive.Breeding.Gestating, :index
       live "/m/:farm_slug/breeding/lactating", MobileLive.Breeding.Lactating, :index
     end

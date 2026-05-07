@@ -50,20 +50,17 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                 {active_filter_count(@filters)}
               </span>
             </button>
-            <button
-              :if={@can_record}
-              type="button"
-              phx-click="service_open"
-              class="btn btn-square btn-lg bg-pink-500 hover:bg-pink-600 border-pink-500 text-white"
-              aria-label={gettext("Record service")}
-            >
-              <.icon name="hero-heart" class="size-6" />
-            </button>
           </form>
         </header>
 
         <%!-- Tab switch (Lactating / Gestating) — small dual link strip --%>
         <nav class="px-3 pt-2 flex gap-2 text-xs">
+        <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
+            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+          >
+            {gettext("Serviceable")}
+          </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
             class="px-3 py-1 rounded-full bg-primary text-primary-content font-semibold"
@@ -186,7 +183,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             <%!-- Action menu --%>
             <div
               :if={@sheet_mode == :menu and @can_record}
-              class="grid grid-cols-2 gap-px bg-base-200"
+              class="grid grid-cols-3 gap-px bg-base-200"
             >
               <button
                 phx-click="action_farrow"
@@ -194,6 +191,13 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               >
                 <.icon name="hero-sparkles" class="size-7 text-success" />
                 <span class="text-xs">{gettext("Farrow")}</span>
+              </button>
+              <button
+                phx-click="action_re_service"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-pink-500/10"
+              >
+                <.icon name="hero-heart" class="size-7 text-pink-500" />
+                <span class="text-xs">{gettext("Re-service")}</span>
               </button>
               <button
                 phx-click="action_close"
@@ -294,7 +298,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                   phx-disable-with={gettext("Saving…")}
                   class="btn btn-lg btn-primary"
                 >
-                  {gettext("Record farrowing")}
+                  {gettext("Farrowed")}
                 </button>
               </div>
             </.form>
@@ -364,10 +368,112 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                   phx-disable-with={gettext("Closing…")}
                   class="btn btn-lg btn-error"
                 >
-                  {gettext("Close service")}
+                  {gettext("Serv. Closed")}
                 </button>
               </div>
             </.form>
+
+            <%!-- Re-service form --%>
+            <form
+              :if={@sheet_mode == :re_service}
+              phx-change="service_validate"
+              phx-submit="service_save"
+              class="px-4 py-3 space-y-4"
+            >
+              <%!-- Locked sow tag travels via hidden input so service_validate
+                   keeps the resolution state in sync on each phx-change. --%>
+              <input type="hidden" name="sow_tag" value={@service_sow_tag} />
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Service type")}</span>
+                <select
+                  name="service_type"
+                  class="select select-bordered select-lg w-full mt-1"
+                >
+                  <option value="ai" selected={@service_type == "ai"}>{gettext("AI")}</option>
+                  <option value="natural" selected={@service_type == "natural"}>
+                    {gettext("Natural")}
+                  </option>
+                </select>
+              </label>
+
+              <label :if={@service_type == "natural"} class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Boar ear tag")}</span>
+                <input
+                  type="text"
+                  name="boar_tag"
+                  value={@service_boar_tag}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  class={[
+                    "input input-bordered input-lg w-full mt-1 font-mono",
+                    @service_boar_state == :resolved && "border-success focus:border-success",
+                    @service_boar_state == :not_found && "border-error focus:border-error"
+                  ]}
+                />
+                <span class={[
+                  "text-xs mt-1 block",
+                  @service_boar_state == :resolved && "text-success",
+                  @service_boar_state == :not_found && "text-error",
+                  @service_boar_state == :empty && "text-base-content/50"
+                ]}>
+                  {service_boar_state_text(@service_boar_state)}
+                </span>
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Served at")}</span>
+                <input
+                  type="date"
+                  name="served_at"
+                  value={@service_served_at}
+                  class="input input-bordered input-lg w-full mt-1"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">
+                  {gettext("Pen (HOUSE-PEN, optional)")}
+                </span>
+                <input
+                  type="text"
+                  name="pen_code"
+                  value={@service_pen_code}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  placeholder="EB-12"
+                  class={[
+                    "input input-bordered input-lg w-full mt-1 font-mono",
+                    @service_pen_state == :resolved && "border-success focus:border-success",
+                    @service_pen_state == :not_found && "border-error focus:border-error"
+                  ]}
+                />
+                <span class={[
+                  "text-xs mt-1 block",
+                  @service_pen_state == :resolved && "text-success",
+                  @service_pen_state == :not_found && "text-error",
+                  @service_pen_state == :empty && "text-base-content/50"
+                ]}>
+                  {gestating_pen_state_text(@service_pen_state)}
+                </span>
+              </label>
+
+              <p :if={@service_error} class="text-sm text-error">{@service_error}</p>
+
+              <div class="grid grid-cols-2 gap-3 pt-2">
+                <button type="button" phx-click="action_back" class="btn btn-lg btn-ghost">
+                  {gettext("Cancel")}
+                </button>
+                <button
+                  type="submit"
+                  phx-disable-with={gettext("Saving…")}
+                  disabled={not service_save_enabled?(assigns)}
+                  class="btn btn-lg btn-primary"
+                >
+                  {gettext("Re-serviced")}
+                </button>
+              </div>
+            </form>
 
             <button
               :if={@sheet_mode == :menu}
@@ -476,145 +582,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
           </aside>
         </div>
 
-        <%!-- Service sheet --%>
-        <div
-          :if={@service_open}
-          class="fixed inset-0 z-40 bg-black/40 flex items-end"
-          phx-click="service_close"
-        >
-          <form
-            phx-change="service_validate"
-            phx-submit="service_save"
-            phx-click="ignore_click"
-            class="w-full bg-base-100 rounded-t-2xl pb-[env(safe-area-inset-bottom)]
-                   max-h-[90vh] overflow-y-auto"
-          >
-            <div class="flex justify-center pt-2 pb-1">
-              <div class="w-10 h-1 rounded-full bg-base-300"></div>
-            </div>
-            <div class="px-4 py-2 border-b border-base-200 text-center">
-              <div class="font-semibold">{gettext("Record service")}</div>
-            </div>
-
-            <div class="px-4 py-4 space-y-3">
-              <label class="block">
-                <span class="text-xs uppercase text-base-content/60">{gettext("Sow ear tag")}</span>
-                <input
-                  type="text"
-                  name="sow_tag"
-                  value={@service_sow_tag}
-                  phx-debounce="300"
-                  autocomplete="off"
-                  spellcheck="false"
-                  class={[
-                    "input input-bordered input-lg w-full mt-1 font-mono",
-                    @service_sow_state == :existing && "border-success focus:border-success",
-                    @service_sow_state in [:not_found, :not_serviceable] &&
-                      "border-error focus:border-error"
-                  ]}
-                />
-                <span class={[
-                  "text-xs mt-1 block",
-                  @service_sow_state == :existing && "text-success",
-                  @service_sow_state in [:not_found, :not_serviceable] && "text-error",
-                  @service_sow_state == :empty && "text-base-content/50"
-                ]}>
-                  {service_sow_state_text(@service_sow_state, @service_sow_status)}
-                </span>
-              </label>
-
-              <label class="block">
-                <span class="text-xs uppercase text-base-content/60">{gettext("Service type")}</span>
-                <select
-                  name="service_type"
-                  class="select select-bordered select-lg w-full mt-1"
-                >
-                  <option value="ai" selected={@service_type == "ai"}>{gettext("AI")}</option>
-                  <option value="natural" selected={@service_type == "natural"}>
-                    {gettext("Natural")}
-                  </option>
-                </select>
-              </label>
-
-              <label :if={@service_type == "natural"} class="block">
-                <span class="text-xs uppercase text-base-content/60">{gettext("Boar ear tag")}</span>
-                <input
-                  type="text"
-                  name="boar_tag"
-                  value={@service_boar_tag}
-                  phx-debounce="300"
-                  autocomplete="off"
-                  class={[
-                    "input input-bordered input-lg w-full mt-1 font-mono",
-                    @service_boar_state == :resolved && "border-success focus:border-success",
-                    @service_boar_state == :not_found && "border-error focus:border-error"
-                  ]}
-                />
-                <span class={[
-                  "text-xs mt-1 block",
-                  @service_boar_state == :resolved && "text-success",
-                  @service_boar_state == :not_found && "text-error",
-                  @service_boar_state == :empty && "text-base-content/50"
-                ]}>
-                  {service_boar_state_text(@service_boar_state)}
-                </span>
-              </label>
-
-              <label class="block">
-                <span class="text-xs uppercase text-base-content/60">{gettext("Served at")}</span>
-                <input
-                  type="date"
-                  name="served_at"
-                  value={@service_served_at}
-                  class="input input-bordered input-lg w-full mt-1"
-                />
-              </label>
-
-              <label class="block">
-                <span class="text-xs uppercase text-base-content/60">
-                  {gettext("Pen (HOUSE-PEN, optional)")}
-                </span>
-                <input
-                  type="text"
-                  name="pen_code"
-                  value={@service_pen_code}
-                  phx-debounce="300"
-                  autocomplete="off"
-                  placeholder="EB-12"
-                  class={[
-                    "input input-bordered input-lg w-full mt-1 font-mono",
-                    @service_pen_state == :resolved && "border-success focus:border-success",
-                    @service_pen_state == :not_found && "border-error focus:border-error"
-                  ]}
-                />
-                <span class={[
-                  "text-xs mt-1 block",
-                  @service_pen_state == :resolved && "text-success",
-                  @service_pen_state == :not_found && "text-error",
-                  @service_pen_state == :empty && "text-base-content/50"
-                ]}>
-                  {gestating_pen_state_text(@service_pen_state)}
-                </span>
-              </label>
-
-              <p :if={@service_error} class="text-sm text-error">{@service_error}</p>
-
-              <div class="grid grid-cols-2 gap-3 pt-2">
-                <button type="button" phx-click="service_close" class="btn btn-lg btn-ghost">
-                  {gettext("Cancel")}
-                </button>
-                <button
-                  type="submit"
-                  phx-disable-with={gettext("Saving…")}
-                  disabled={not service_save_enabled?(assigns)}
-                  class="btn btn-lg btn-primary"
-                >
-                  {gettext("Save service")}
-                </button>
-              </div>
-            </div>
-          </form>
-        </div>
       </div>
     </Layouts.mobile_app>
     """
@@ -641,7 +608,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
        farrow_error: nil,
        close_form: nil,
        close_error: nil,
-       service_open: false,
        service_sow_tag: "",
        service_sow_state: :empty,
        service_sow_status: nil,
@@ -865,11 +831,20 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
 
   # ── Record service ──
 
-  def handle_event("service_open", _, socket) do
+  # Re-service from a gestating sow's action menu: closes the action
+  # sheet and opens the service sheet with that sow's ear tag pre-resolved.
+  # Saving auto-closes the open service with `result = re_service` (handled
+  # in `Breeding.record_service/2`).
+  def handle_event("action_re_service", _, socket) do
     if socket.assigns.can_record do
+      today = socket.assigns.today
+      sow_tag = socket.assigns.sheet_sow_tag
+
       {:noreply,
-       assign(socket,
-         service_open: true,
+       socket
+       |> reset_sheet_state()
+       |> assign(
+         sheet_mode: :re_service,
          service_sow_tag: "",
          service_sow_state: :empty,
          service_sow_status: nil,
@@ -878,18 +853,17 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
          service_boar_state: :empty,
          service_boar_id: nil,
          service_type: "ai",
-         service_served_at: to_string(socket.assigns.today),
+         service_served_at: to_string(today),
          service_pen_code: "",
          service_pen_state: :empty,
          service_pen_id: nil,
          service_error: nil
-       )}
+       )
+       |> resolve_service_sow(sow_tag)}
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
     end
   end
-
-  def handle_event("service_close", _, socket), do: {:noreply, reset_service(socket)}
 
   def handle_event("service_validate", params, socket) do
     socket
@@ -939,7 +913,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             {:ok, _} ->
               {:noreply,
                socket
-               |> reset_service()
+               |> reset_sheet()
                |> load_rows()
                |> put_flash(:info, gettext("Service recorded."))}
 
@@ -1075,12 +1049,14 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
   end
 
   defp reset_sheet_state(socket) do
-    assign(socket,
+    socket
+    |> assign(
       farrow_form: nil,
       farrow_error: nil,
       close_form: nil,
       close_error: nil
     )
+    |> reset_service()
   end
 
   defp days_left(%{expected_farrow_date: efd}, today), do: Date.diff(efd, today)
@@ -1116,7 +1092,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
 
   defp reset_service(socket) do
     assign(socket,
-      service_open: false,
       service_sow_tag: "",
       service_sow_state: :empty,
       service_sow_status: nil,
@@ -1249,11 +1224,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
   end
 
   defp service_save_enabled?(_), do: false
-
-  defp service_sow_state_text(:existing, _), do: "✓ Serviceable sow"
-  defp service_sow_state_text(:not_serviceable, status), do: "✗ Sow status: #{status}"
-  defp service_sow_state_text(:not_found, _), do: "⚠ No sow with that tag"
-  defp service_sow_state_text(_, _), do: "Type the sow's ear tag"
 
   defp service_boar_state_text(:resolved), do: "✓"
   defp service_boar_state_text(:not_found), do: "⚠ No boar with that tag"

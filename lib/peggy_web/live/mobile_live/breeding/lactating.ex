@@ -55,6 +55,12 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
         <%!-- Tab switch (Gestating / Lactating) --%>
         <nav class="px-3 pt-2 flex gap-2 text-xs">
           <.link
+            navigate={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
+            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+          >
+            {gettext("Serviceable")}
+          </.link>
+          <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
             class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
           >
@@ -293,7 +299,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                   phx-disable-with={gettext("Saving…")}
                   class="btn btn-lg btn-primary"
                 >
-                  {gettext("Save")}
+                  {gettext("Weaned")}
                 </button>
               </div>
             </.form>
@@ -354,7 +360,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                   phx-disable-with={gettext("Saving…")}
                   class="btn btn-lg btn-error"
                 >
-                  {gettext("Record death")}
+                  {gettext("Rec. Death")}
                 </button>
               </div>
             </.form>
@@ -447,7 +453,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                   disabled={@foster_dest_state != :resolved}
                   class="btn btn-lg btn-primary"
                 >
-                  {gettext("Record fostering")}
+                  {gettext("Rec. Foster")}
                 </button>
               </div>
             </.form>

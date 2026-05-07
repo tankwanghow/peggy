@@ -508,6 +508,11 @@ defmodule PeggyWeb.Layouts do
             class="dropdown-content menu z-50 mt-1 w-56 rounded-md border border-base-300 bg-base-100 p-1 shadow-lg"
           >
             <li>
+              <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/serviceable"}>
+                {gettext("Serviceable")}
+              </.link>
+            </li>
+            <li>
               <.link navigate={~p"/farms/#{@current_scope.farm.slug}/breeding/gestating"}>
                 {gettext("Gestating")}
               </.link>

@@ -33,6 +33,7 @@ defmodule PeggyWeb.FarmLive.Breeding do
     end
   end
 
+  defp tab_base(slug, "serviceable"), do: ~p"/farms/#{slug}/breeding/serviceable"
   defp tab_base(slug, "lactating"), do: ~p"/farms/#{slug}/breeding/lactating"
   defp tab_base(slug, "weaned"), do: ~p"/farms/#{slug}/breeding/weaned"
   defp tab_base(slug, "deleted"), do: ~p"/farms/#{slug}/breeding/deleted"
@@ -49,6 +50,7 @@ defmodule PeggyWeb.FarmLive.Breeding do
     """
   end
 
+  defp param_tab("serviceable"), do: "serviceable"
   defp param_tab("lactating"), do: "lactating"
   defp param_tab("weaned"), do: "weaned"
   defp param_tab("deleted"), do: "deleted"

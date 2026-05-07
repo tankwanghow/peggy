@@ -53,6 +53,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     end
   end
 
+  defp tab_base(slug, "serviceable"), do: ~p"/farms/#{slug}/breeding/serviceable"
   defp tab_base(slug, "gestating"), do: ~p"/farms/#{slug}/breeding/gestating"
   defp tab_base(slug, "lactating"), do: ~p"/farms/#{slug}/breeding/lactating"
   defp tab_base(slug, "weaned"), do: ~p"/farms/#{slug}/breeding/weaned"
