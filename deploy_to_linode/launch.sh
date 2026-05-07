@@ -19,17 +19,39 @@ do
     declare "$key=$value"
 done < "$SETUP_FILE"
 
-stty -echo
-echo -n "Please enter password of the server: "
-read LINODE_PWD
-stty echo
-echo
+read_secret() {
+    local var=$1 prompt=$2
+    while true; do
+        stty -echo
+        echo -n "$prompt"
+        read "$var"
+        stty echo
+        echo
+        if [ -z "${!var}" ]; then
+            echo "Empty input — try again."
+        else
+            break
+        fi
+    done
+}
 
-stty -echo
-echo -n "Please enter password for '$DB_USER': "
-read DB_PWD
-stty echo
+for v in LINODE_IP DOMAIN_NAME MAIL_HOST MAIL_PORT MAIL_USERNAME MAIL_FROM; do
+    if [ -z "${!v}" ]; then
+        echo "Error: $v is not set in $SETUP_FILE"
+        exit 1
+    fi
+done
+
+read_secret LINODE_PWD "Please enter password of the server: "
+read_secret DB_PWD     "Please enter password for '$DB_USER': "
+
 echo
+echo "=== Mail (SMTP) ==="
+echo "Sending as $MAIL_USERNAME via $MAIL_HOST:$MAIL_PORT"
+echo "For Gmail: use an App Password (not your account password)."
+echo "  https://myaccount.google.com/apppasswords"
+echo
+read_secret MAIL_PASSWORD "SMTP password for $MAIL_USERNAME: "
 
 SECRET_KEY_BASE=$(mix phx.gen.secret)
 echo "Generated SECRET_KEY_BASE."
@@ -48,11 +70,14 @@ sshpass -p $LINODE_PWD scp \
 
 sshpass -p $LINODE_PWD ssh root@$LINODE_IP "bash /home/${IMAGE_NAME}/setup_barebone_debian_at_server.sh"
 
-sshpass -p $LINODE_PWD ssh root@$LINODE_IP "bash /home/${IMAGE_NAME}/setup_db_at_server.sh $DB_NAME $DB_USER $DB_PWD"
+sshpass -p "$LINODE_PWD" ssh root@"$LINODE_IP" \
+    "bash /home/${IMAGE_NAME}/setup_db_at_server.sh '$DB_NAME' '$DB_USER' '$DB_PWD'"
 
-sshpass -p $LINODE_PWD ssh root@$LINODE_IP "bash /home/${IMAGE_NAME}/setup_certbot_at_server.sh $DOMAIN_NAME"
+sshpass -p "$LINODE_PWD" ssh root@"$LINODE_IP" \
+    "bash /home/${IMAGE_NAME}/setup_certbot_at_server.sh '$DOMAIN_NAME'"
 
-sshpass -p $LINODE_PWD ssh root@$LINODE_IP "bash /home/${IMAGE_NAME}/generate_files_at_server.sh $DB_NAME $DB_USER $DB_PWD $PORT $DOMAIN_NAME $IMAGE_NAME $DOCKER_HUB_USERNAME $DOCKER_CONTAINER_NAME $SECRET_KEY_BASE"
+sshpass -p "$LINODE_PWD" ssh root@"$LINODE_IP" \
+    "bash /home/${IMAGE_NAME}/generate_files_at_server.sh '$DB_NAME' '$DB_USER' '$DB_PWD' '$PORT' '$DOMAIN_NAME' '$IMAGE_NAME' '$DOCKER_HUB_USERNAME' '$DOCKER_CONTAINER_NAME' '$SECRET_KEY_BASE' '$MAIL_HOST' '$MAIL_PORT' '$MAIL_USERNAME' '$MAIL_PASSWORD' '$MAIL_FROM'"
 
 IMAGE_TAG="latest"
 GIT_SHA=$(git -C "$script_path/.." rev-parse --short HEAD)

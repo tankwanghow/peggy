@@ -39,3 +39,5 @@ npm-debug.log
 # are run locally and should not be committed.
 /legacy data/
 /priv/repo/legacy*.exs
+
+secret.txt

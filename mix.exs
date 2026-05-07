@@ -67,7 +67,8 @@ defmodule Peggy.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:nimble_csv, "~> 1.2"}
+      {:nimble_csv, "~> 1.2"},
+      {:gen_smtp, "~> 1.2"}
     ]
   end
 
@@ -86,6 +87,7 @@ defmodule Peggy.MixProject do
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind peggy", "esbuild peggy"],
       "assets.deploy": [
+        "compile",
         "tailwind peggy --minify",
         "esbuild peggy --minify",
         "phx.digest"

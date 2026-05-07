@@ -9,6 +9,11 @@ IMAGE_NAME=$6
 DOCKER_HUB_USERNAME=$7
 DOCKER_CONTAINER_NAME=$8
 SECRET_KEY_BASE=$9
+MAIL_HOST=${10}
+MAIL_PORT=${11}
+MAIL_USERNAME=${12}
+MAIL_PASSWORD=${13}
+MAIL_FROM=${14}
 APP_COMPOSE="/home/$IMAGE_NAME/docker-compose-$IMAGE_NAME.yml"
 NGINX_CONF="${IMAGE_NAME}-nginx.conf"
 
@@ -25,9 +30,15 @@ services:
       - SECRET_KEY_BASE=${SECRET_KEY_BASE}
       - PHX_HOST=${DOMAIN_NAME}
       - MIX_ENV=prod
-      - PORT=$PORT
+      - PORT=${PORT}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM}
     network_mode: host
 EOF
+chmod 600 $APP_COMPOSE
 
 echo "Creating Nginx conf file for ${DOMAIN_NAME}..."
 cat << EOF > /etc/nginx/sites-available/${NGINX_CONF}
