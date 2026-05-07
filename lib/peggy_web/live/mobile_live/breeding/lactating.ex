@@ -14,6 +14,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
   alias Peggy.{Animals, Breeding, FarmClock, Policy}
   alias Peggy.Breeding.{LitterEvent, Weaning}
   alias PeggyWeb.FarmLive.Breeding.Shared
+  alias PeggyWeb.MobileLive.Breeding.MovementForm
 
   @per_page 25
 
@@ -188,14 +189,14 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
             <%!-- Action menu --%>
             <div
               :if={@sheet_mode == :menu and @can_record}
-              class="grid grid-cols-3 gap-px bg-base-200"
+              class="grid grid-cols-2 gap-px bg-base-200"
             >
               <button
-                phx-click="action_death"
-                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-error/10"
+                phx-click="action_wean"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-success/10"
               >
-                <.icon name="hero-minus-circle" class="size-7 text-error" />
-                <span class="text-xs">{gettext("Death")}</span>
+                <.icon name="hero-check-circle" class="size-7 text-success" />
+                <span class="text-xs">{gettext("Wean")}</span>
               </button>
               <button
                 phx-click="action_foster"
@@ -205,11 +206,18 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                 <span class="text-xs">{gettext("Foster")}</span>
               </button>
               <button
-                phx-click="action_wean"
-                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-success/10"
+                phx-click="action_move"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
               >
-                <.icon name="hero-check-circle" class="size-7 text-success" />
-                <span class="text-xs">{gettext("Wean")}</span>
+                <.icon name="hero-truck" class="size-7 text-info" />
+                <span class="text-xs">{gettext("Move")}</span>
+              </button>
+              <button
+                phx-click="action_death"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-error/10"
+              >
+                <.icon name="hero-minus-circle" class="size-7 text-error" />
+                <span class="text-xs">{gettext("Death")}</span>
               </button>
             </div>
 
@@ -508,6 +516,18 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
               </ul>
             </div>
 
+            <%!-- Move form --%>
+            <MovementForm.move_form
+              :if={@sheet_mode == :move and @move_form}
+              form={@move_form}
+              animal={@move_animal}
+              from_code={@move_from_code}
+              from_state={@move_from_state}
+              to_code={@move_to_code}
+              to_state={@move_to_state}
+              error={@move_error}
+            />
+
             <button
               :if={@sheet_mode == :menu}
               phx-click="close_actions"
@@ -653,6 +673,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
        foster_error: nil,
        ledger_events: []
      )
+     |> assign(MovementForm.init())
      |> stream_configure(:lactating, dom_id: &"farrowing-#{&1.farrowing.id}")
      |> stream(:lactating, [])}
   end
@@ -747,6 +768,47 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
        wean_form: to_form(cs, as: :weaning),
        wean_error: nil
      )}
+  end
+
+  # Movement
+
+  def handle_event("action_move", _, socket) do
+    if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      sow =
+        Animals.get_animal!(
+          socket.assigns.current_scope,
+          socket.assigns.sheet_farrowing.sow_id
+        )
+
+      {:noreply,
+       socket
+       |> assign(sheet_mode: :move)
+       |> MovementForm.open(sow)}
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("move_validate", params, socket) do
+    {:noreply, MovementForm.validate(socket, params)}
+  end
+
+  def handle_event("move_save", params, socket) do
+    if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      case MovementForm.save(socket, params) do
+        {:ok, socket} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:info, gettext("Movement recorded."))}
+
+        {:error, socket} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
   end
 
   def handle_event("validate_wean", %{"weaning" => params}, socket) do
@@ -1119,7 +1181,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
   # Clears form state without closing the sheet — used when switching
   # between :menu / :wean / :death / :foster modes.
   defp reset_sheet_state(socket) do
-    assign(socket,
+    socket
+    |> assign(
       wean_form: nil,
       wean_error: nil,
       death_form: nil,
@@ -1131,6 +1194,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
       foster_error: nil,
       ledger_events: []
     )
+    |> MovementForm.reset()
   end
 
   # Look up the destination sow for a fostering event by ear tag,

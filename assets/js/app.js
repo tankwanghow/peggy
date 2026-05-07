@@ -43,10 +43,15 @@ const AutoComplete = {
   mounted() {
     const items = JSON.parse(this.el.dataset.acItems || "[]")
     const emptyText = this.el.dataset.acEmptyText || ""
+    // In freetext mode the visible input itself carries the form's
+    // `name` — selection writes the item's `id` into it, but the user
+    // can also leave any typed value as-is (no companion hidden input,
+    // no "no matching selection" warning).
+    const freetext = this.el.dataset.acFreetext === "true"
     const hiddenId = this.el.id.replace(/-input$/, "-value")
-    const hidden = document.getElementById(hiddenId)
+    const hidden = freetext ? null : document.getElementById(hiddenId)
     const warningId = this.el.id.replace(/-input$/, "-warning")
-    const warning = document.getElementById(warningId)
+    const warning = freetext ? null : document.getElementById(warningId)
     const hook = this
     const showWarning = (on) => {
       if (!warning) return
@@ -61,8 +66,11 @@ const AutoComplete = {
     const containerFn = () => this.el.closest(".fieldset")
 
     // When the user starts typing, treat any prior selection as
-    // invalidated until they pick a new one.
+    // invalidated until they pick a new one. Freetext mode has no
+    // hidden companion to clear — the visible input itself is the
+    // form field, so typing IS the new value.
     this.onInput = () => {
+      if (freetext) return
       showWarning(false)
       if (hidden && hidden.value) {
         hidden.value = ""
@@ -79,7 +87,9 @@ const AutoComplete = {
       if (id !== wrapperId) return
       hook.el.value = ""
       showWarning(false)
-      if (hidden) {
+      if (freetext) {
+        hook.el.dispatchEvent(new Event("input", {bubbles: true}))
+      } else if (hidden) {
         hidden.value = ""
         hidden.dispatchEvent(new Event("input", {bubbles: true}))
       }
@@ -124,19 +134,31 @@ const AutoComplete = {
           },
           selection: (event) => {
             const sel = event.detail.selection.value
-            hook.el.value = sel.label
-            showWarning(false)
-            if (hidden) {
-              hidden.value = sel.id
-              // Let the form's phx-change handler run.
-              hidden.dispatchEvent(new Event("input", {bubbles: true}))
+            // Freetext mode: the visible input IS the form field, so we
+            // write the item's `id` (e.g. raw batch tag) into it. Hidden
+            // mode: visible shows the rich label, hidden carries the id.
+            if (freetext) {
+              hook.el.value = sel.id
+              hook.el.dispatchEvent(new Event("input", {bubbles: true}))
+            } else {
+              hook.el.value = sel.label
+              showWarning(false)
+              if (hidden) {
+                hidden.value = sel.id
+                // Let the form's phx-change handler run.
+                hidden.dispatchEvent(new Event("input", {bubbles: true}))
+              }
             }
           },
           // If the user leaves the field with text that uniquely
           // identifies one item (exact label match, or a substring that
           // matches only one item), auto-commit that item's id. Prevents
           // typing "Sow-123" and submitting a form with a nil id.
+          //
+          // Freetext mode skips this entirely — the visible input value
+          // is whatever the user typed, and that's accepted as-is.
           blur: () => {
+            if (freetext) return
             if (!hidden) return
             if (hidden.value) {
               showWarning(false)

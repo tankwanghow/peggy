@@ -15,6 +15,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
   alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
   alias Peggy.Breeding.{Farrowing, Service}
   alias PeggyWeb.FarmLive.Breeding.Shared
+  alias PeggyWeb.MobileLive.Breeding.MovementForm
 
   @per_page 25
 
@@ -183,7 +184,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             <%!-- Action menu --%>
             <div
               :if={@sheet_mode == :menu and @can_record}
-              class="grid grid-cols-3 gap-px bg-base-200"
+              class="grid grid-cols-2 gap-px bg-base-200"
             >
               <button
                 phx-click="action_farrow"
@@ -198,6 +199,13 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               >
                 <.icon name="hero-heart" class="size-7 text-pink-500" />
                 <span class="text-xs">{gettext("Re-service")}</span>
+              </button>
+              <button
+                phx-click="action_move"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
+              >
+                <.icon name="hero-truck" class="size-7 text-info" />
+                <span class="text-xs">{gettext("Move")}</span>
               </button>
               <button
                 phx-click="action_close"
@@ -475,6 +483,18 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               </div>
             </form>
 
+            <%!-- Move form --%>
+            <MovementForm.move_form
+              :if={@sheet_mode == :move and @move_form}
+              form={@move_form}
+              animal={@move_animal}
+              from_code={@move_from_code}
+              from_state={@move_from_state}
+              to_code={@move_to_code}
+              to_state={@move_to_state}
+              error={@move_error}
+            />
+
             <button
               :if={@sheet_mode == :menu}
               phx-click="close_actions"
@@ -622,6 +642,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
        service_pen_id: nil,
        service_error: nil
      )
+     |> assign(MovementForm.init())
      |> stream_configure(:gestating, dom_id: &"service-#{&1.service.id}")
      |> stream(:gestating, [])}
   end
@@ -865,6 +886,47 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
     end
   end
 
+  # Movement
+
+  def handle_event("action_move", _, socket) do
+    if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      sow =
+        Animals.get_animal!(
+          socket.assigns.current_scope,
+          socket.assigns.sheet_service.sow_id
+        )
+
+      {:noreply,
+       socket
+       |> assign(sheet_mode: :move)
+       |> MovementForm.open(sow)}
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("move_validate", params, socket) do
+    {:noreply, MovementForm.validate(socket, params)}
+  end
+
+  def handle_event("move_save", params, socket) do
+    if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      case MovementForm.save(socket, params) do
+        {:ok, socket} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:info, gettext("Movement recorded."))}
+
+        {:error, socket} ->
+          {:noreply, socket}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
   def handle_event("service_validate", params, socket) do
     socket
     |> assign(
@@ -1057,6 +1119,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       close_error: nil
     )
     |> reset_service()
+    |> MovementForm.reset()
   end
 
   defp days_left(%{expected_farrow_date: efd}, today), do: Date.diff(efd, today)

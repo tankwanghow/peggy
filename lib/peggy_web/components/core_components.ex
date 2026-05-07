@@ -331,6 +331,11 @@ defmodule PeggyWeb.CoreComponents do
     default: nil,
     doc: "Shown inside the results dropdown when there are no matching items."
 
+  attr :freetext, :boolean,
+    default: false,
+    doc:
+      "If true, the visible input itself is the form field — picking from the dropdown writes the item's `id` into it; typing any free-text value is also accepted (no \"no match\" warning). Use for fields like a batch tag where the user may pick an existing pool or create a new one."
+
   def autocomplete(assigns) do
     assigns = assign(assigns, :has_label?, is_binary(assigns.label) and assigns.label != "")
 
@@ -342,20 +347,29 @@ defmodule PeggyWeb.CoreComponents do
     >
       <label>
         <span :if={@has_label?} class="label mb-1">{@label}</span>
-        <input type="hidden" id={"#{@id}-value"} name={@name} value={@value || ""} />
+        <input
+          :if={not @freetext}
+          type="hidden"
+          id={"#{@id}-value"}
+          name={@name}
+          value={@value || ""}
+        />
         <input
           type="text"
           id={"#{@id}-input"}
-          value={@selected_label || ""}
+          name={if @freetext, do: @name}
+          value={if @freetext, do: @value || "", else: @selected_label || ""}
           placeholder={@placeholder || @label}
           autocomplete="off"
           class={@class || "w-full input"}
           phx-hook="AutoComplete"
           data-ac-items={Jason.encode!(@items)}
           data-ac-empty-text={@empty_text || ""}
+          data-ac-freetext={if @freetext, do: "true"}
         />
       </label>
       <p
+        :if={not @freetext}
         id={"#{@id}-warning"}
         class="mt-1 hidden text-xs text-warning flex gap-1 items-center"
         role="alert"

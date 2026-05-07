@@ -598,18 +598,18 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
               min="0"
             />
             <div>
-              <.input
-                field={@form[:batch_tag]}
-                type="text"
+              <.autocomplete
+                id="weaning-batch-tag-picker"
                 label={gettext("Weaner batch id")}
-                list="weaning-batch-tags"
+                name="weaning[batch_tag]"
+                value={Shared.fv(@form, :batch_tag)}
+                items={
+                  Enum.map(@weaner_batches, &%{id: &1.ear_tag, label: "#{&1.ear_tag} (#{&1.quantity})"})
+                }
+                class="w-full input"
                 placeholder={gettext("e.g. W2026-04-17")}
+                freetext
               />
-              <datalist id="weaning-batch-tags">
-                <option :for={b <- @weaner_batches} value={b.ear_tag}>
-                  {b.ear_tag} ({b.quantity})
-                </option>
-              </datalist>
               <p class="text-xs text-base-content/60 mt-0.5">
                 {@batch_tag_hint}
               </p>

@@ -10,6 +10,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
 
   alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
   alias PeggyWeb.FarmLive.Breeding.Shared
+  alias PeggyWeb.MobileLive.Breeding.MovementForm
 
   @per_page 25
 
@@ -75,7 +76,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
           <li
             :for={{dom_id, e} <- @streams.serviceable}
             id={dom_id}
-            phx-click={@can_record && "open_service"}
+            phx-click={@can_record && "open_actions"}
             phx-value-sow-id={e.animal.id}
             class={[
               "p-4 rounded-xl border border-base-300 bg-base-100 shadow-sm",
@@ -211,31 +212,69 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
           </aside>
         </div>
 
-        <%!-- Service sheet --%>
+        <%!-- Action sheet --%>
         <div
-          :if={@svc}
+          :if={@action_sheet_for}
           class="fixed inset-0 z-40 bg-black/40 flex items-end"
-          phx-click="cancel_service"
+          phx-click="close_actions"
         >
-          <form
-            phx-change="validate_service"
-            phx-submit="save_service"
-            phx-click="ignore_click"
+          <div
             class="w-full bg-base-100 rounded-t-2xl pb-[env(safe-area-inset-bottom)]
                    max-h-[90vh] overflow-y-auto"
+            phx-click="ignore_click"
           >
             <div class="flex justify-center pt-2 pb-1">
               <div class="w-10 h-1 rounded-full bg-base-300"></div>
             </div>
-            <div class="px-4 py-2 border-b border-base-200">
-              <div class="text-center font-semibold">{gettext("Record service")}</div>
-              <div class="text-center text-sm">
-                <span class="font-mono font-semibold">{@svc.sow_tag}</span>
-                <span class="text-base-content/50 ml-2">({@svc.sow_status})</span>
+
+            <div class="px-4 py-2 border-b border-base-200 flex items-center gap-3">
+              <button
+                :if={@sheet_mode != :menu}
+                phx-click="action_back"
+                class="btn btn-ghost btn-square btn-sm"
+                aria-label={gettext("Back")}
+              >
+                <.icon name="hero-chevron-left" class="size-5" />
+              </button>
+              <div class={["flex-1", @sheet_mode == :menu && "text-center"]}>
+                <div class="font-mono font-bold text-lg">{@sheet_sow_tag}</div>
+                <div :if={@sheet_animal} class="text-xs text-base-content/60">
+                  <span class={["uppercase font-semibold", status_color(@sheet_animal.status)]}>
+                    {@sheet_animal.status}
+                  </span>
+                  <span class="ml-2 font-mono">{sow_pen_label(@sheet_animal)}</span>
+                </div>
               </div>
             </div>
 
-            <div class="px-4 py-4 space-y-3">
+            <%!-- Action menu --%>
+            <div
+              :if={@sheet_mode == :menu and @can_record}
+              class="grid grid-cols-2 gap-px bg-base-200"
+            >
+              <button
+                phx-click="action_service"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-pink-500/10"
+              >
+                <.icon name="hero-heart" class="size-7 text-pink-500" />
+                <span class="text-xs">{gettext("Service")}</span>
+              </button>
+              <button
+                phx-click="action_move"
+                class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
+              >
+                <.icon name="hero-truck" class="size-7 text-info" />
+                <span class="text-xs">{gettext("Move")}</span>
+              </button>
+            </div>
+
+            <%!-- Service form --%>
+            <form
+              :if={@sheet_mode == :service and @svc}
+              phx-change="validate_service"
+              phx-submit="save_service"
+              class="px-4 py-3 space-y-3"
+            >
               <label class="block">
                 <span class="text-xs uppercase text-base-content/60">{gettext("Service type")}</span>
                 <select name="service_type" class="select select-bordered select-lg w-full mt-1">
@@ -310,7 +349,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
               <p :if={@svc.error_message} class="text-sm text-error">{@svc.error_message}</p>
 
               <div class="grid grid-cols-2 gap-3 pt-2">
-                <button type="button" phx-click="cancel_service" class="btn btn-lg btn-ghost">
+                <button type="button" phx-click="action_back" class="btn btn-lg btn-ghost">
                   {gettext("Cancel")}
                 </button>
                 <button
@@ -322,8 +361,35 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                   {gettext("Served")}
                 </button>
               </div>
-            </div>
-          </form>
+            </form>
+
+            <%!-- Move form --%>
+            <MovementForm.move_form
+              :if={@sheet_mode == :move and @move_form}
+              form={@move_form}
+              animal={@move_animal}
+              from_code={@move_from_code}
+              from_state={@move_from_state}
+              to_code={@move_to_code}
+              to_state={@move_to_state}
+              error={@move_error}
+            />
+
+            <p
+              :if={@sheet_mode == :menu and not @can_record}
+              class="px-4 py-6 text-center text-sm text-base-content/60"
+            >
+              {gettext("View-only — you don't have permission to record breeding.")}
+            </p>
+
+            <button
+              :if={@sheet_mode == :menu}
+              phx-click="close_actions"
+              class="w-full py-3 text-sm text-base-content/60 border-t border-base-200"
+            >
+              {gettext("Close")}
+            </button>
+          </div>
         </div>
       </div>
     </Layouts.mobile_app>
@@ -343,8 +409,13 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
        today: FarmClock.today(scope),
        per_page: @per_page,
        filter_drawer_open: false,
+       action_sheet_for: nil,
+       sheet_mode: :menu,
+       sheet_animal: nil,
+       sheet_sow_tag: nil,
        svc: nil
      )
+     |> assign(MovementForm.init())
      |> stream_configure(:serviceable, dom_id: &"serviceable-#{&1.animal.id}")
      |> stream(:serviceable, [])}
   end
@@ -401,11 +472,40 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
 
   def handle_event("load_more", _, socket), do: {:noreply, append_rows(socket)}
 
-  def handle_event("open_service", %{"sow-id" => id}, socket) do
+  def handle_event("open_actions", %{"sow-id" => id}, socket) do
     if socket.assigns.can_record do
       scope = socket.assigns.current_scope
       sow = Animals.get_animal!(scope, String.to_integer(id))
-      today = FarmClock.today(scope)
+
+      {:noreply,
+       socket
+       |> reset_sheet_state()
+       |> assign(
+         action_sheet_for: sow.id,
+         sheet_mode: :menu,
+         sheet_animal: sow,
+         sheet_sow_tag: sow.ear_tag
+       )}
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("close_actions", _, socket), do: {:noreply, reset_sheet(socket)}
+
+  def handle_event("action_back", _, socket) do
+    {:noreply,
+     socket
+     |> reset_sheet_state()
+     |> assign(sheet_mode: :menu)}
+  end
+
+  # Service
+
+  def handle_event("action_service", _, socket) do
+    if socket.assigns.can_record do
+      sow = socket.assigns.sheet_animal
+      today = FarmClock.today(socket.assigns.current_scope)
 
       svc = %{
         sow_id: sow.id,
@@ -422,7 +522,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
         error_message: nil
       }
 
-      {:noreply, assign(socket, svc: svc)}
+      {:noreply, assign(socket, sheet_mode: :service, svc: svc)}
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
     end
@@ -436,8 +536,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
      |> resolve_pen(params["pen_code"])}
   end
 
-  def handle_event("cancel_service", _, socket), do: {:noreply, assign(socket, svc: nil)}
-
   def handle_event("save_service", params, socket) do
     if socket.assigns.can_record do
       socket =
@@ -447,6 +545,41 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
         |> resolve_pen(params["pen_code"])
 
       do_save_service(socket)
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  # Movement
+
+  def handle_event("action_move", _, socket) do
+    if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      {:noreply,
+       socket
+       |> assign(sheet_mode: :move)
+       |> MovementForm.open(socket.assigns.sheet_animal)}
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
+  def handle_event("move_validate", params, socket) do
+    {:noreply, MovementForm.validate(socket, params)}
+  end
+
+  def handle_event("move_save", params, socket) do
+    if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      case MovementForm.save(socket, params) do
+        {:ok, socket} ->
+          {:noreply,
+           socket
+           |> reset_sheet()
+           |> load_rows()
+           |> put_flash(:info, gettext("Movement recorded."))}
+
+        {:error, socket} ->
+          {:noreply, socket}
+      end
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
     end
@@ -669,7 +802,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
           {:ok, %{sow: sow}} ->
             {:noreply,
              socket
-             |> assign(svc: nil)
+             |> reset_sheet()
              |> load_rows()
              |> put_flash(:info, gettext("Service recorded for %{tag}.", tag: sow.ear_tag))}
 
@@ -680,6 +813,23 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
             {:noreply, assign(socket, svc: %{svc | error_message: humanize(reason)})}
         end
     end
+  end
+
+  defp reset_sheet(socket) do
+    socket
+    |> reset_sheet_state()
+    |> assign(
+      action_sheet_for: nil,
+      sheet_mode: :menu,
+      sheet_animal: nil,
+      sheet_sow_tag: nil
+    )
+  end
+
+  defp reset_sheet_state(socket) do
+    socket
+    |> assign(svc: nil)
+    |> MovementForm.reset()
   end
 
   defp service_save_enabled?(%{service_type: "natural", boar_id: nil}), do: false

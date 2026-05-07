@@ -3417,18 +3417,32 @@ defmodule Peggy.Breeding do
     )
   end
 
+  # How far back (in days) the weaning-form autocomplete looks when
+  # listing pool-able batches. Keeps the dropdown to recent litters
+  # the operator might actually consolidate into; old, stale "active"
+  # batches (forgotten data) drop off automatically.
+  @recent_weaner_batch_days 60
+
   @doc """
-  Lists active weaner batches for the farm, ordered by `ear_tag`.
-  Used by the weaning form's batch_tag autocomplete.
+  Lists weaner batches eligible for piglet consolidation at weaning
+  time — active, non-empty, and born within the last
+  #{@recent_weaner_batch_days} days. Ordered by `dob` desc so the
+  most likely match is at the top, then by `ear_tag`.
+
+  Used by the weaning form's `batch_tag` autocomplete.
   """
   def list_active_weaner_batches(%Scope{farm: farm}) do
+    cutoff = Date.add(FarmClock.today(farm), -@recent_weaner_batch_days)
+
     from(a in Animal,
       where:
         a.farm_id == ^farm.id and
           a.tracking_type == "batch" and
           a.stage == "weaner" and
-          a.status == "active",
-      order_by: [asc: a.ear_tag]
+          a.status == "active" and
+          a.quantity > 0 and
+          a.dob >= ^cutoff,
+      order_by: [desc: a.dob, asc: a.ear_tag]
     )
     |> Repo.all()
   end

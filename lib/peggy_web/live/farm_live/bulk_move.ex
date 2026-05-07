@@ -162,7 +162,10 @@ defmodule PeggyWeb.FarmLive.BulkMove do
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
 
-    animals = Animals.list_animals(scope, status: "active")
+    # All on-farm individuals (sows in any breeding state, boars, etc.).
+    # `active` alone misses gestating/lactating/dry/open sows that this
+    # screen is explicitly meant to move.
+    animals = Animals.list_animals(scope, status: "present")
     individual_animals = Enum.filter(animals, &(&1.tracking_type == "individual"))
 
     animal_items = animal_items(individual_animals)
