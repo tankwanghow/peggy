@@ -120,15 +120,11 @@ defmodule Peggy.Tasks do
     ref_id = attrs["ref_entity_id"]
 
     existing =
-      from(t in Task,
-        where:
-          t.farm_id == ^farm.id and
-            t.kind == ^kind and
-            is_nil(t.completed_at) and
-            ((is_nil(^ref_type) and is_nil(t.ref_entity_type)) or t.ref_entity_type == ^ref_type) and
-            ((is_nil(^ref_id) and is_nil(t.ref_entity_id)) or t.ref_entity_id == ^ref_id),
-        limit: 1
-      )
+      Task
+      |> where([t], t.farm_id == ^farm.id and t.kind == ^kind and is_nil(t.completed_at))
+      |> match_ref(:ref_entity_type, ref_type)
+      |> match_ref(:ref_entity_id, ref_id)
+      |> limit(1)
       |> Repo.one()
 
     cond do
@@ -283,4 +279,12 @@ defmodule Peggy.Tasks do
       pair -> pair
     end)
   end
+
+  # Branch the nil-vs-value test at the Elixir level so the generated
+  # SQL never has a bare `$N IS NULL` (which Postgres can't type-infer).
+  defp match_ref(query, field, nil),
+    do: where(query, [t], is_nil(field(t, ^field)))
+
+  defp match_ref(query, field, value),
+    do: where(query, [t], field(t, ^field) == ^value)
 end

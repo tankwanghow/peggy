@@ -45,8 +45,6 @@ defmodule Peggy.Reports do
 
   # ── Dashboard aggregates ───────────────────────────────────────────
 
-  @gestation_days 114
-
   @doc """
   Herd snapshot: counts of present animals grouped by stage and (for
   sows) by reproductive status, plus pen occupancy stats.
@@ -141,8 +139,9 @@ defmodule Peggy.Reports do
   @spec action_list(Scope.t()) :: map()
   def action_list(%Scope{farm: %{id: farm_id}} = scope) do
     today = FarmClock.today(scope)
-    farrow_cutoff_7d = Date.add(today, 7 - @gestation_days)
-    farrow_cutoff_overdue = Date.add(today, -@gestation_days)
+    gestation = Peggy.Breeding.gestation_days(scope)
+    farrow_cutoff_7d = Date.add(today, 7 - gestation)
+    farrow_cutoff_overdue = Date.add(today, -gestation)
 
     excluded_sow_statuses = ["culled" | Peggy.Animals.Animal.departed_statuses()]
 
@@ -166,7 +165,7 @@ defmodule Peggy.Reports do
         %{
           sow_id: r.sow_id,
           sow_tag: r.sow_tag,
-          expected_at: Date.add(r.served_at, @gestation_days),
+          expected_at: Date.add(r.served_at, gestation),
           overdue?: Date.compare(r.served_at, farrow_cutoff_overdue) != :gt
         }
       end)

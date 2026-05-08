@@ -84,7 +84,7 @@ defmodule PeggyWeb.MobileLive.Animals do
               </span>
               -
               <div
-                :if={line = footer_line(a, @event_map, @today, @avg_wean_age)}
+                :if={line = footer_line(@current_scope, a, @event_map, @today, @avg_wean_age)}
                 class="text-xs"
               >
                 <span class="text-base-content/50">{elem(line, 0)}</span>
@@ -742,10 +742,10 @@ defmodule PeggyWeb.MobileLive.Animals do
   # (e.g. expected farrowing for a served sow); falls back to "Days in
   # status" for sows where no breeding event applies, and to total head
   # count for batches.
-  defp footer_line(%{stage: "sow", status: "served", id: id}, event_map, today, _avg) do
+  defp footer_line(scope, %{stage: "sow", status: "served", id: id}, event_map, today, _avg) do
     case event_map do
       %{^id => %{served_at: %Date{} = served_at}} ->
-        due = Date.add(served_at, Breeding.gestation_days())
+        due = Date.add(served_at, Breeding.gestation_days(scope))
         days = Date.diff(due, today)
         {gettext("Farrow due"), due_text(days)}
 
@@ -754,7 +754,7 @@ defmodule PeggyWeb.MobileLive.Animals do
     end
   end
 
-  defp footer_line(%{stage: "sow", status: "lactating", id: id}, event_map, today, avg) do
+  defp footer_line(_scope, %{stage: "sow", status: "lactating", id: id}, event_map, today, avg) do
     case event_map do
       %{^id => %{farrowed_at: %Date{} = farrowed_at}} when is_integer(avg) ->
         due = Date.add(farrowed_at, avg)
@@ -769,32 +769,51 @@ defmodule PeggyWeb.MobileLive.Animals do
     end
   end
 
-  defp footer_line(%{stage: "sow", status: status, id: id}, event_map, today, _avg)
+  defp footer_line(_scope, %{stage: "sow", status: status, id: id}, event_map, today, _avg)
        when status in ~w(open dry) do
-    case event_map do
-      %{^id => %{weaned_at: %Date{} = weaned_at}} ->
-        {gettext("Weaned"), "#{Date.diff(today, weaned_at)}d ago"}
-
-      _ ->
+    # Pick whichever cycle-ending event is most recent: weaning,
+    # abortion, or (rare) a stale farrowing. Without this, a sow
+    # whose latest event was an abortion would silently show no
+    # footer line (or a stale weaning from a prior cycle).
+    case Map.get(event_map, id) do
+      nil ->
         nil
+
+      %{} = events ->
+        candidates =
+          [
+            {:weaned, gettext("Weaned"), events[:weaned_at]},
+            {:aborted, gettext("Aborted"), events[:aborted_at]},
+            {:farrowed, gettext("Farrowed"), events[:farrowed_at]}
+          ]
+          |> Enum.reject(fn {_, _, d} -> is_nil(d) end)
+
+        case candidates do
+          [] ->
+            nil
+
+          list ->
+            {_, label, date} = Enum.max_by(list, fn {_, _, d} -> d end, Date)
+            {label, "#{Date.diff(today, date)}d ago"}
+        end
     end
   end
 
-  defp footer_line(%{tracking_type: "batch"} = a, _event_map, _today, _avg) do
+  defp footer_line(_scope, %{tracking_type: "batch"} = a, _event_map, _today, _avg) do
     case batch_total_head(a) do
       0 -> nil
       n -> {gettext("Head"), Integer.to_string(n)}
     end
   end
 
-  defp footer_line(%{stage: "sow"} = a, _event_map, today, _avg) do
+  defp footer_line(_scope, %{stage: "sow"} = a, _event_map, today, _avg) do
     case days_in_status(a, today) do
       nil -> nil
       d -> {gettext("Days in status"), "#{d}d"}
     end
   end
 
-  defp footer_line(_, _, _, _), do: nil
+  defp footer_line(_, _, _, _, _), do: nil
 
   defp due_text(d) when d > 0, do: "in #{d}d"
   defp due_text(0), do: gettext("today")

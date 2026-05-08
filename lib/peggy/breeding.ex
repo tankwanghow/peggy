@@ -29,14 +29,54 @@ defmodule Peggy.Breeding do
   alias Peggy.Audit.AuditLog
   alias Peggy.Breeding.{Service, Farrowing, Weaning, LitterEvent}
   alias Peggy.Animals.Movement
+  alias Peggy.Farms.Farm
 
-  @gestation_days 114
-  @lactation_days 24
-  @minimum_sow_age_days 365
+  # ── Per-farm breeding parameters ──────────────────────────────────
+  #
+  # Each helper takes a `Scope`, `Farm`, or `Animal` and returns the
+  # farm's stored value. Falls back to the column default if the field
+  # is somehow nil (e.g. raw structs in tests). Pre-multi-tenant code
+  # called these with no args; see git history for the constants.
 
-  def gestation_days, do: @gestation_days
-  def lactation_days, do: @lactation_days
-  def minimum_sow_age_days, do: @minimum_sow_age_days
+  @default_gestation_days 114
+  @default_lactation_days 24
+  @default_minimum_sow_age_days 365
+  @default_gestation_tolerance_days 3
+  @default_collapse_window_days 7
+  @default_recent_weaner_batch_days 60
+  @default_wean_due_days 21
+
+  def gestation_days(ref), do: param(ref, :gestation_days, @default_gestation_days)
+  def lactation_days(ref), do: param(ref, :lactation_days, @default_lactation_days)
+
+  def minimum_sow_age_days(ref),
+    do: param(ref, :minimum_sow_age_days, @default_minimum_sow_age_days)
+
+  def gestation_tolerance_days(ref),
+    do: param(ref, :gestation_tolerance_days, @default_gestation_tolerance_days)
+
+  def collapse_window_days(ref),
+    do: param(ref, :collapse_window_days, @default_collapse_window_days)
+
+  def recent_weaner_batch_days(ref),
+    do: param(ref, :recent_weaner_batch_days, @default_recent_weaner_batch_days)
+
+  def wean_due_days(ref), do: param(ref, :wean_due_days, @default_wean_due_days)
+
+  defp param(%Scope{farm: farm}, key, default), do: param(farm, key, default)
+  defp param(%Farm{} = farm, key, default), do: Map.get(farm, key) || default
+
+  defp param(%{farm_id: id}, key, default) when is_integer(id),
+    do: param_by_farm_id(id, key, default)
+
+  defp param(_, _, default), do: default
+
+  defp param_by_farm_id(farm_id, key, default) do
+    case Repo.get(Farm, farm_id) do
+      %Farm{} = farm -> Map.get(farm, key) || default
+      _ -> default
+    end
+  end
 
   # ── Services ──────────────────────────────────────────────────────
 
@@ -576,7 +616,7 @@ defmodule Peggy.Breeding do
   defp build_inferred_sow_changeset(farm, ear_tag, backfill_attrs, service_attrs) do
     backfill_attrs = stringify_keys(backfill_attrs || %{})
     served_at = parse_date(service_attrs["served_at"]) || FarmClock.today(farm)
-    default_dob = Date.add(served_at, -@minimum_sow_age_days)
+    default_dob = Date.add(served_at, -minimum_sow_age_days(farm))
 
     Animal.changeset(%Animal{}, %{
       "tracking_type" => "individual",
@@ -703,16 +743,14 @@ defmodule Peggy.Breeding do
     end)
   end
 
-  # Re-services within this many days of an open service collapse into
-  # the prior row instead of creating a second `breeding_services` row.
-  # This matches farm reality: a sow naturally bred 1–3× during heat is
-  # one service event, not multiple.
-  @collapse_window_days 7
-
   # Resolves how to apply a new service for a sow:
-  #   - no prior open service     → insert new
-  #   - prior within 7d of new    → collapse into prior
-  #   - prior outside the window  → close prior as re_service, insert new
+  #   - no prior open service              → insert new
+  #   - prior within `collapse_window_days` → collapse into prior
+  #   - prior outside the window           → close prior as re_service, insert new
+  #
+  # The collapse window is per-farm (`farms.collapse_window_days`,
+  # default 7) — a sow naturally bred 1–3× during heat is one service
+  # event, not multiple.
   defp resolve_service_action(multi, scope, attrs) do
     Multi.run(multi, :service, fn repo, _ ->
       do_resolve_service_action(repo, scope, attrs)
@@ -735,7 +773,7 @@ defmodule Peggy.Breeding do
           is_nil(prior) ->
             repo.insert(Service.changeset(%Service{}, attrs))
 
-          collapsible?(prior, new_served_at) ->
+          collapsible?(scope, prior, new_served_at) ->
             collapse_into_prior(repo, scope, prior, new_served_at, attrs)
 
           true ->
@@ -759,10 +797,10 @@ defmodule Peggy.Breeding do
     )
   end
 
-  defp collapsible?(%Service{served_at: served_at, last_serviced_at: last}, new_served_at) do
+  defp collapsible?(scope, %Service{served_at: served_at, last_serviced_at: last}, new_served_at) do
     last = last || served_at
     diff = Date.diff(new_served_at, last)
-    new_served_at >= served_at and diff >= 0 and diff <= @collapse_window_days
+    new_served_at >= served_at and diff >= 0 and diff <= collapse_window_days(scope)
   end
 
   defp collapse_into_prior(repo, scope, prior, new_served_at, attrs) do
@@ -1042,7 +1080,7 @@ defmodule Peggy.Breeding do
     farm = scope.farm
     backfill = stringify_keys(backfill)
     effective_served_at = served_at || Date.add(result_at, -@gestation_backfill_offset)
-    default_dob = Date.add(effective_served_at, -@minimum_sow_age_days)
+    default_dob = Date.add(effective_served_at, -minimum_sow_age_days(farm))
 
     sow_cs =
       Animal.changeset(%Animal{}, %{
@@ -1333,7 +1371,7 @@ defmodule Peggy.Breeding do
     |> gestating_query(opts)
     |> apply_pagination(opts)
     |> Repo.all()
-    |> Enum.map(&with_expected_farrow_date/1)
+    |> Enum.map(&with_expected_farrow_date(&1, farm))
   end
 
   @doc """
@@ -1384,18 +1422,20 @@ defmodule Peggy.Breeding do
     q = maybe_pen_search_on_sow(q, farm, pen_search)
     q = maybe_parity_on_sow(q, farm, min_parity, max_parity)
 
+    gestation = gestation_days(farm)
+
     q =
       case due_window do
         "7" ->
-          cutoff = Date.add(today, 7 - @gestation_days)
+          cutoff = Date.add(today, 7 - gestation)
           from s in q, where: s.served_at <= ^cutoff
 
         "14" ->
-          cutoff = Date.add(today, 14 - @gestation_days)
+          cutoff = Date.add(today, 14 - gestation)
           from s in q, where: s.served_at <= ^cutoff
 
         "overdue" ->
-          cutoff = Date.add(today, -@gestation_days)
+          cutoff = Date.add(today, -gestation)
           from s in q, where: s.served_at <= ^cutoff
 
         _ ->
@@ -1589,23 +1629,35 @@ defmodule Peggy.Breeding do
     sort = Keyword.get(opts, :sort, "idle")
     dir = Keyword.get(opts, :dir, "asc")
 
-    statuses =
-      case status_filter do
-        s when is_binary(s) and s != "all" ->
-          if s in Animal.serviceable_statuses(), do: [s], else: Animal.serviceable_statuses()
+    today = FarmClock.today(farm)
+    served_cutoff = Date.add(today, -collapse_window_days(farm))
 
-        _ ->
-          Animal.serviceable_statuses()
-      end
+    # Each sow's open-service `served_at` (start of heat). The status
+    # filter then keeps served sows whose `served_at > served_cutoff`
+    # — i.e. she's still inside the heat-clustering window, currently
+    # mid-heat. Sows past the window (`served_at <= cutoff`) are
+    # treated as gestating and dropped from this list.
+    open_service_subq =
+      from(s in Service,
+        where: s.farm_id == ^farm.id and is_nil(s.result) and is_nil(s.deleted_at),
+        group_by: s.sow_id,
+        select: %{
+          sow_id: s.sow_id,
+          served_at: max(s.served_at)
+        }
+      )
 
-    q =
+    base =
       from(a in Animal,
         as: :animal,
-        where:
-          a.farm_id == ^farm.id and a.stage == "sow" and
-            a.status in ^statuses,
+        left_join: os in subquery(open_service_subq),
+        as: :open_service,
+        on: os.sow_id == a.id,
+        where: a.farm_id == ^farm.id and a.stage == "sow",
         preload: [current_pen: :house]
       )
+
+    q = apply_serviceable_status_filter(base, status_filter, served_cutoff)
 
     q =
       if search do
@@ -1619,6 +1671,32 @@ defmodule Peggy.Breeding do
     q = maybe_parity_on_animal(q, farm, min_parity, max_parity)
 
     apply_serviceable_sort(q, farm, sort, dir)
+  end
+
+  # Status filter:
+  #   "all" — open/dry/active sows + served sows still inside the heat
+  #     clustering window (served within the last `collapse_window_days`)
+  #   "served_outside_window" — only those mid-heat served sows
+  #   "open" | "dry" | "active" — just that bucket; never served
+  defp apply_serviceable_status_filter(query, "served_outside_window", cutoff) do
+    from([animal: a, open_service: os] in query,
+      where: a.status == "served" and os.served_at > ^cutoff
+    )
+  end
+
+  defp apply_serviceable_status_filter(query, status, _cutoff)
+       when status in ~w(active open dry) do
+    from([animal: a] in query, where: a.status == ^status)
+  end
+
+  defp apply_serviceable_status_filter(query, _status, cutoff) do
+    serviceable = Animal.serviceable_statuses()
+
+    from([animal: a, open_service: os] in query,
+      where:
+        a.status in ^serviceable or
+          (a.status == "served" and os.served_at > ^cutoff)
+    )
   end
 
   defp maybe_pen_search_on_animal(query, _farm, nil), do: query
@@ -1713,12 +1791,23 @@ defmodule Peggy.Breeding do
       _ ->
         # "idle" — sort by latest event date. asc dir = freshest first
         # (smallest days_idle), desc = stalest first. Sows with no events
-        # always sort to the very end.
+        # always sort to the very end. Must consider the same event
+        # sources as `serviceable_last_events_for/2` so the column and
+        # the sort agree — services (latest mounting), abortions
+        # (result_at on a closed service), farrowings, and weanings.
         services =
           from(s in Service,
             where: s.farm_id == ^farm.id and is_nil(s.deleted_at) and is_nil(s.result),
             group_by: s.sow_id,
-            select: %{sow_id: s.sow_id, last_at: max(s.served_at)}
+            select: %{sow_id: s.sow_id, last_at: max(coalesce(s.last_serviced_at, s.served_at))}
+          )
+
+        abortions =
+          from(s in Service,
+            where:
+              s.farm_id == ^farm.id and is_nil(s.deleted_at) and s.result == "abortion",
+            group_by: s.sow_id,
+            select: %{sow_id: s.sow_id, last_at: max(s.result_at)}
           )
 
         farrowings =
@@ -1742,13 +1831,29 @@ defmodule Peggy.Breeding do
         from([animal: a] in query,
           left_join: sm in subquery(services),
           on: sm.sow_id == a.id,
+          left_join: am in subquery(abortions),
+          on: am.sow_id == a.id,
           left_join: fm in subquery(farrowings),
           on: fm.sow_id == a.id,
           left_join: wm in subquery(weanings),
           on: wm.sow_id == a.id,
           order_by: [
-            {:asc, fragment("greatest(?, ?, ?) IS NULL", sm.last_at, fm.last_at, wm.last_at)},
-            {^idle_dir, fragment("greatest(?, ?, ?)", sm.last_at, fm.last_at, wm.last_at)},
+            {:asc,
+             fragment(
+               "greatest(?, ?, ?, ?) IS NULL",
+               sm.last_at,
+               am.last_at,
+               fm.last_at,
+               wm.last_at
+             )},
+            {^idle_dir,
+             fragment(
+               "greatest(?, ?, ?, ?)",
+               sm.last_at,
+               am.last_at,
+               fm.last_at,
+               wm.last_at
+             )},
             {^direction, a.id}
           ]
         )
@@ -1764,21 +1869,29 @@ defmodule Peggy.Breeding do
     last_events = serviceable_last_events_for(scope, sow_ids)
 
     Enum.map(animals, fn a ->
-      {kind, date} = Map.get(last_events, a.id, {nil, nil})
+      meta = Map.get(last_events, a.id, %{kind: nil, date: nil})
 
       %{
         animal: a,
         parity: Map.get(parities, a.id, 0),
-        last_event_kind: kind,
-        last_event_date: date,
-        days_idle: date && Date.diff(today, date)
+        last_event_kind: meta.kind,
+        last_event_date: meta.date,
+        days_idle: meta.date && Date.diff(today, meta.date),
+        mounting_count: Map.get(meta, :mounting_count)
       }
     end)
   end
 
-  # Returns %{sow_id => {kind, date}} where kind picks the latest of
-  # weaning > farrowing > open service (dates equal → weaning wins,
-  # since it's the lifecycle-terminating event for that pregnancy).
+  # Returns `%{sow_id => %{kind: :weaned | :farrowed | :aborted | :served,
+  # date: Date.t, mounting_count: integer | nil}}`. Kind picks the
+  # latest of weaning, farrowing, abortion, or open service; on date
+  # ties weaned > farrowed > aborted > served (lifecycle-terminating
+  # events first). `:aborted` covers services closed with `result =
+  # "abortion"` so a sow whose latest reproductive event was an
+  # aborted pregnancy reads correctly on the Serviceable list.
+  # For `:served` the date is `last_serviced_at` (falling back to
+  # `served_at` for legacy rows) and `mounting_count` reflects
+  # collapsed mountings.
   defp serviceable_last_events_for(%Scope{farm: farm}, sow_ids) when is_list(sow_ids) do
     ids = Enum.uniq(sow_ids)
 
@@ -1791,7 +1904,22 @@ defmodule Peggy.Breeding do
             s.farm_id == ^farm.id and s.sow_id in ^ids and
               is_nil(s.deleted_at) and is_nil(s.result),
           group_by: s.sow_id,
-          select: {s.sow_id, max(s.served_at)}
+          select: %{
+            sow_id: s.sow_id,
+            last_at: max(coalesce(s.last_serviced_at, s.served_at)),
+            mounting_count: max(s.mounting_count)
+          }
+        )
+        |> Repo.all()
+        |> Map.new(fn r -> {r.sow_id, {r.last_at, r.mounting_count}} end)
+
+      abortions =
+        from(s in Service,
+          where:
+            s.farm_id == ^farm.id and s.sow_id in ^ids and
+              is_nil(s.deleted_at) and s.result == "abortion",
+          group_by: s.sow_id,
+          select: {s.sow_id, max(s.result_at)}
         )
         |> Repo.all()
         |> Map.new()
@@ -1820,11 +1948,14 @@ defmodule Peggy.Breeding do
 
       ids
       |> Enum.flat_map(fn id ->
+        {service_date, mounting_count} = Map.get(services, id, {nil, nil})
+
         candidates =
           [
             {:weaned, Map.get(weanings, id)},
             {:farrowed, Map.get(farrowings, id)},
-            {:served, Map.get(services, id)}
+            {:aborted, Map.get(abortions, id)},
+            {:served, service_date}
           ]
           |> Enum.reject(fn {_, d} -> is_nil(d) end)
 
@@ -1835,7 +1966,14 @@ defmodule Peggy.Breeding do
           list ->
             # Sort by date desc; on tie, weaned > farrowed > served (defined by list order)
             {kind, date} = Enum.max_by(list, fn {_, d} -> d end, Date)
-            [{id, {kind, date}}]
+
+            meta =
+              %{kind: kind, date: date}
+              |> then(fn m ->
+                if kind == :served, do: Map.put(m, :mounting_count, mounting_count || 1), else: m
+              end)
+
+            [{id, meta}]
         end
       end)
       |> Map.new()
@@ -1847,7 +1985,7 @@ defmodule Peggy.Breeding do
   """
   def list_due_farrowings(%Scope{farm: farm}, days_ahead \\ 7) do
     # Services served before this date have expected farrowing within the window
-    served_before = Date.add(FarmClock.today(farm), days_ahead - @gestation_days)
+    served_before = Date.add(FarmClock.today(farm), days_ahead - gestation_days(farm))
 
     from(s in Service,
       where:
@@ -1859,18 +1997,19 @@ defmodule Peggy.Breeding do
       preload: [:sow, :boar]
     )
     |> Repo.all()
-    |> Enum.map(&with_expected_farrow_date/1)
+    |> Enum.map(&with_expected_farrow_date(&1, farm))
   end
 
   @doc """
-  Computes the expected farrowing date for a service.
+  Computes the expected farrowing date for a service. The gestation
+  length is read from the service's farm (per-farm parameter).
   """
-  def expected_farrow_date(%Service{served_at: served_at}) do
-    Date.add(served_at, @gestation_days)
+  def expected_farrow_date(%Service{} = service) do
+    Date.add(service.served_at, gestation_days(service))
   end
 
-  defp with_expected_farrow_date(%Service{} = s) do
-    %{service: s, expected_farrow_date: expected_farrow_date(s)}
+  defp with_expected_farrow_date(%Service{} = s, farm) do
+    %{service: s, expected_farrow_date: Date.add(s.served_at, gestation_days(farm))}
   end
 
   # ── Farrowings ──────────────────────────────────────────────────────
@@ -1894,7 +2033,7 @@ defmodule Peggy.Breeding do
 
     with :ok <- ensure_service_open(service),
          :ok <- ensure_sow_served(service),
-         :ok <- ensure_gestation_in_range(service, attrs) do
+         :ok <- ensure_gestation_in_range(scope, service, attrs) do
       do_record_farrowing(scope, service, attrs)
     end
   end
@@ -1909,17 +2048,15 @@ defmodule Peggy.Breeding do
     end
   end
 
-  @gestation_tolerance_days 3
-
-  defp ensure_gestation_in_range(%Service{served_at: served_at}, attrs) do
+  defp ensure_gestation_in_range(scope, %Service{served_at: served_at}, attrs) do
     case parse_date(attrs["farrowed_at"]) do
       nil ->
         :ok
 
       %Date{} = farrowed_at ->
-        diff = abs(Date.diff(farrowed_at, served_at) - @gestation_days)
+        diff = abs(Date.diff(farrowed_at, served_at) - gestation_days(scope))
 
-        if diff <= @gestation_tolerance_days,
+        if diff <= gestation_tolerance_days(scope),
           do: :ok,
           else: {:error, :gestation_out_of_range}
     end
@@ -1995,7 +2132,8 @@ defmodule Peggy.Breeding do
       is_nil(farrowed_at) ->
         {:error, :farrowed_at_required}
 
-      abs(Date.diff(farrowed_at, served_at) - @gestation_days) > @gestation_tolerance_days ->
+      abs(Date.diff(farrowed_at, served_at) - gestation_days(farm)) >
+          gestation_tolerance_days(farm) ->
         {:error, :gestation_out_of_range}
 
       true ->
@@ -2316,7 +2454,7 @@ defmodule Peggy.Breeding do
   defp insert_inferred_sow_for_farrowing(scope, ear_tag, backfill, attrs) do
     farm = scope.farm
     farrowed_at = parse_date(attrs["farrowed_at"]) || FarmClock.today(farm)
-    served_at = Date.add(farrowed_at, -@gestation_days)
+    served_at = Date.add(farrowed_at, -gestation_days(farm))
 
     # Reuse the service-flavored sow changeset but override created_via.
     service_like_attrs = Map.put(attrs, "served_at", served_at)
@@ -2343,7 +2481,7 @@ defmodule Peggy.Breeding do
   defp insert_inferred_service(scope, sow, attrs) do
     farm = scope.farm
     farrowed_at = parse_date(attrs["farrowed_at"]) || FarmClock.today(farm)
-    served_at = Date.add(farrowed_at, -@gestation_days)
+    served_at = Date.add(farrowed_at, -gestation_days(farm))
 
     service_attrs = %{
       "farm_id" => farm.id,
@@ -2736,15 +2874,17 @@ defmodule Peggy.Breeding do
   end
 
   @doc """
-  Bulk lookup of the most recent service / farrowing / weaning dates
-  per sow, used by list views to render a single "next event" line
-  without firing N+1 queries.
+  Bulk lookup of the most recent service / abortion / farrowing /
+  weaning dates per sow, used by list views to render a single "next
+  event" line without firing N+1 queries.
 
-  Returns `%{sow_id => %{served_at: Date | nil, farrowed_at: Date | nil,
-  weaned_at: Date | nil}}`. `served_at` is the latest *open* service
-  (no result set); `farrowed_at` and `weaned_at` are the latest
-  non-deleted records joined back to the sow. Sows with no breeding
-  history at all are absent from the map; callers can default.
+  Returns `%{sow_id => %{served_at: Date | nil, aborted_at: Date | nil,
+  farrowed_at: Date | nil, weaned_at: Date | nil}}`. `served_at` is
+  the latest *open* service (no result set); `aborted_at` is the
+  `result_at` of the latest closed-as-abortion service;
+  `farrowed_at` and `weaned_at` are the latest non-deleted records
+  joined back to the sow. Sows with no breeding history at all are
+  absent from the map; callers can default.
   """
   def last_event_dates_for(%Scope{farm: farm}, sow_ids) when is_list(sow_ids) do
     ids = Enum.uniq(sow_ids)
@@ -2759,6 +2899,17 @@ defmodule Peggy.Breeding do
               is_nil(s.result) and is_nil(s.deleted_at),
           group_by: s.sow_id,
           select: {s.sow_id, max(s.served_at)}
+        )
+        |> Repo.all()
+        |> Map.new()
+
+      abortions =
+        from(s in Service,
+          where:
+            s.farm_id == ^farm.id and s.sow_id in ^ids and
+              s.result == "abortion" and is_nil(s.deleted_at),
+          group_by: s.sow_id,
+          select: {s.sow_id, max(s.result_at)}
         )
         |> Repo.all()
         |> Map.new()
@@ -2788,11 +2939,20 @@ defmodule Peggy.Breeding do
       ids
       |> Enum.flat_map(fn id ->
         served = Map.get(services, id)
+        aborted = Map.get(abortions, id)
         farrowed = Map.get(farrowings, id)
         weaned = Map.get(weanings, id)
 
-        if served || farrowed || weaned do
-          [{id, %{served_at: served, farrowed_at: farrowed, weaned_at: weaned}}]
+        if served || aborted || farrowed || weaned do
+          [
+            {id,
+             %{
+               served_at: served,
+               aborted_at: aborted,
+               farrowed_at: farrowed,
+               weaned_at: weaned
+             }}
+          ]
         else
           []
         end
@@ -3417,22 +3577,16 @@ defmodule Peggy.Breeding do
     )
   end
 
-  # How far back (in days) the weaning-form autocomplete looks when
-  # listing pool-able batches. Keeps the dropdown to recent litters
-  # the operator might actually consolidate into; old, stale "active"
-  # batches (forgotten data) drop off automatically.
-  @recent_weaner_batch_days 60
-
   @doc """
   Lists weaner batches eligible for piglet consolidation at weaning
   time — active, non-empty, and born within the last
-  #{@recent_weaner_batch_days} days. Ordered by `dob` desc so the
-  most likely match is at the top, then by `ear_tag`.
+  `farms.recent_weaner_batch_days` days (default 60). Ordered by `dob`
+  desc so the most likely match is at the top, then by `ear_tag`.
 
   Used by the weaning form's `batch_tag` autocomplete.
   """
   def list_active_weaner_batches(%Scope{farm: farm}) do
-    cutoff = Date.add(FarmClock.today(farm), -@recent_weaner_batch_days)
+    cutoff = Date.add(FarmClock.today(farm), -recent_weaner_batch_days(farm))
 
     from(a in Animal,
       where:
@@ -3468,11 +3622,36 @@ defmodule Peggy.Breeding do
   @doc """
   Lists recent (non-deleted) weanings for the farm, newest first.
 
-  Options: `:limit` (default 50), `:search` (sow ear tag prefix).
+  Options:
+    * `:limit` (default 50; pass `:all` to disable)
+    * `:offset` (default 0) — for infinite-scroll pagination
+    * `:search` — sow ear-tag prefix
+    * `:weaned_from` — `Date.t()` or ISO string; `weaned_at >= weaned_from`
+    * `:weaned_to`   — `Date.t()` or ISO string; `weaned_at <= weaned_to`
   """
   def list_recent_weanings(%Scope{farm: farm}, opts \\ []) do
-    limit = Keyword.get(opts, :limit, 50)
+    farm
+    |> recent_weanings_query(opts)
+    |> apply_pagination(Keyword.put_new(opts, :limit, 50))
+    |> Repo.all()
+  end
+
+  @doc """
+  Counts non-deleted weanings matching the same filters as
+  `list_recent_weanings/2` (ignores `:limit`/`:offset`).
+  """
+  def count_recent_weanings(%Scope{farm: farm}, opts \\ []) do
+    farm
+    |> recent_weanings_query(opts)
+    |> exclude(:order_by)
+    |> exclude(:preload)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  defp recent_weanings_query(farm, opts) do
     search = opts |> Keyword.get(:search) |> normalize_search()
+    weaned_from = opts |> Keyword.get(:weaned_from) |> parse_date()
+    weaned_to = opts |> Keyword.get(:weaned_to) |> parse_date()
 
     q =
       from(w in Weaning,
@@ -3480,7 +3659,6 @@ defmodule Peggy.Breeding do
         join: sow in assoc(f, :sow),
         where: w.farm_id == ^farm.id and is_nil(w.deleted_at),
         order_by: [desc: w.weaned_at, desc: w.id],
-        limit: ^limit,
         preload: [
           :batch_animal,
           [destination_pen: :house],
@@ -3496,7 +3674,10 @@ defmodule Peggy.Breeding do
         q
       end
 
-    Repo.all(q)
+    q = if weaned_from, do: from(w in q, where: w.weaned_at >= ^weaned_from), else: q
+    q = if weaned_to, do: from(w in q, where: w.weaned_at <= ^weaned_to), else: q
+
+    q
   end
 
   @doc """

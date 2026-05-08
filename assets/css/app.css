@@ -102,4 +102,15 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* Brief highlight pulse on a row the user just edited. Driven by a
+   `phx:flash-row` event from the server (see the `flash-row` handler
+   in app.js). Works on both `<tr>` and card-style `<li>` rows. */
+.flash-row {
+  animation: flash-row 4s ease-out;
+}
+@keyframes flash-row {
+  0%   { background-color: var(--color-warning); color: var(--color-warning-content); }
+  100% { background-color: transparent; }
+}
+
 /* This file is for your main application CSS */

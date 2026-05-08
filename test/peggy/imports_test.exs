@@ -942,6 +942,183 @@ defmodule Peggy.ImportsTest do
     end
   end
 
+  describe "classify_legacy_batch/2" do
+    test "boundary: ≤ weaner_max → weaner" do
+      assert :weaner = Imports.classify_legacy_batch(0)
+      assert :weaner = Imports.classify_legacy_batch(70)
+    end
+
+    test "boundary: weaner_max < age ≤ grower_max → grower" do
+      assert :grower = Imports.classify_legacy_batch(71)
+      assert :grower = Imports.classify_legacy_batch(130)
+    end
+
+    test "boundary: grower_max < age ≤ finisher_max → finisher" do
+      assert :finisher = Imports.classify_legacy_batch(131)
+      assert :finisher = Imports.classify_legacy_batch(200)
+    end
+
+    test "boundary: > finisher_max → sold_finisher" do
+      assert :sold_finisher = Imports.classify_legacy_batch(201)
+      assert :sold_finisher = Imports.classify_legacy_batch(2000)
+    end
+
+    test "honours custom thresholds" do
+      thresholds = [weaner_max: 30, grower_max: 90, finisher_max: 150]
+      assert :weaner = Imports.classify_legacy_batch(30, thresholds)
+      assert :grower = Imports.classify_legacy_batch(60, thresholds)
+      assert :finisher = Imports.classify_legacy_batch(120, thresholds)
+      assert :sold_finisher = Imports.classify_legacy_batch(151, thresholds)
+    end
+  end
+
+  describe "commit/3 — legacy batch lifecycle" do
+    # The default thresholds are 70 / 130 / 200; tests pin "today" by
+    # using `Date.utc_today() - N` so the resulting batch ages land in
+    # the right bucket regardless of when the suite runs.
+    setup %{scope: scope} do
+      today = Date.utc_today()
+      %{scope: scope, today: today}
+    end
+
+    test "young litter (≤70d) imports as a weaner batch", ctx do
+      farrowed_at = Date.add(ctx.today, -50)
+      weaned_at = Date.add(farrowed_at, 24)
+
+      assert {:ok, outcome} = run_legacy_import(ctx.scope, "YOUNG", farrowed_at, weaned_at, 9)
+      assert outcome.weanings.ok == 1
+      batch = batch_for_sow(ctx.scope, "YOUNG")
+      assert batch.stage == "weaner"
+      assert batch.status == "active"
+      assert batch.quantity == 9
+    end
+
+    test "older litter (71-130d) imports as grower", ctx do
+      farrowed_at = Date.add(ctx.today, -100)
+      weaned_at = Date.add(farrowed_at, 24)
+
+      assert {:ok, _} = run_legacy_import(ctx.scope, "GROW", farrowed_at, weaned_at, 9)
+      batch = batch_for_sow(ctx.scope, "GROW")
+      assert batch.stage == "grower"
+      assert batch.status == "active"
+      assert batch.quantity == 9
+    end
+
+    test "older litter (131-200d) imports as finisher", ctx do
+      farrowed_at = Date.add(ctx.today, -180)
+      weaned_at = Date.add(farrowed_at, 24)
+
+      assert {:ok, _} = run_legacy_import(ctx.scope, "FINISH", farrowed_at, weaned_at, 9)
+      batch = batch_for_sow(ctx.scope, "FINISH")
+      assert batch.stage == "finisher"
+      assert batch.status == "active"
+      assert batch.quantity == 9
+    end
+
+    test "aged-out litter (>200d) imports as finisher + sold", ctx do
+      farrowed_at = Date.add(ctx.today, -260)
+      weaned_at = Date.add(farrowed_at, 24)
+
+      assert {:ok, _} = run_legacy_import(ctx.scope, "AGED", farrowed_at, weaned_at, 8)
+      batch = batch_for_sow(ctx.scope, "AGED")
+      assert batch.stage == "finisher"
+      assert batch.status == "sold"
+      # Departure zeros quantity.
+      assert batch.quantity == 0
+
+      # And the sale movement is dated at dob + finisher_max (200d).
+      [movement] =
+        Peggy.Repo.all(
+          Ecto.Query.from(m in Peggy.Animals.Movement,
+            where: m.animal_id == ^batch.id and m.reason == "sale"
+          )
+        )
+
+      assert movement.moved_at == Date.add(farrowed_at, 200)
+      assert movement.quantity == 8
+    end
+
+    test "custom thresholds via commit opts shift the cutoffs", ctx do
+      # Same 100-day-old litter:
+      # default thresholds → grower
+      # custom (weaner_max: 30, grower_max: 60, finisher_max: 120) → finisher
+      farrowed_at = Date.add(ctx.today, -100)
+      weaned_at = Date.add(farrowed_at, 24)
+
+      assert {:ok, _} =
+               run_legacy_import(ctx.scope, "TUNE", farrowed_at, weaned_at, 9,
+                 weaner_max: 30,
+                 grower_max: 60,
+                 finisher_max: 120
+               )
+
+      batch = batch_for_sow(ctx.scope, "TUNE")
+      assert batch.stage == "finisher"
+      assert batch.status == "active"
+    end
+
+    test "preview_legacy_batches/3 reports per-bucket counts", ctx do
+      report =
+        legacy_report(ctx.scope, [
+          {"P1", Date.add(ctx.today, -30), Date.add(ctx.today, -6), 8},
+          {"P2", Date.add(ctx.today, -100), Date.add(ctx.today, -76), 8},
+          {"P3", Date.add(ctx.today, -180), Date.add(ctx.today, -156), 8},
+          {"P4", Date.add(ctx.today, -260), Date.add(ctx.today, -236), 8}
+        ])
+
+      preview = Imports.preview_legacy_batches(ctx.scope, report)
+      assert preview == %{weaner: 1, grower: 1, finisher: 1, sold_finisher: 1}
+    end
+  end
+
+  defp run_legacy_import(scope, sow_tag, farrowed_at, weaned_at, count, opts \\ []) do
+    report = legacy_report(scope, [{sow_tag, farrowed_at, weaned_at, count}])
+    Imports.commit(scope, report, opts)
+  end
+
+  defp legacy_report(scope, rows) when is_list(rows) do
+    sow_lines = Enum.map_join(rows, "\n", fn {tag, _, _, _} -> "#{tag},EB-12" end)
+
+    farrowing_lines =
+      Enum.map_join(rows, "\n", fn {tag, farrowed, _, count} ->
+        "#{tag},#{farrowed},#{count}"
+      end)
+
+    weaning_lines =
+      Enum.map_join(rows, "\n", fn {tag, _, weaned, count} ->
+        "#{tag},#{weaned},#{count}"
+      end)
+
+    sows = write_csv("ear_tag,current_pen\n" <> sow_lines <> "\n")
+
+    farrowings =
+      write_csv("sow_ear_tag,farrowed_at,born_alive\n" <> farrowing_lines <> "\n")
+
+    weanings =
+      write_csv("sow_ear_tag,weaned_at,weaned_count\n" <> weaning_lines <> "\n")
+
+    Imports.parse_and_validate(scope, %{
+      sows: sows,
+      farrowings: farrowings,
+      weanings: weanings
+    })
+  end
+
+  defp batch_for_sow(scope, sow_tag) do
+    sow = Peggy.Animals.find_by_ear_tag(scope, sow_tag)
+
+    [farrowing] =
+      Peggy.Repo.all(
+        Ecto.Query.from(f in Peggy.Breeding.Farrowing, where: f.sow_id == ^sow.id)
+      )
+
+    Peggy.Repo.one!(
+      Ecto.Query.from(a in Peggy.Animals.Animal,
+        where: a.farrowing_id == ^farrowing.id and a.tracking_type == "batch"
+      )
+    )
+  end
+
   describe "culls.csv" do
     test "parse_and_validate flags missing ear_tag, bad date, bad reason", %{scope: scope} do
       culls_path =
@@ -1076,6 +1253,83 @@ defmodule Peggy.ImportsTest do
 
       sow = sow_by_tag_any_status(scope, "NOSVC")
       assert sow.status == "sold"
+    end
+
+    test "departure reasons (sold/slaughtered/transferred/death) record a movement",
+         %{scope: scope} do
+      sows_path =
+        write_csv("""
+        ear_tag,current_pen
+        SELL1,EB-12
+        SLAY1,EB-12
+        XFER1,EB-12
+        DEAD2,EB-12
+        """)
+
+      culls_path =
+        write_csv("""
+        ear_tag,culled_at,reason
+        SELL1,2026-02-01,sold
+        SLAY1,2026-02-02,slaughtered
+        XFER1,2026-02-03,transferred
+        DEAD2,2026-02-04,death
+        """)
+
+      report = Imports.parse_and_validate(scope, %{sows: sows_path, culls: culls_path})
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.culls.ok == 4
+
+      cases = [
+        {"SELL1", "sold", "sale", ~D[2026-02-01]},
+        {"SLAY1", "slaughtered", "slaughter", ~D[2026-02-02]},
+        {"XFER1", "transferred", "farm_transfer", ~D[2026-02-03]},
+        {"DEAD2", "deceased", "death", ~D[2026-02-04]}
+      ]
+
+      for {tag, expected_status, expected_reason, expected_date} <- cases do
+        sow = sow_by_tag_any_status(scope, tag)
+        assert sow.status == expected_status
+        assert is_nil(sow.current_pen_id)
+
+        [movement] =
+          Peggy.Repo.all(
+            Ecto.Query.from(m in Peggy.Animals.Movement,
+              where: m.animal_id == ^sow.id and m.reason == ^expected_reason
+            )
+          )
+
+        assert movement.moved_at == expected_date
+        assert movement.previous_status == "active"
+      end
+    end
+
+    test "reason=cull (default) does NOT create a movement",
+         %{scope: scope} do
+      sows_path =
+        write_csv("""
+        ear_tag,current_pen
+        MARK1,EB-12
+        """)
+
+      culls_path =
+        write_csv("""
+        ear_tag,culled_at,reason
+        MARK1,2026-02-01,cull
+        """)
+
+      report = Imports.parse_and_validate(scope, %{sows: sows_path, culls: culls_path})
+      assert {:ok, _} = Imports.commit(scope, report)
+
+      sow = sow_by_tag_any_status(scope, "MARK1")
+      assert sow.status == "culled"
+
+      movements =
+        Peggy.Repo.all(
+          Ecto.Query.from(m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
+        )
+
+      assert movements == []
     end
 
     test "cull for unknown sow is recorded as failed with sow_not_found", %{scope: scope} do

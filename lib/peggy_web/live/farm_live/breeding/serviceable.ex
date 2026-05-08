@@ -42,7 +42,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                 class="input input-sm input-bordered font-mono"
               />
             </label>
-            <label class="form-control w-32">
+            <label class="form-control w-44">
               <div class="label py-1">
                 <span class="label-text text-xs">{gettext("Status")}</span>
               </div>
@@ -54,6 +54,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                 <option value="dry" selected={@filters.status == "dry"}>{gettext("Dry")}</option>
                 <option value="active" selected={@filters.status == "active"}>
                   {gettext("Active")}
+                </option>
+                <option
+                  value="served_outside_window"
+                  selected={@filters.status == "served_outside_window"}
+                >
+                  {gettext("Served (re-service candidates)")}
                 </option>
               </select>
             </label>
@@ -149,6 +155,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                     <span :if={e.parity == 0} class="ml-1 badge badge-sm badge-info">
                       {gettext("Gilt")}
                     </span>
+                    <Shared.recently_updated_badge at={e.animal.updated_at} />
                   </td>
                   <td class="py-2">
                     <span class={["uppercase font-semibold", status_color(e.animal.status)]}>
@@ -160,7 +167,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                   </td>
                   <td class="py-2 text-right font-mono">{e.parity}</td>
                   <td class="py-2 text-xs text-base-content/70">
-                    {last_event_text(e)}
+                    <Shared.last_event entry={e} />
                   </td>
                   <td class={[
                     "py-2 text-right font-mono",
@@ -340,7 +347,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
   defp dir_param("desc"), do: "desc"
   defp dir_param(_), do: "asc"
 
-  defp status_param(s) when s in ~w(open dry active), do: s
+  defp status_param(s) when s in ~w(open dry active served_outside_window), do: s
   defp status_param(_), do: "all"
 
   # ── Events ─────────────────────────────────────────────────────────
@@ -510,17 +517,6 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
   defp sow_pen_label(%{current_pen: %{code: code}}), do: code
   defp sow_pen_label(_), do: "—"
 
-  defp last_event_text(%{last_event_kind: nil}), do: "—"
-
-  defp last_event_text(%{last_event_kind: kind, last_event_date: d}) do
-    "#{event_label(kind)} #{d}"
-  end
-
-  defp event_label(:weaned), do: gettext("Weaned")
-  defp event_label(:farrowed), do: gettext("Farrowed")
-  defp event_label(:served), do: gettext("Returned")
-  defp event_label(_), do: ""
-
   defp idle_text(nil), do: "—"
   defp idle_text(d), do: Integer.to_string(d)
 
@@ -532,6 +528,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
   defp status_color("open"), do: "text-success"
   defp status_color("dry"), do: "text-info"
   defp status_color("active"), do: "text-base-content"
+  defp status_color("served"), do: "text-warning"
   defp status_color(_), do: "text-base-content/60"
 
   # ── Service form helpers ───────────────────────────────────────────
@@ -578,15 +575,14 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
          socket
          |> close_form()
          |> load_rows()
-         |> put_flash(:info, gettext("Service recorded for %{tag}.", tag: sow.ear_tag))}
+         |> put_flash(:info, gettext("Service recorded for %{tag}.", tag: sow.ear_tag))
+         |> push_event("flash-row", %{id: "serviceable-#{sow.id}"})}
 
       {:error, %Ecto.Changeset{} = cs} ->
-        {:noreply,
-         assign(socket, svc: %{svc | error_message: Shared.format_cs_error(cs)})}
+        {:noreply, assign(socket, svc: %{svc | error_message: Shared.format_cs_error(cs)})}
 
       {:error, reason} ->
-        {:noreply,
-         assign(socket, svc: %{svc | error_message: humanize(reason)})}
+        {:noreply, assign(socket, svc: %{svc | error_message: humanize(reason)})}
     end
   end
 

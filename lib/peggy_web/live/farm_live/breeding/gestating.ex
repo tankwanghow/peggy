@@ -180,6 +180,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                     >
                       {entry.service.sow.ear_tag}
                     </.link>
+                    <Shared.recently_updated_badge at={entry.service.updated_at} />
                   </td>
                   <td class="py-2 font-mono text-base-content/70">
                     {sow_pen_label(entry.service.sow)}
@@ -512,7 +513,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                   {@frw.resolved_service.boar && @frw.resolved_service.boar.ear_tag}
                 </dd>
                 <dt class="text-base-content/60">{gettext("Expected farrow")}</dt>
-                <dd class="font-mono">{expected_farrow(@frw.resolved_service)}</dd>
+                <dd class="font-mono">{expected_farrow(@current_scope, @frw.resolved_service)}</dd>
               </dl>
             </div>
 
@@ -798,7 +799,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
          boar_id: nil,
          pen_id: nil,
          notes: nil,
-         default_dob: to_string(Date.add(today, -Breeding.minimum_sow_age_days())),
+         default_dob:
+           to_string(
+             Date.add(today, -Breeding.minimum_sow_age_days(socket.assigns.current_scope))
+           ),
          error_message: nil
        }
      )}
@@ -852,7 +856,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       sow_tag: sow.ear_tag,
       sow_state: :resolved,
       resolved_service: service,
-      backfill: default_backfill(today)
+      backfill: default_backfill(scope, today)
     }
 
     {:noreply,
@@ -883,7 +887,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       sow_tag: "",
       sow_state: :empty,
       resolved_service: nil,
-      backfill: default_backfill(today)
+      backfill: default_backfill(scope, today)
     }
 
     {:noreply,
@@ -1139,12 +1143,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     assign(socket, frw: new_frw, ac: new_ac)
   end
 
-  defp default_backfill(farrowed_at) do
+  defp default_backfill(scope, farrowed_at) do
     {served_at_s, dob_s} =
       case farrowed_at do
         %Date{} = d ->
-          served = Date.add(d, -Breeding.gestation_days())
-          dob = Date.add(served, -Breeding.minimum_sow_age_days())
+          served = Date.add(d, -Breeding.gestation_days(scope))
+          dob = Date.add(served, -Breeding.minimum_sow_age_days(scope))
           {to_string(served), to_string(dob)}
 
         _ ->
@@ -1160,7 +1164,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
   end
 
   defp do_merge_backfill(socket, frw, all, farrowing_params) do
-    existing = frw.backfill || default_backfill(nil)
+    scope = socket.assigns.current_scope
+    existing = frw.backfill || default_backfill(scope, nil)
 
     served_at_input = Map.get(all, "served_at")
 
@@ -1168,7 +1173,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       cond do
         is_binary(served_at_input) and served_at_input != "" -> served_at_input
         existing.served_at not in [nil, ""] -> existing.served_at
-        true -> derive_served_from_farrowed(farrowing_params)
+        true -> derive_served_from_farrowed(scope, farrowing_params)
       end
 
     dob_input = Map.get(all, "sow_dob")
@@ -1177,7 +1182,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       cond do
         is_binary(dob_input) and dob_input != "" -> dob_input
         existing.dob not in [nil, ""] and served_at == existing.served_at -> existing.dob
-        true -> derive_dob_from_served(served_at)
+        true -> derive_dob_from_served(scope, served_at)
       end
 
     backfill = %{
@@ -1190,16 +1195,16 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
     assign(socket, frw: %{frw | backfill: backfill})
   end
 
-  defp derive_dob_from_served(served_at) do
+  defp derive_dob_from_served(scope, served_at) do
     case parse_date(served_at) do
-      %Date{} = d -> to_string(Date.add(d, -Breeding.minimum_sow_age_days()))
+      %Date{} = d -> to_string(Date.add(d, -Breeding.minimum_sow_age_days(scope)))
       _ -> ""
     end
   end
 
-  defp derive_served_from_farrowed(params) do
+  defp derive_served_from_farrowed(scope, params) do
     case parse_date(Map.get(params, "farrowed_at")) do
-      %Date{} = d -> to_string(Date.add(d, -Breeding.gestation_days()))
+      %Date{} = d -> to_string(Date.add(d, -Breeding.gestation_days(scope)))
       _ -> ""
     end
   end
@@ -1360,7 +1365,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
         attrs = build_service_attrs(svc)
 
         case Breeding.record_service_with_backfill(scope, attrs) do
-          {:ok, %{inferred?: inferred?, sow: sow}} ->
+          {:ok, %{inferred?: inferred?, sow: sow, service: service}} ->
             msg =
               if inferred?,
                 do: gettext("Service recorded — new sow %{tag} registered.", tag: sow.ear_tag),
@@ -1370,7 +1375,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
              socket
              |> close_form()
              |> load_rows()
-             |> put_flash(:info, msg)}
+             |> put_flash(:info, msg)
+             |> push_event("flash-row", %{id: "service-#{service.id}"})}
 
           {:error, {:similar_tag, tags}} ->
             {:noreply,
@@ -1664,10 +1670,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
   defp sow_pen_label(%{current_pen: %{code: code}}), do: code
   defp sow_pen_label(_), do: "—"
 
-  defp expected_farrow(%{served_at: %Date{} = d}),
-    do: Date.add(d, Breeding.gestation_days())
+  defp expected_farrow(scope, %{served_at: %Date{} = d}),
+    do: Date.add(d, Breeding.gestation_days(scope))
 
-  defp expected_farrow(_), do: nil
+  defp expected_farrow(_, _), do: nil
 
   defp print_path(slug, filters, sort, dir) do
     query =

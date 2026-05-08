@@ -30,7 +30,7 @@ defmodule Peggy.BreedingFixtures do
         %{
           sow_id: sow.id,
           service_type: "natural",
-          served_at: Date.add(farrowed_at, -Peggy.Breeding.gestation_days())
+          served_at: Date.add(farrowed_at, -Peggy.Breeding.gestation_days(scope))
         },
         service_attrs
       )

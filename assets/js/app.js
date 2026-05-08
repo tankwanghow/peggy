@@ -210,6 +210,25 @@ topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
+// Briefly highlight a list row after the user saves a change to it.
+// LVs push `phx:flash-row` with the DOM id of the affected row; we
+// add the `.flash-row` class (CSS keyframe in app.css) and remove it
+// after the animation finishes. Also smooth-scroll the row into view
+// when off-screen so the highlight can't be missed.
+window.addEventListener("phx:flash-row", (e) => {
+  const el = document.getElementById(e.detail.id)
+  if (!el) return
+  // Force a reflow so re-applying the same class still re-triggers
+  // the animation when the user edits the same row twice in a row.
+  el.classList.remove("flash-row")
+  void el.offsetWidth
+  el.classList.add("flash-row")
+  // `block: "nearest"` is a no-op when the row is already visible;
+  // off-screen rows scroll just enough to bring them into view.
+  el.scrollIntoView({behavior: "smooth", block: "nearest"})
+  setTimeout(() => el.classList.remove("flash-row"), 4000)
+})
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

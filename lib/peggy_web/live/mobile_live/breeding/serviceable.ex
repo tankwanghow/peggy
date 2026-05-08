@@ -40,10 +40,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
             >
               <.icon name="hero-funnel" class="size-6" />
               <span
-                :if={active_filter_count(@filters) > 0}
+                :if={active_filter_count(assigns) > 0}
                 class="absolute -top-1 -right-1 badge badge-sm badge-primary"
               >
-                {active_filter_count(@filters)}
+                {active_filter_count(assigns)}
               </span>
             </button>
           </form>
@@ -86,9 +86,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
             <div class="flex items-baseline justify-between">
               <span class="font-mono font-bold text-xl">
                 {e.animal.ear_tag}
-                <span :if={e.parity == 0} class="ml-1 badge badge-sm badge-info align-middle">
-                  {gettext("Gilt")}
-                </span>
               </span>
               <span>
                 <.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
@@ -108,15 +105,16 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 <span class="font-mono font-bold text-info ml-1">{e.parity}</span>
               </span>
               <div class="text-base-content/60">
-                {last_event_text(e)}
+                <Shared.last_event entry={e} empty_text={gettext("No history")} />
               </div>
               <div class={[
-                  "text-xl font-mono font-bold leading-none",
-                  idle_color(e.days_idle)
-                ]}>
-                  {idle_display(e.days_idle)}
-                </div>
+                "text-xl font-mono font-bold leading-none",
+                idle_color(e.days_idle)
+              ]}>
+                {idle_display(e.days_idle)}
+              </div>
             </div>
+            <Shared.recently_updated_badge at={e.animal.updated_at} />
           </li>
         </ul>
 
@@ -161,6 +159,12 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                   <option value="active" selected={@filters.status == "active"}>
                     {gettext("Active")}
                   </option>
+                  <option
+                    value="served_outside_window"
+                    selected={@filters.status == "served_outside_window"}
+                  >
+                    {gettext("Served (re-service)")}
+                  </option>
                 </select>
               </label>
 
@@ -200,9 +204,21 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                   />
                 </label>
               </div>
+              <label class="block text-success">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Sort by")}</span>
+                <select name="sort" class="select select-bordered select-lg w-full mt-1">
+                  <option
+                    :for={{value, label} <- sort_options()}
+                    value={value}
+                    selected={"#{@sort}-#{@dir}" == value}
+                  >
+                    {label}
+                  </option>
+                </select>
+              </label>
             </form>
             <footer
-              :if={active_filter_count(@filters) > 0}
+              :if={active_filter_count(assigns) > 0}
               class="px-4 py-3 border-t border-base-200"
             >
               <button phx-click="reset_filters" class="btn btn-ghost w-full">
@@ -413,7 +429,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
        sheet_mode: :menu,
        sheet_animal: nil,
        sheet_sow_tag: nil,
-       svc: nil
+       svc: nil,
+       sort: "idle",
+       dir: "asc"
      )
      |> assign(MovementForm.init())
      |> stream_configure(:serviceable, dom_id: &"serviceable-#{&1.animal.id}")
@@ -430,14 +448,49 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       max_parity: params["max_parity"] || ""
     }
 
+    {sort, dir} = parse_sort_param(params["sort"])
+
     {:noreply,
      socket
-     |> assign(filters: filters, page: 1)
+     |> assign(filters: filters, page: 1, sort: sort, dir: dir)
      |> load_rows()}
   end
 
-  defp status_param(s) when s in ~w(open dry active), do: s
+  defp status_param(s) when s in ~w(open dry active served_outside_window), do: s
   defp status_param(_), do: "all"
+
+  # Combined `sort=<field>-<dir>` URL param (e.g. "tag-desc"). Single
+  # form binding, falls back to (idle, asc) on anything unrecognised.
+  @sort_options ~w(idle-asc idle-desc tag-asc tag-desc parity-asc parity-desc pen-asc status-asc)
+
+  defp parse_sort_param(s) when is_binary(s) do
+    if s in @sort_options do
+      [field, dir] = String.split(s, "-", parts: 2)
+      {field, dir}
+    else
+      {"idle", "asc"}
+    end
+  end
+
+  defp parse_sort_param(_), do: {"idle", "asc"}
+
+  defp sort_to_param("idle", "asc"), do: nil
+  defp sort_to_param(field, dir), do: "#{field}-#{dir}"
+
+  # Combined-direction options for the mobile filter-drawer dropdown.
+  # Order matches the desktop sortable columns plus a sensible default.
+  defp sort_options do
+    [
+      {"idle-asc", gettext("Most recent activity")},
+      {"idle-desc", gettext("Oldest activity")},
+      {"tag-asc", gettext("Tag A→Z")},
+      {"tag-desc", gettext("Tag Z→A")},
+      {"parity-asc", gettext("Parity (low to high)")},
+      {"parity-desc", gettext("Parity (high to low)")},
+      {"pen-asc", gettext("Pen")},
+      {"status-asc", gettext("Status")}
+    ]
+  end
 
   # ── Events ─────────────────────────────────────────────────────────
 
@@ -451,7 +504,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
        "status" => params["status"] || "all",
        "pen_search" => params["pen_search"] || "",
        "min_parity" => params["min_parity"] || "",
-       "max_parity" => params["max_parity"] || ""
+       "max_parity" => params["max_parity"] || "",
+       "sort" => params["sort"] || ""
      })}
   end
 
@@ -569,13 +623,16 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
 
   def handle_event("move_save", params, socket) do
     if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      sow_id = socket.assigns.move_animal && socket.assigns.move_animal.id
+
       case MovementForm.save(socket, params) do
         {:ok, socket} ->
           {:noreply,
            socket
            |> reset_sheet()
            |> load_rows()
-           |> put_flash(:info, gettext("Movement recorded."))}
+           |> put_flash(:info, gettext("Movement recorded."))
+           |> push_event("flash-row", %{id: "serviceable-#{sow_id}"})}
 
         {:error, socket} ->
           {:noreply, socket}
@@ -595,7 +652,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       "status" => f.status,
       "pen_search" => f.pen_search,
       "min_parity" => f.min_parity,
-      "max_parity" => f.max_parity
+      "max_parity" => f.max_parity,
+      "sort" => sort_to_param(socket.assigns.sort, socket.assigns.dir) || ""
     }
 
     merged = base |> Map.merge(overrides) |> prune_filter_query()
@@ -616,26 +674,29 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       {_k, ""} -> true
       {_k, nil} -> true
       {"status", "all"} -> true
+      {"sort", "idle-asc"} -> true
       _ -> false
     end)
     |> Map.new()
   end
 
-  defp active_filter_count(f) do
+  defp active_filter_count(assigns) do
+    f = assigns.filters
+
     [
       f.status != "all",
       f.pen_search != "",
       f.min_parity != "",
-      f.max_parity != ""
+      f.max_parity != "",
+      not (assigns.sort == "idle" and assigns.dir == "asc")
     ]
     |> Enum.count(& &1)
   end
 
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
-    f = socket.assigns.filters
 
-    opts = list_opts(f, 0)
+    opts = list_opts(socket, 0)
     rows = Breeding.list_serviceable(scope, opts)
     total = Breeding.count_serviceable(scope, opts)
 
@@ -646,11 +707,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
 
   defp append_rows(socket) do
     scope = socket.assigns.current_scope
-    f = socket.assigns.filters
     next_page = socket.assigns.page + 1
     offset = (next_page - 1) * @per_page
 
-    opts = list_opts(f, offset)
+    opts = list_opts(socket, offset)
     rows = Breeding.list_serviceable(scope, opts)
     loaded = next_page * @per_page
 
@@ -660,15 +720,17 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
     assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
   end
 
-  defp list_opts(f, offset) do
+  defp list_opts(socket, offset) do
+    f = socket.assigns.filters
+
     [
       search: f.q,
       status: f.status,
       pen_search: blank_to_nil(f.pen_search),
       min_parity: blank_to_nil(f.min_parity),
       max_parity: blank_to_nil(f.max_parity),
-      sort: "idle",
-      dir: "asc",
+      sort: socket.assigns.sort,
+      dir: socket.assigns.dir,
       limit: @per_page,
       offset: offset
     ]
@@ -684,17 +746,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
   defp sow_pen_label(%{current_pen: %{code: code}}), do: code
   defp sow_pen_label(_), do: "—"
 
-  defp last_event_text(%{last_event_kind: nil}), do: gettext("No history")
-
-  defp last_event_text(%{last_event_kind: kind, last_event_date: d}) do
-    "#{event_label(kind)} #{d}"
-  end
-
-  defp event_label(:weaned), do: gettext("Weaned")
-  defp event_label(:farrowed), do: gettext("Farrowed")
-  defp event_label(:served), do: gettext("Returned")
-  defp event_label(_), do: ""
-
   defp idle_display(nil), do: "—"
   defp idle_display(d), do: "#{d}d"
 
@@ -706,6 +757,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
   defp status_color("open"), do: "text-success"
   defp status_color("dry"), do: "text-info"
   defp status_color("active"), do: "text-base-content"
+  defp status_color("served"), do: "text-warning"
   defp status_color(_), do: "text-base-content/60"
 
   # ── Service form helpers ───────────────────────────────────────────
@@ -804,7 +856,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
              socket
              |> reset_sheet()
              |> load_rows()
-             |> put_flash(:info, gettext("Service recorded for %{tag}.", tag: sow.ear_tag))}
+             |> put_flash(:info, gettext("Service recorded for %{tag}.", tag: sow.ear_tag))
+             |> push_event("flash-row", %{id: "serviceable-#{sow.id}"})}
 
           {:error, %Ecto.Changeset{} = cs} ->
             {:noreply, assign(socket, svc: %{svc | error_message: Shared.format_cs_error(cs)})}

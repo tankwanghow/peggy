@@ -114,6 +114,18 @@ defmodule Peggy.Farms do
     farm |> Farm.changeset(attrs) |> Repo.update()
   end
 
+  @doc "Builds a changeset for the per-farm breeding-parameter form."
+  def change_breeding_parameters(%Farm{} = farm, attrs \\ %{}),
+    do: Farm.breeding_parameter_changeset(farm, attrs)
+
+  @doc """
+  Updates the per-farm breeding parameters (gestation_days, lactation_days,
+  etc.). Validates each field against its biological range.
+  """
+  def update_breeding_parameters(%Farm{} = farm, attrs) do
+    farm |> Farm.breeding_parameter_changeset(attrs) |> Repo.update()
+  end
+
   @doc """
   Soft-deletes a farm. Sets `deleted_at`, records the actor, and revokes
   all pending (non-accepted) invitations. Memberships are preserved so the

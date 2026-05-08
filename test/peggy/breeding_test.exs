@@ -2434,7 +2434,7 @@ defmodule Peggy.BreedingTest do
 
       {:ok, weaning, _batch} =
         Breeding.record_weaning(scope, farrowing, %{
-          weaned_at: Date.add(farrowing.farrowed_at, Breeding.lactation_days()),
+          weaned_at: Date.add(farrowing.farrowed_at, Breeding.lactation_days(scope)),
           weaned_count: farrowing.born_alive,
           destination_pen_id: pen.id,
           batch_tag: "W2401"
@@ -2473,9 +2473,39 @@ defmodule Peggy.BreedingTest do
       assert service.created_via == "back_fill_from_farrowing"
     end
 
-    test "constants expose lactation_days and minimum_sow_age_days" do
-      assert Breeding.lactation_days() == 24
-      assert Breeding.minimum_sow_age_days() == 365
+    test "per-farm parameter helpers default to historical values", %{scope: scope} do
+      assert Breeding.gestation_days(scope) == 114
+      assert Breeding.lactation_days(scope) == 24
+      assert Breeding.minimum_sow_age_days(scope) == 365
+      assert Breeding.gestation_tolerance_days(scope) == 3
+      assert Breeding.collapse_window_days(scope) == 7
+      assert Breeding.recent_weaner_batch_days(scope) == 60
+      assert Breeding.wean_due_days(scope) == 21
+    end
+
+    test "per-farm parameter helpers read overridden values", %{scope: scope} do
+      {:ok, farm} =
+        scope.farm
+        |> Peggy.Farms.Farm.breeding_parameter_changeset(%{
+          "gestation_days" => 116,
+          "lactation_days" => 28,
+          "minimum_sow_age_days" => 240,
+          "gestation_tolerance_days" => 2,
+          "collapse_window_days" => 5,
+          "recent_weaner_batch_days" => 30,
+          "wean_due_days" => 28
+        })
+        |> Peggy.Repo.update()
+
+      scope = %{scope | farm: farm}
+
+      assert Breeding.gestation_days(scope) == 116
+      assert Breeding.lactation_days(scope) == 28
+      assert Breeding.minimum_sow_age_days(scope) == 240
+      assert Breeding.gestation_tolerance_days(scope) == 2
+      assert Breeding.collapse_window_days(scope) == 5
+      assert Breeding.recent_weaner_batch_days(scope) == 30
+      assert Breeding.wean_due_days(scope) == 28
     end
   end
 
@@ -2590,7 +2620,7 @@ defmodule Peggy.BreedingTest do
       assert is_integer(sow.origin_audit_id)
 
       # Default dob = served_at - minimum_sow_age_days
-      assert sow.dob == Date.add(~D[2026-02-01], -Breeding.minimum_sow_age_days())
+      assert sow.dob == Date.add(~D[2026-02-01], -Breeding.minimum_sow_age_days(scope))
 
       # Service created and references the inferred sow
       assert result.service.sow_id == sow.id
@@ -3297,12 +3327,105 @@ defmodule Peggy.BreedingTest do
       assert tags == ["DRY1", "OPEN1", "SOW1"]
     end
 
-    test "excludes served sows (currently gestating)", %{scope: scope, sow: sow, boar: boar} do
-      service_fixture(scope, sow, boar_id: boar.id)
+    test "includes served sows still inside the heat clustering window",
+         %{scope: scope, sow: sow, boar: boar} do
+      # Served today → within the 7-day collapse window → mid-heat,
+      # so SOW1 belongs on the worklist alongside the open/dry sows.
+      service_fixture(scope, sow,
+        boar_id: boar.id,
+        served_at: Date.utc_today()
+      )
+
+      tags = Breeding.list_serviceable(scope) |> Enum.map(& &1.animal.ear_tag) |> Enum.sort()
+      assert "SOW1" in tags
+      assert Breeding.count_serviceable(scope) == 3
+    end
+
+    test "excludes served sows past the heat clustering window",
+         %{scope: scope, sow: sow, boar: boar} do
+      # Served 30 days ago → past the 7-day window → presumed
+      # gestating, drops off the Serviceable list.
+      service_fixture(scope, sow,
+        boar_id: boar.id,
+        served_at: Date.add(Date.utc_today(), -30)
+      )
 
       tags = Breeding.list_serviceable(scope) |> Enum.map(& &1.animal.ear_tag)
       refute "SOW1" in tags
       assert Breeding.count_serviceable(scope) == 2
+    end
+
+    test "served-window filter keys off served_at, not last_serviced_at",
+         %{scope: scope, sow: sow, boar: boar} do
+      # Heat with collapsed mountings: served_at 30 days ago (past
+      # window), last mounting 2 days ago (inside window). The cutoff
+      # uses `served_at`, so SOW1 is EXCLUDED even though
+      # `last_serviced_at` is recent.
+      first = Date.add(Date.utc_today(), -30)
+      latest = Date.add(Date.utc_today(), -2)
+
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: first)
+
+      {:ok, _} =
+        service
+        |> Ecto.Changeset.change(%{last_serviced_at: latest, mounting_count: 2})
+        |> Peggy.Repo.update()
+
+      tags = Breeding.list_serviceable(scope) |> Enum.map(& &1.animal.ear_tag)
+      refute "SOW1" in tags
+    end
+
+    test "decorates last_event with :aborted when most recent event is an abortion close",
+         %{scope: scope, sow: sow, boar: boar} do
+      # Service 4 months back, closed as abortion 14 days ago, sow now
+      # `open` and back on the Serviceable list. Her last event should
+      # read as the abortion, not the original service or any older
+      # weaning.
+      served_at = Date.add(Date.utc_today(), -120)
+      result_at = Date.add(Date.utc_today(), -14)
+
+      service = service_fixture(scope, sow, boar_id: boar.id, served_at: served_at)
+
+      {:ok, _} = Breeding.close_service(scope, service, "abortion", %{result_at: result_at})
+
+      [row] = Breeding.list_serviceable(scope, search: "sow1")
+
+      assert row.last_event_kind == :aborted
+      assert row.last_event_date == result_at
+      assert row.days_idle == Date.diff(Date.utc_today(), result_at)
+    end
+
+    test "status: served_outside_window restricts to just mid-heat sows",
+         %{scope: scope, sow: sow, boar: boar} do
+      # Served today → mid-heat → on the served_outside_window list.
+      service_fixture(scope, sow, boar_id: boar.id, served_at: Date.utc_today())
+
+      [%{animal: %{ear_tag: "SOW1", status: "served"}}] =
+        Breeding.list_serviceable(scope, status: "served_outside_window")
+
+      assert Breeding.count_serviceable(scope, status: "served_outside_window") == 1
+    end
+
+    test "status: served_outside_window honours the per-farm collapse window",
+         %{scope: scope, sow: sow, boar: boar} do
+      # Service 5 days ago: with default 7d window → mid-heat → INCLUDED.
+      service_fixture(scope, sow,
+        boar_id: boar.id,
+        served_at: Date.add(Date.utc_today(), -5)
+      )
+
+      assert Breeding.count_serviceable(scope, status: "served_outside_window") == 1
+
+      # Shrink the farm's collapse window to 3 days → SOW1 is past
+      # the (smaller) window and should drop off.
+      {:ok, farm} =
+        scope.farm
+        |> Peggy.Farms.Farm.breeding_parameter_changeset(%{"collapse_window_days" => 3})
+        |> Peggy.Repo.update()
+
+      scope = %{scope | farm: farm}
+
+      assert Breeding.count_serviceable(scope, status: "served_outside_window") == 0
     end
 
     test "excludes lactating sows", %{scope: scope, sow: sow, boar: boar} do

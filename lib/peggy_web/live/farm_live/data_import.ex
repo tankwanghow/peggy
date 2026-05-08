@@ -220,6 +220,96 @@ defmodule PeggyWeb.FarmLive.DataImport do
           <.report_block label="weanings.csv" file={@report.weanings} />
           <.report_block label="culls.csv" file={@report.culls} />
 
+          <%!-- Legacy-batch lifecycle inference --%>
+          <div
+            :if={@report.summary.weanings_importable > 0}
+            class="rounded-md border border-base-200 bg-base-100 p-4"
+          >
+            <h3 class="font-semibold">{gettext("Legacy batch lifecycle")}</h3>
+            <p class="text-sm text-base-content/70 mt-1">
+              {gettext(
+                "Each weaning row creates a weaner batch. Based on the litter's age (today − farrowed_at) the importer will promote it to grower / finisher, and any batch older than the finisher max is recorded as already sold (sale movement dated at farrowed_at + finisher max)."
+              )}
+            </p>
+
+            <form
+              id="legacy-thresholds"
+              phx-change="update_thresholds"
+              phx-submit="update_thresholds"
+              class="mt-3 grid sm:grid-cols-3 gap-3"
+            >
+              <label class="form-control">
+                <div class="label py-1">
+                  <span class="label-text text-xs">{gettext("Weaner max (days)")}</span>
+                </div>
+                <input
+                  type="number"
+                  name="thresholds[weaner_max]"
+                  value={@legacy_thresholds.weaner_max}
+                  min="14"
+                  max="120"
+                  class="input input-sm input-bordered"
+                />
+                <p class="text-xs text-base-content/60 mt-1">
+                  {gettext("Default 70. Age ≤ this → weaner.")}
+                </p>
+              </label>
+              <label class="form-control">
+                <div class="label py-1">
+                  <span class="label-text text-xs">{gettext("Grower max (days)")}</span>
+                </div>
+                <input
+                  type="number"
+                  name="thresholds[grower_max]"
+                  value={@legacy_thresholds.grower_max}
+                  min="30"
+                  max="200"
+                  class="input input-sm input-bordered"
+                />
+                <p class="text-xs text-base-content/60 mt-1">
+                  {gettext("Default 130. Weaner-max < age ≤ this → grower.")}
+                </p>
+              </label>
+              <label class="form-control">
+                <div class="label py-1">
+                  <span class="label-text text-xs">{gettext("Finisher max (days)")}</span>
+                </div>
+                <input
+                  type="number"
+                  name="thresholds[finisher_max]"
+                  value={@legacy_thresholds.finisher_max}
+                  min="60"
+                  max="365"
+                  class="input input-sm input-bordered"
+                />
+                <p class="text-xs text-base-content/60 mt-1">
+                  {gettext("Default 200. Grower-max < age ≤ this → finisher; older → sold.")}
+                </p>
+              </label>
+            </form>
+
+            <div :if={@legacy_preview} class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+              <div class="rounded border border-base-200 px-3 py-2">
+                <div class="text-xs text-base-content/60">{gettext("Weaner")}</div>
+                <div class="font-mono font-bold text-lg">{@legacy_preview.weaner}</div>
+              </div>
+              <div class="rounded border border-base-200 px-3 py-2">
+                <div class="text-xs text-base-content/60">{gettext("Grower")}</div>
+                <div class="font-mono font-bold text-lg">{@legacy_preview.grower}</div>
+              </div>
+              <div class="rounded border border-base-200 px-3 py-2">
+                <div class="text-xs text-base-content/60">{gettext("Finisher")}</div>
+                <div class="font-mono font-bold text-lg">{@legacy_preview.finisher}</div>
+              </div>
+              <div class="rounded border border-warning/40 bg-warning/5 px-3 py-2">
+                <div class="text-xs text-base-content/60">{gettext("Finisher (sold)")}</div>
+                <div class="font-mono font-bold text-lg text-warning">
+                  {@legacy_preview.sold_finisher}
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="flex gap-2 justify-end">
             <button type="button" phx-click="back_to_upload" class="btn btn-ghost">
               {gettext("Back to upload")}
@@ -368,6 +458,8 @@ defmodule PeggyWeb.FarmLive.DataImport do
     scope = socket.assigns.current_scope
 
     if Policy.can?(scope, :import_data) do
+      [weaner_max: w, grower_max: g, finisher_max: f] = Imports.default_legacy_thresholds()
+
       socket =
         socket
         |> assign(
@@ -376,7 +468,9 @@ defmodule PeggyWeb.FarmLive.DataImport do
           step: :upload,
           report: nil,
           outcome: nil,
-          runs: Imports.list_runs(scope)
+          runs: Imports.list_runs(scope),
+          legacy_thresholds: %{weaner_max: w, grower_max: g, finisher_max: f},
+          legacy_preview: nil
         )
         |> allow_uploads()
 
@@ -410,9 +504,24 @@ defmodule PeggyWeb.FarmLive.DataImport do
 
   def handle_event("run_validation", _params, socket) do
     paths = consume_uploads_to_temp(socket)
-    report = Imports.parse_and_validate(socket.assigns.current_scope, paths)
+    scope = socket.assigns.current_scope
+    report = Imports.parse_and_validate(scope, paths)
+    preview = legacy_preview(scope, report, socket.assigns.legacy_thresholds)
 
-    {:noreply, assign(socket, step: :review, report: report)}
+    {:noreply, assign(socket, step: :review, report: report, legacy_preview: preview)}
+  end
+
+  def handle_event("update_thresholds", %{"thresholds" => params}, socket) do
+    thresholds = parse_thresholds(params, socket.assigns.legacy_thresholds)
+    scope = socket.assigns.current_scope
+
+    preview =
+      case socket.assigns.report do
+        nil -> nil
+        report -> legacy_preview(scope, report, thresholds)
+      end
+
+    {:noreply, assign(socket, legacy_thresholds: thresholds, legacy_preview: preview)}
   end
 
   def handle_event("back_to_upload", _, socket),
@@ -420,8 +529,9 @@ defmodule PeggyWeb.FarmLive.DataImport do
 
   def handle_event("commit", _, socket) do
     scope = socket.assigns.current_scope
+    opts = Map.to_list(socket.assigns.legacy_thresholds)
 
-    case Imports.commit(scope, socket.assigns.report) do
+    case Imports.commit(scope, socket.assigns.report, opts) do
       {:ok, outcome} ->
         {:noreply,
          socket
@@ -521,4 +631,25 @@ defmodule PeggyWeb.FarmLive.DataImport do
   defp error_to_string(:not_accepted), do: gettext("not a CSV file")
   defp error_to_string(:too_many_files), do: gettext("only one file per slot")
   defp error_to_string(other), do: to_string(other)
+
+  # ── Legacy-batch threshold helpers ─────────────────────────────────
+
+  defp legacy_preview(scope, report, thresholds) do
+    Imports.preview_legacy_batches(scope, report, Map.to_list(thresholds))
+  end
+
+  defp parse_thresholds(params, current) do
+    %{
+      weaner_max: clamp_threshold(params["weaner_max"], current.weaner_max, 14, 120),
+      grower_max: clamp_threshold(params["grower_max"], current.grower_max, 30, 200),
+      finisher_max: clamp_threshold(params["finisher_max"], current.finisher_max, 60, 365)
+    }
+  end
+
+  defp clamp_threshold(value, fallback, min, max) do
+    case Integer.parse(to_string(value || "")) do
+      {n, _} when n >= min and n <= max -> n
+      _ -> fallback
+    end
+  end
 end

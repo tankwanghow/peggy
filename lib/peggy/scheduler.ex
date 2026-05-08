@@ -87,7 +87,7 @@ defmodule Peggy.Scheduler do
   # ── Generators ─────────────────────────────────────────────────────
 
   defp enqueue_wean_tasks(%Scope{farm: farm} = scope, today) do
-    cutoff = Date.add(today, -wean_due_days())
+    cutoff = Date.add(today, -wean_due_days(farm))
 
     candidates =
       from(f in Peggy.Breeding.Farrowing,
@@ -120,7 +120,8 @@ defmodule Peggy.Scheduler do
 
   defp enqueue_farrow_tasks(%Scope{farm: farm} = scope, today) do
     # Services "due to farrow" within ≤7 days = served_at + gestation_days <= today + 7
-    farrow_cutoff = Date.add(today, 7 - gestation_days())
+    gestation = gestation_days(farm)
+    farrow_cutoff = Date.add(today, 7 - gestation)
 
     excluded = ["culled" | Peggy.Animals.Animal.departed_statuses()]
 
@@ -139,7 +140,7 @@ defmodule Peggy.Scheduler do
       |> Repo.all()
 
     Enum.map(candidates, fn c ->
-      due_at = Date.add(c.served_at, gestation_days())
+      due_at = Date.add(c.served_at, gestation)
 
       attrs = %{
         title: "Farrow due — sow #{c.sow_tag}",
@@ -158,8 +159,8 @@ defmodule Peggy.Scheduler do
   # System scope used by the scheduler — no actor user, just farm context.
   defp system_scope(farm), do: %Scope{user: nil, farm: farm, role: nil}
 
-  defp gestation_days, do: Peggy.Breeding.gestation_days()
-  defp wean_due_days, do: 21
+  defp gestation_days(farm), do: Peggy.Breeding.gestation_days(farm)
+  defp wean_due_days(farm), do: farm.wean_due_days || 21
 
   defp tally(results, kind) do
     Enum.count(results, fn

@@ -44,10 +44,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
             >
               <.icon name="hero-funnel" class="size-6" />
               <span
-                :if={active_filter_count(@filters) > 0}
+                :if={active_filter_count(assigns) > 0}
                 class="absolute -top-1 -right-1 badge badge-sm badge-primary"
               >
-                {active_filter_count(@filters)}
+                {active_filter_count(assigns)}
               </span>
             </button>
           </form>
@@ -86,7 +86,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                    active:bg-base-200 cursor-pointer touch-manipulation"
           >
             <div class="flex items-baseline justify-between gap-3">
-              <span class="font-mono font-bold text-xl">{e.farrowing.sow.ear_tag}</span>
+              <span class="font-mono font-bold text-xl">
+                {e.farrowing.sow.ear_tag}
+                <Shared.recently_updated_badge at={e.farrowing.updated_at} />
+              </span>
               <span class="whitespace-nowrap">
                 <span class="text-xl font-mono font-bold text-success">{e.surviving}</span>
                 <span class="text-[10px] uppercase tracking-wide text-base-content/50 ml-1">
@@ -114,7 +117,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                   {gettext("Litter Age")}
                   <span class={[
                     "font-mono font-bold ml-1",
-                    litter_age_color(Date.diff(@today, e.farrowing.farrowed_at))
+                    litter_age_color(@current_scope, Date.diff(@today, e.farrowing.farrowed_at))
                   ]}>
                     {Date.diff(@today, e.farrowing.farrowed_at)}d
                   </span>
@@ -586,6 +589,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
               </label>
 
               <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Sort by")}</span>
+                <select name="sort" class="select select-bordered select-lg w-full mt-1">
+                  <option
+                    :for={{value, label} <- sort_options()}
+                    value={value}
+                    selected={"#{@sort}-#{@dir}" == value}
+                  >
+                    {label}
+                  </option>
+                </select>
+              </label>
+
+              <label class="block">
                 <span class="text-xs uppercase text-base-content/60">{gettext("Pen")}</span>
                 <input
                   type="text"
@@ -627,7 +643,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
               </div>
             </form>
             <footer
-              :if={active_filter_count(@filters) > 0}
+              :if={active_filter_count(assigns) > 0}
               class="px-4 py-3 border-t border-base-200"
             >
               <button
@@ -671,7 +687,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
        foster_dest_state: :empty,
        foster_dest_farrowing: nil,
        foster_error: nil,
-       ledger_events: []
+       ledger_events: [],
+       sort: "farrowed",
+       dir: "asc"
      )
      |> assign(MovementForm.init())
      |> stream_configure(:lactating, dom_id: &"farrowing-#{&1.farrowing.id}")
@@ -688,10 +706,42 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
       max_parity: params["max_parity"] || ""
     }
 
+    {sort, dir} = parse_sort_param(params["sort"])
+
     {:noreply,
      socket
-     |> assign(filters: filters, page: 1)
+     |> assign(filters: filters, page: 1, sort: sort, dir: dir)
      |> load_rows()}
+  end
+
+  # Combined `sort=<field>-<dir>` URL param (e.g. "tag-desc"). Single
+  # form binding; falls back to (farrowed, asc) on anything unknown.
+  @sort_options ~w(farrowed-asc farrowed-desc tag-asc tag-desc parity-asc parity-desc pen-asc)
+
+  defp parse_sort_param(s) when is_binary(s) do
+    if s in @sort_options do
+      [field, dir] = String.split(s, "-", parts: 2)
+      {field, dir}
+    else
+      {"farrowed", "asc"}
+    end
+  end
+
+  defp parse_sort_param(_), do: {"farrowed", "asc"}
+
+  defp sort_to_param("farrowed", "asc"), do: nil
+  defp sort_to_param(field, dir), do: "#{field}-#{dir}"
+
+  defp sort_options do
+    [
+      {"farrowed-asc", gettext("Oldest litter first")},
+      {"farrowed-desc", gettext("Newest litter first")},
+      {"tag-asc", gettext("Tag A→Z")},
+      {"tag-desc", gettext("Tag Z→A")},
+      {"parity-asc", gettext("Parity (low to high)")},
+      {"parity-desc", gettext("Parity (high to low)")},
+      {"pen-asc", gettext("Pen")}
+    ]
   end
 
   # ── Events ─────────────────────────────────────────────────────────
@@ -707,7 +757,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
        "age" => params["age"] || "all",
        "pen_search" => params["pen_search"] || "",
        "min_parity" => params["min_parity"] || "",
-       "max_parity" => params["max_parity"] || ""
+       "max_parity" => params["max_parity"] || "",
+       "sort" => params["sort"] || ""
      })}
   end
 
@@ -795,13 +846,16 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
 
   def handle_event("move_save", params, socket) do
     if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      farrowing_id = socket.assigns.sheet_farrowing && socket.assigns.sheet_farrowing.id
+
       case MovementForm.save(socket, params) do
         {:ok, socket} ->
           {:noreply,
            socket
            |> reset_sheet()
            |> load_rows()
-           |> put_flash(:info, gettext("Movement recorded."))}
+           |> put_flash(:info, gettext("Movement recorded."))
+           |> push_event("flash-row", %{id: "farrowing-#{farrowing_id}"})}
 
         {:error, socket} ->
           {:noreply, socket}
@@ -892,7 +946,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
            socket
            |> reset_sheet()
            |> load_rows()
-           |> put_flash(:info, gettext("Pre-wean death recorded."))}
+           |> put_flash(:info, gettext("Pre-wean death recorded."))
+           |> push_event("flash-row", %{id: "farrowing-#{farrowing.id}"})}
 
         {:error, :invalid_quantity} ->
           {:noreply, assign(socket, death_error: gettext("Quantity must be at least 1."))}
@@ -963,7 +1018,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                socket
                |> reset_sheet()
                |> load_rows()
-               |> put_flash(:info, gettext("Fostering recorded."))}
+               |> put_flash(:info, gettext("Fostering recorded."))
+               |> push_event("flash-row", %{id: "farrowing-#{source.id}"})}
 
             {:error, :same_farrowing} ->
               {:noreply,
@@ -1066,13 +1122,14 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
     push_patch(socket, to: path)
   end
 
-  defp current_filter_query(%{assigns: %{filters: f}}) do
+  defp current_filter_query(%{assigns: %{filters: f} = assigns}) do
     %{
       "q" => f.q,
       "age" => f.age,
       "pen_search" => f.pen_search,
       "min_parity" => f.min_parity,
-      "max_parity" => f.max_parity
+      "max_parity" => f.max_parity,
+      "sort" => sort_to_param(assigns.sort, assigns.dir) || ""
     }
   end
 
@@ -1082,34 +1139,28 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
       {_k, ""} -> true
       {_k, nil} -> true
       {"age", "all"} -> true
+      {"sort", "farrowed-asc"} -> true
       _ -> false
     end)
     |> Map.new()
   end
 
-  defp active_filter_count(f) do
+  defp active_filter_count(assigns) do
+    f = assigns.filters
+
     [
       f.age != "all" and f.age != "" and not is_nil(f.age),
       f.pen_search != "",
       f.min_parity != "",
-      f.max_parity != ""
+      f.max_parity != "",
+      not (assigns.sort == "farrowed" and assigns.dir == "asc")
     ]
     |> Enum.count(& &1)
   end
 
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
-    f = socket.assigns.filters
-
-    opts = [
-      search: f.q,
-      age_bucket: f.age,
-      pen_search: blank_to_nil(f.pen_search),
-      min_parity: blank_to_nil(f.min_parity),
-      max_parity: blank_to_nil(f.max_parity),
-      limit: @per_page,
-      offset: 0
-    ]
+    opts = list_opts(socket, 0)
 
     rows =
       Breeding.list_lactating_sows(scope, opts)
@@ -1127,18 +1178,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
 
   defp append_rows(socket) do
     scope = socket.assigns.current_scope
-    f = socket.assigns.filters
     next_page = socket.assigns.page + 1
-
-    opts = [
-      search: f.q,
-      age_bucket: f.age,
-      pen_search: blank_to_nil(f.pen_search),
-      min_parity: blank_to_nil(f.min_parity),
-      max_parity: blank_to_nil(f.max_parity),
-      limit: @per_page,
-      offset: (next_page - 1) * @per_page
-    ]
+    opts = list_opts(socket, (next_page - 1) * @per_page)
 
     rows =
       Breeding.list_lactating_sows(scope, opts)
@@ -1153,6 +1194,22 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
       Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :lactating, row) end)
 
     assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
+  end
+
+  defp list_opts(socket, offset) do
+    f = socket.assigns.filters
+
+    [
+      search: f.q,
+      age_bucket: f.age,
+      pen_search: blank_to_nil(f.pen_search),
+      min_parity: blank_to_nil(f.min_parity),
+      max_parity: blank_to_nil(f.max_parity),
+      sort: socket.assigns.sort,
+      dir: socket.assigns.dir,
+      limit: @per_page,
+      offset: offset
+    ]
   end
 
   defp attach_parity(rows, scope) do
@@ -1250,13 +1307,17 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
   defp pen_label(%{code: code}), do: code
   defp pen_label(_), do: "—"
 
-  # Lactation default is 24 days. Days under that are normal; the
-  # window between wean-due and +4 days is amber; further is overdue.
-  @lactation_wean_due Breeding.lactation_days()
-  @lactation_overdue @lactation_wean_due + 4
-  defp litter_age_color(days) when days >= @lactation_overdue, do: "text-error"
-  defp litter_age_color(days) when days >= @lactation_wean_due, do: "text-warning"
-  defp litter_age_color(_days), do: "text-success"
+  # Days under the farm's `wean_due_days` are normal; the window
+  # between wean-due and +4 days is amber; further is overdue.
+  defp litter_age_color(scope, days) do
+    wean_due = Breeding.wean_due_days(scope)
+
+    cond do
+      days >= wean_due + 4 -> "text-error"
+      days >= wean_due -> "text-warning"
+      true -> "text-success"
+    end
+  end
 
   defp load_ledger_events(scope, farrowing) do
     events = Breeding.list_litter_events(scope, farrowing)

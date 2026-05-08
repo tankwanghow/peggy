@@ -19,18 +19,24 @@ defmodule PeggyWeb.MobileLive.Dashboard do
       </header>
 
       <%!-- KPI tiles --%>
-      <section class="px-3 grid grid-cols-2 gap-3">
+      <section class="px-3 grid grid-cols-3 gap-3">
         <.kpi_tile
-          label={gettext("Lactating")}
-          value={@kpi.lactating}
-          tone={:success}
-          to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
+          label={gettext("Serviceable")}
+          value={@kpi.serviceable}
+          tone={:accent}
+          to={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
         />
         <.kpi_tile
           label={gettext("Gestating")}
           value={@kpi.gestating}
           tone={:info}
           to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
+        />
+        <.kpi_tile
+          label={gettext("Lactating")}
+          value={@kpi.lactating}
+          tone={:success}
+          to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
         />
         <.kpi_tile
           label={gettext("Wean due (this wk)")}
@@ -74,10 +80,10 @@ defmodule PeggyWeb.MobileLive.Dashboard do
         </h2>
         <ul class="space-y-2">
           <.workflow_link
-            icon="hero-heart"
-            label={gettext("Lactating sows")}
-            sub={gettext("Wean, foster, record deaths")}
-            to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
+            icon="hero-sparkles"
+            label={gettext("Serviceable sows")}
+            sub={gettext("Sows ready for a new service")}
+            to={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
           />
           <.workflow_link
             icon="hero-clipboard-document-list"
@@ -86,10 +92,10 @@ defmodule PeggyWeb.MobileLive.Dashboard do
             to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
           />
           <.workflow_link
-            icon="hero-identification"
-            label={gettext("Animals")}
-            sub={gettext("Look up an ear tag, see status & pen")}
-            to={~p"/m/#{@current_scope.farm.slug}/animals"}
+            icon="hero-heart"
+            label={gettext("Lactating sows")}
+            sub={gettext("Wean, foster, record deaths")}
+            to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
           />
         </ul>
       </section>
@@ -115,6 +121,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
         @tone == :info && "text-info",
         @tone == :warning && "text-warning",
         @tone == :error && "text-error",
+        @tone == :accent && "text-accent",
         @tone == :neutral && "text-base-content"
       ]}>
         {@value}
@@ -156,6 +163,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
     today = FarmClock.today(scope)
 
     kpi = %{
+      serviceable: Breeding.count_serviceable(scope),
       lactating: Breeding.count_lactating_sows(scope),
       gestating: Breeding.count_gestating_sows(scope),
       wean_due: Breeding.count_lactating_sows(scope, age_bucket: "wean_due"),

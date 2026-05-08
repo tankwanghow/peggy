@@ -45,10 +45,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             >
               <.icon name="hero-funnel" class="size-6" />
               <span
-                :if={active_filter_count(@filters) > 0}
+                :if={active_filter_count(assigns) > 0}
                 class="absolute -top-1 -right-1 badge badge-sm badge-primary"
               >
-                {active_filter_count(@filters)}
+                {active_filter_count(assigns)}
               </span>
             </button>
           </form>
@@ -56,7 +56,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
 
         <%!-- Tab switch (Lactating / Gestating) — small dual link strip --%>
         <nav class="px-3 pt-2 flex gap-2 text-xs">
-        <.link
+          <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
             class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
           >
@@ -87,45 +87,48 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                    active:bg-base-200 cursor-pointer touch-manipulation"
           >
             <div class="flex items-baseline justify-between">
-              <span class="font-mono font-bold text-xl">{e.service.sow.ear_tag}</span>
+              <span class="font-mono font-bold text-xl">
+                {e.service.sow.ear_tag}
+                <Shared.recently_updated_badge at={e.service.updated_at} />
+              </span>
+              <span><.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
+                <span class="font-mono">{sow_pen_label(e.service.sow)}</span></span>
               <span class="text-sm text-base-content/50">
                 {gettext("Parity")}
                 <span class="font-mono font-bold text-info ml-1">{e.parity}</span>
               </span>
             </div>
 
-            <div class="flex items-center gap-2 text-sm text-base-content/70">
-              <.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
-              <span class="font-mono">{sow_pen_label(e.service.sow)}</span>
-              <span class="ml-auto text-base-content/50">
-                {gettext("Type")}
-                <span class="uppercase font-semibold ml-1">{e.service.service_type}</span>
-              </span>
-            </div>
-
-            <div class="mt-1 flex items-end justify-between gap-3">
-              <div>
-                <div class={[
-                  "text-xl font-mono font-bold leading-none",
-                  days_left_color(days_left(e, @today))
-                ]}>
-                  {days_left_display(days_left(e, @today))}
-                </div>
-                <div class="text-[10px] uppercase tracking-wide text-base-content/50 mt-1">
-                  {days_left_label(days_left(e, @today))}
+            <div class="flex items-center gap-2 text-sm text-base-content/70 justify-between">
+              <div class="">
+                <span class="text-base-content/50">
+                  {gettext("Type")}
+                  <span class="uppercase font-semibold">{e.service.service_type}</span>
+                </span>
+                <div>
+                  <div class={[
+                    "font-mono text-xl",
+                    days_left_color(days_left(e, @today))
+                  ]}>
+                    {days_left_display(days_left(e, @today))}
+                    <span class="text-base-content/50 text-xs">
+                      {days_left_label(days_left(e, @today))}
+                    </span>
+                  </div>
                 </div>
               </div>
+
               <dl class="text-right text-xs leading-snug grid grid-cols-[auto_auto] gap-x-2 items-baseline">
                 <dt class="text-base-content/50">{gettext("Served")}</dt>
                 <dd class="font-mono text-base-content/70">{e.service.served_at}</dd>
                 <dt :if={(e.service.mounting_count || 1) > 1} class="text-base-content/50">
-                  {gettext("Mountings")}
+                  {gettext("Mounted")}
                 </dt>
                 <dd
                   :if={(e.service.mounting_count || 1) > 1}
-                  class="font-mono font-semibold text-info"
+                  class="text-xs font-semibold text-info"
                 >
-                  {e.service.mounting_count} (last {e.service.last_serviced_at})
+                  {e.service.mounting_count} ({e.service.last_serviced_at})
                 </dd>
                 <dt class="text-base-content/50">{gettext("Expected")}</dt>
                 <dd class="font-mono font-semibold">{e.expected_farrow_date}</dd>
@@ -173,10 +176,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               <div class={["flex-1", @sheet_mode == :menu && "text-center"]}>
                 <div class="font-mono font-bold text-lg">{@sheet_sow_tag}</div>
                 <div :if={@sheet_service} class="text-xs text-base-content/60">
-                  {gettext("Expected")} {expected_for(@sheet_service)} · {days_left_label(
-                    days_left_for(@sheet_service, @today)
+                  {gettext("Expected")} {expected_for(@current_scope, @sheet_service)} · {days_left_label(
+                    days_left_for(@current_scope, @sheet_service, @today)
                   )}
-                  {days_left_display(days_left_for(@sheet_service, @today))}
+                  {days_left_display(days_left_for(@current_scope, @sheet_service, @today))}
                 </div>
               </div>
             </div>
@@ -555,6 +558,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               </label>
 
               <label class="block">
+                <span class="text-xs uppercase text-base-content/60">{gettext("Sort by")}</span>
+                <select name="sort" class="select select-bordered select-lg w-full mt-1">
+                  <option
+                    :for={{value, label} <- sort_options()}
+                    value={value}
+                    selected={"#{@sort}-#{@dir}" == value}
+                  >
+                    {label}
+                  </option>
+                </select>
+              </label>
+
+              <label class="block">
                 <span class="text-xs uppercase text-base-content/60">{gettext("Pen")}</span>
                 <input
                   type="text"
@@ -592,7 +608,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               </div>
             </form>
             <footer
-              :if={active_filter_count(@filters) > 0}
+              :if={active_filter_count(assigns) > 0}
               class="px-4 py-3 border-t border-base-200"
             >
               <button phx-click="reset_filters" class="btn btn-ghost w-full">
@@ -601,7 +617,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             </footer>
           </aside>
         </div>
-
       </div>
     </Layouts.mobile_app>
     """
@@ -640,7 +655,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
        service_pen_code: "",
        service_pen_state: :empty,
        service_pen_id: nil,
-       service_error: nil
+       service_error: nil,
+       sort: "served",
+       dir: "asc"
      )
      |> assign(MovementForm.init())
      |> stream_configure(:gestating, dom_id: &"service-#{&1.service.id}")
@@ -658,10 +675,43 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       max_parity: params["max_parity"] || ""
     }
 
+    {sort, dir} = parse_sort_param(params["sort"])
+
     {:noreply,
      socket
-     |> assign(filters: filters, page: 1)
+     |> assign(filters: filters, page: 1, sort: sort, dir: dir)
      |> load_rows()}
+  end
+
+  # Combined `sort=<field>-<dir>` URL param (e.g. "tag-desc"). Single
+  # form binding; falls back to (served, asc) on anything unrecognised.
+  @sort_options ~w(served-asc served-desc tag-asc tag-desc parity-asc parity-desc pen-asc)
+
+  defp parse_sort_param(s) when is_binary(s) do
+    if s in @sort_options do
+      [field, dir] = String.split(s, "-", parts: 2)
+      {field, dir}
+    else
+      {"served", "asc"}
+    end
+  end
+
+  defp parse_sort_param(_), do: {"served", "asc"}
+
+  defp sort_to_param("served", "asc"), do: nil
+  defp sort_to_param(field, dir), do: "#{field}-#{dir}"
+
+  # Combined-direction options for the mobile filter-drawer dropdown.
+  defp sort_options do
+    [
+      {"served-asc", gettext("Most overdue first")},
+      {"served-desc", gettext("Most days left first")},
+      {"tag-asc", gettext("Tag A→Z")},
+      {"tag-desc", gettext("Tag Z→A")},
+      {"parity-asc", gettext("Parity (low to high)")},
+      {"parity-desc", gettext("Parity (high to low)")},
+      {"pen-asc", gettext("Pen")}
+    ]
   end
 
   # ── Events ─────────────────────────────────────────────────────────
@@ -677,7 +727,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
        "service_type" => params["service_type"] || "all",
        "pen_search" => params["pen_search"] || "",
        "min_parity" => params["min_parity"] || "",
-       "max_parity" => params["max_parity"] || ""
+       "max_parity" => params["max_parity"] || "",
+       "sort" => params["sort"] || ""
      })}
   end
 
@@ -911,13 +962,16 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
 
   def handle_event("move_save", params, socket) do
     if Policy.can?(socket.assigns.current_scope, :record_movement) do
+      service_id = socket.assigns.sheet_service && socket.assigns.sheet_service.id
+
       case MovementForm.save(socket, params) do
         {:ok, socket} ->
           {:noreply,
            socket
            |> reset_sheet()
            |> load_rows()
-           |> put_flash(:info, gettext("Movement recorded."))}
+           |> put_flash(:info, gettext("Movement recorded."))
+           |> push_event("flash-row", %{id: "service-#{service_id}"})}
 
         {:error, socket} ->
           {:noreply, socket}
@@ -972,12 +1026,13 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             |> maybe_put("pen_id", socket.assigns.service_pen_id)
 
           case Breeding.record_service_with_backfill(socket.assigns.current_scope, attrs) do
-            {:ok, _} ->
+            {:ok, %{service: service}} ->
               {:noreply,
                socket
                |> reset_sheet()
                |> load_rows()
-               |> put_flash(:info, gettext("Service recorded."))}
+               |> put_flash(:info, gettext("Service recorded."))
+               |> push_event("flash-row", %{id: "service-#{service.id}"})}
 
             {:error, %Ecto.Changeset{} = cs} ->
               {:noreply, assign(socket, service_error: Shared.format_cs_error(cs))}
@@ -1007,14 +1062,15 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
     push_patch(socket, to: path)
   end
 
-  defp current_filter_query(%{assigns: %{filters: f}}) do
+  defp current_filter_query(%{assigns: %{filters: f} = assigns}) do
     %{
       "q" => f.q,
       "window" => f.window,
       "service_type" => f.service_type,
       "pen_search" => f.pen_search,
       "min_parity" => f.min_parity,
-      "max_parity" => f.max_parity
+      "max_parity" => f.max_parity,
+      "sort" => sort_to_param(assigns.sort, assigns.dir) || ""
     }
   end
 
@@ -1025,36 +1081,29 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       {_k, nil} -> true
       {"window", "all"} -> true
       {"service_type", "all"} -> true
+      {"sort", "served-asc"} -> true
       _ -> false
     end)
     |> Map.new()
   end
 
-  defp active_filter_count(f) do
+  defp active_filter_count(assigns) do
+    f = assigns.filters
+
     [
       f.window != "all",
       f.service_type != "all",
       f.pen_search != "",
       f.min_parity != "",
-      f.max_parity != ""
+      f.max_parity != "",
+      not (assigns.sort == "served" and assigns.dir == "asc")
     ]
     |> Enum.count(& &1)
   end
 
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
-    f = socket.assigns.filters
-
-    opts = [
-      search: f.q,
-      due_window: f.window,
-      service_type: f.service_type,
-      pen_search: blank_to_nil(f.pen_search),
-      min_parity: blank_to_nil(f.min_parity),
-      max_parity: blank_to_nil(f.max_parity),
-      limit: @per_page,
-      offset: 0
-    ]
+    opts = list_opts(socket, 0)
 
     rows = Breeding.list_gestating_sows(scope, opts) |> attach_parity(scope)
     total = Breeding.count_gestating_sows(scope, opts)
@@ -1066,19 +1115,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
 
   defp append_rows(socket) do
     scope = socket.assigns.current_scope
-    f = socket.assigns.filters
     next_page = socket.assigns.page + 1
-
-    opts = [
-      search: f.q,
-      due_window: f.window,
-      service_type: f.service_type,
-      pen_search: blank_to_nil(f.pen_search),
-      min_parity: blank_to_nil(f.min_parity),
-      max_parity: blank_to_nil(f.max_parity),
-      limit: @per_page,
-      offset: (next_page - 1) * @per_page
-    ]
+    opts = list_opts(socket, (next_page - 1) * @per_page)
 
     rows = Breeding.list_gestating_sows(scope, opts) |> attach_parity(scope)
     loaded = next_page * @per_page
@@ -1087,6 +1125,23 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :gestating, row) end)
 
     assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
+  end
+
+  defp list_opts(socket, offset) do
+    f = socket.assigns.filters
+
+    [
+      search: f.q,
+      due_window: f.window,
+      service_type: f.service_type,
+      pen_search: blank_to_nil(f.pen_search),
+      min_parity: blank_to_nil(f.min_parity),
+      max_parity: blank_to_nil(f.max_parity),
+      sort: socket.assigns.sort,
+      dir: socket.assigns.dir,
+      limit: @per_page,
+      offset: offset
+    ]
   end
 
   defp attach_parity(rows, scope) do
@@ -1124,11 +1179,12 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
 
   defp days_left(%{expected_farrow_date: efd}, today), do: Date.diff(efd, today)
 
-  defp days_left_for(service, today) do
-    Date.diff(Breeding.expected_farrow_date(service), today)
+  defp days_left_for(scope, service, today) do
+    Date.diff(Date.add(service.served_at, Breeding.gestation_days(scope)), today)
   end
 
-  defp expected_for(service), do: Breeding.expected_farrow_date(service)
+  defp expected_for(scope, service),
+    do: Date.add(service.served_at, Breeding.gestation_days(scope))
 
   # Headline number is signed: positive = days remaining, negative = overdue.
   defp days_left_display(d) when d >= 0, do: "#{d}d"

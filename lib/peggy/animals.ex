@@ -370,10 +370,11 @@ defmodule Peggy.Animals do
 
   ## Animals CRUD
 
-  def create_animal(%Scope{farm: farm} = scope, attrs) do
+  def create_animal(%Scope{farm: farm} = scope, attrs, opts \\ []) do
     attrs = stringify(attrs) |> Map.put("farm_id", farm.id)
     tracking_type = Map.get(attrs, "tracking_type")
     initial_pen_id = Map.get(attrs, "current_pen_id")
+    seed_movement? = Keyword.get(opts, :seed_initial_movement, true)
 
     # Batches track location via placements, not animals.current_pen_id.
     animal_attrs =
@@ -396,13 +397,19 @@ defmodule Peggy.Animals do
       if a.breed, do: Map.put(base, :breed, a.breed), else: base
     end)
     |> maybe_seed_placement(tracking_type, initial_pen_id, farm)
-    |> maybe_seed_initial_movement(tracking_type, initial_pen_id, farm)
+    |> maybe_seed_initial_movement(tracking_type, initial_pen_id, farm, seed_movement?)
     |> Repo.transaction()
     |> unwrap(:animal)
   end
 
   # Placement movement row — for individual or batch with an initial pen.
-  defp maybe_seed_initial_movement(multi, tracking_type, pen_id, farm)
+  # Suppressed by `seed_initial_movement: false` (used by the legacy
+  # importer, which already has a full historical timeline and doesn't
+  # want a synthetic "today" placement row at the top of every imported
+  # animal's history).
+  defp maybe_seed_initial_movement(multi, _, _, _, false), do: multi
+
+  defp maybe_seed_initial_movement(multi, tracking_type, pen_id, farm, true)
        when tracking_type in ["individual", "batch"] and pen_id not in [nil, ""] do
     Multi.run(multi, :placement_movement, fn _repo, %{animal: animal} ->
       Repo.insert(
@@ -418,7 +425,7 @@ defmodule Peggy.Animals do
     end)
   end
 
-  defp maybe_seed_initial_movement(multi, _, _, _), do: multi
+  defp maybe_seed_initial_movement(multi, _, _, _, _), do: multi
 
   # Batch with initial pen — seed a placement row covering the whole batch.
   defp maybe_seed_placement(multi, "batch", pen_id, farm) when pen_id not in [nil, ""] do

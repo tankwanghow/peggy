@@ -345,7 +345,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
     scope = socket.assigns.current_scope
     rows = committable_rows(socket.assigns.rows)
 
-    entries = Enum.map(rows, &build_entry/1)
+    entries = Enum.map(rows, &build_entry(scope, &1))
 
     case Breeding.record_batch_weanings_with_backfill(scope, entries) do
       {:ok, results} ->
@@ -366,10 +366,10 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
     end
   end
 
-  defp build_entry(r) do
+  defp build_entry(scope, r) do
     weaned_at = parse_date(r.weaned_at)
-    farrowed_at = weaned_at && Date.add(weaned_at, -Breeding.lactation_days())
-    served_at = farrowed_at && Date.add(farrowed_at, -Breeding.gestation_days())
+    farrowed_at = weaned_at && Date.add(weaned_at, -Breeding.lactation_days(scope))
+    served_at = farrowed_at && Date.add(farrowed_at, -Breeding.gestation_days(scope))
 
     base = %{
       weaned_at: r.weaned_at,

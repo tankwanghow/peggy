@@ -164,6 +164,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                     >
                       {entry.farrowing.sow.ear_tag}
                     </.link>
+                    <Shared.recently_updated_badge at={entry.farrowing.updated_at} />
                   </td>
                   <td class="py-2">{entry.farrowing.farrowed_at}</td>
                   <td class="py-2 text-right">{entry.farrowing.born_alive}</td>
@@ -503,7 +504,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   <div class="label py-1">
                     <span class="label-text text-xs">
                       {gettext("Farrowed at (defaults to weaned − %{n}d)",
-                        n: Peggy.Breeding.lactation_days()
+                        n: Peggy.Breeding.lactation_days(@current_scope)
                       )}
                     </span>
                   </div>
@@ -518,7 +519,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   <div class="label py-1">
                     <span class="label-text text-xs">
                       {gettext("Served at (defaults to farrowed − %{n}d)",
-                        n: Peggy.Breeding.gestation_days()
+                        n: Peggy.Breeding.gestation_days(@current_scope)
                       )}
                     </span>
                   </div>
@@ -604,7 +605,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                 name="weaning[batch_tag]"
                 value={Shared.fv(@form, :batch_tag)}
                 items={
-                  Enum.map(@weaner_batches, &%{id: &1.ear_tag, label: "#{&1.ear_tag} (#{&1.quantity})"})
+                  Enum.map(
+                    @weaner_batches,
+                    &%{id: &1.ear_tag, label: "#{&1.ear_tag} (#{&1.quantity})"}
+                  )
                 }
                 class="w-full input"
                 placeholder={gettext("e.g. W2026-04-17")}
@@ -739,7 +743,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       sow_tag: farrowing.sow.ear_tag,
       sow_state: :resolved,
       resolved_farrowing: farrowing,
-      backfill: default_wn_backfill(nil)
+      backfill: default_wn_backfill(scope, nil)
     }
 
     {:noreply,
@@ -771,7 +775,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       sow_tag: "",
       sow_state: :empty,
       resolved_farrowing: nil,
-      backfill: default_wn_backfill(today)
+      backfill: default_wn_backfill(scope, today)
     }
 
     {:noreply,
@@ -923,7 +927,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
            socket
            |> close_form()
            |> load_rows()
-           |> put_flash(:info, gettext("Pre-wean death recorded."))}
+           |> put_flash(:info, gettext("Pre-wean death recorded."))
+           |> push_event("flash-row", %{id: "farrowing-#{farrowing.id}"})}
 
         {:error, :invalid_quantity} ->
           {:noreply, put_flash(socket, :error, gettext("Quantity must be at least 1."))}
@@ -966,7 +971,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                socket
                |> close_form()
                |> load_rows()
-               |> put_flash(:info, gettext("Fostering recorded."))}
+               |> put_flash(:info, gettext("Fostering recorded."))
+               |> push_event("flash-row", %{id: "farrowing-#{source.id}"})}
 
             {:error, :same_farrowing} ->
               {:noreply,
@@ -1339,12 +1345,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
 
   defp weaning_save_label(_), do: gettext("Save")
 
-  defp default_wn_backfill(weaned_at) do
+  defp default_wn_backfill(scope, weaned_at) do
     case weaned_at do
       %Date{} = w ->
-        farrowed = Date.add(w, -Breeding.lactation_days())
-        served = Date.add(farrowed, -Breeding.gestation_days())
-        dob = Date.add(served, -Breeding.minimum_sow_age_days())
+        farrowed = Date.add(w, -Breeding.lactation_days(scope))
+        served = Date.add(farrowed, -Breeding.gestation_days(scope))
+        dob = Date.add(served, -Breeding.minimum_sow_age_days(scope))
 
         %{
           breed: "",
@@ -1369,11 +1375,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
 
   defp merge_wn_backfill_params(socket, all, weaning_params) do
     wn = socket.assigns.wn
+    scope = socket.assigns.current_scope
 
     if is_nil(wn) do
       socket
     else
-      existing = wn.backfill || default_wn_backfill(nil)
+      existing = wn.backfill || default_wn_backfill(scope, nil)
       weaned_at_input = Map.get(weaning_params, "weaned_at")
 
       farrowed_at_input = Map.get(all, "farrowed_at")
@@ -1382,7 +1389,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
         cond do
           is_binary(farrowed_at_input) and farrowed_at_input != "" -> farrowed_at_input
           existing.farrowed_at not in [nil, ""] -> existing.farrowed_at
-          true -> derive_farrowed_from_weaned(weaned_at_input)
+          true -> derive_farrowed_from_weaned(scope, weaned_at_input)
         end
 
       served_at_input = Map.get(all, "served_at")
@@ -1396,7 +1403,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
             existing.served_at
 
           true ->
-            derive_served_from_farrowed(farrowed_at)
+            derive_served_from_farrowed(scope, farrowed_at)
         end
 
       dob_input = Map.get(all, "sow_dob")
@@ -1405,7 +1412,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
         cond do
           is_binary(dob_input) and dob_input != "" -> dob_input
           existing.dob not in [nil, ""] and served_at == existing.served_at -> existing.dob
-          true -> derive_dob_from_served(served_at)
+          true -> derive_dob_from_served(scope, served_at)
         end
 
       backfill = %{
@@ -1421,23 +1428,23 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     end
   end
 
-  defp derive_farrowed_from_weaned(weaned_at) do
+  defp derive_farrowed_from_weaned(scope, weaned_at) do
     case parse_date(weaned_at) do
-      %Date{} = d -> to_string(Date.add(d, -Breeding.lactation_days()))
+      %Date{} = d -> to_string(Date.add(d, -Breeding.lactation_days(scope)))
       _ -> ""
     end
   end
 
-  defp derive_served_from_farrowed(farrowed_at) do
+  defp derive_served_from_farrowed(scope, farrowed_at) do
     case parse_date(farrowed_at) do
-      %Date{} = d -> to_string(Date.add(d, -Breeding.gestation_days()))
+      %Date{} = d -> to_string(Date.add(d, -Breeding.gestation_days(scope)))
       _ -> ""
     end
   end
 
-  defp derive_dob_from_served(served_at) do
+  defp derive_dob_from_served(scope, served_at) do
     case parse_date(served_at) do
-      %Date{} = d -> to_string(Date.add(d, -Breeding.minimum_sow_age_days()))
+      %Date{} = d -> to_string(Date.add(d, -Breeding.minimum_sow_age_days(scope)))
       _ -> ""
     end
   end

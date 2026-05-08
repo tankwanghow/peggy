@@ -10,6 +10,95 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
   @per_page 25
   def per_page, do: @per_page
 
+  # ── Last-event line (Serviceable rows) ─────────────────────────────
+
+  @doc """
+  Renders the "last event" line on a Serviceable row with the kind
+  label (Mount / Weaned / Farrowed) styled distinctly from the date,
+  so the operator's eye separates "what happened" from "when".
+
+  Expects an entry shaped like the rows from
+  `Breeding.list_serviceable/2` — at minimum `:last_event_kind`,
+  `:last_event_date`, and (for `:served`) `:mounting_count`.
+  """
+  attr :entry, :map, required: true
+  attr :label_class, :string, default: "text-green-600 font-bold tracking-wide text-base-content/50"
+  attr :detail_class, :string, default: ""
+  attr :empty_class, :string, default: "text-base-content/40"
+  attr :empty_text, :string, default: "—"
+
+  def last_event(assigns) do
+    ~H"""
+    <span :if={is_nil(@entry.last_event_kind)} class={@empty_class}>{@empty_text}</span>
+
+    <span :if={@entry.last_event_kind == :served}>
+      <span class={@label_class}>{gettext("Mnt")}-{@entry.mounting_count || 1}</span>
+      <span class={@detail_class}>{@entry.last_event_date}</span>
+    </span>
+
+    <span :if={@entry.last_event_kind == :weaned}>
+      <span class={@label_class}>{gettext("Weaned")}</span>
+      <span class={@detail_class}>{@entry.last_event_date}</span>
+    </span>
+
+    <span :if={@entry.last_event_kind == :farrowed}>
+      <span class={@label_class}>{gettext("Farrowed")}</span>
+      <span class={@detail_class}>{@entry.last_event_date}</span>
+    </span>
+
+    <span :if={@entry.last_event_kind == :aborted}>
+      <span class={[@label_class, "text-rose-600"]}>{gettext("Abortion")}</span>
+      <span class={@detail_class}>{@entry.last_event_date}</span>
+    </span>
+    """
+  end
+
+  # ── Recently-updated badge ─────────────────────────────────────────
+
+  @recently_updated_window_minutes 60
+
+  @doc """
+  Small badge rendering "Xm ago" / "just now" when `at` is within
+  the last hour. Returns nothing when `at` is older or nil. Use to
+  flag rows the operator (or a teammate) just touched.
+
+  ## Example
+
+      <Shared.recently_updated_badge at={service.updated_at} />
+  """
+  attr :at, :any, default: nil
+
+  def recently_updated_badge(assigns) do
+    label = recent_minutes_label(assigns.at)
+    assigns = assign(assigns, :label, label)
+
+    ~H"""
+    <span
+      :if={@label}
+      class="ml-1 inline-flex items-center gap-1 badge badge-sm badge-warning whitespace-nowrap"
+      title={@at && to_string(@at)}
+    >
+      <.icon name="hero-sparkles-micro" class="size-3" /> {@label}
+    </span>
+    """
+  end
+
+  defp recent_minutes_label(nil), do: nil
+
+  defp recent_minutes_label(%NaiveDateTime{} = at),
+    do: at |> DateTime.from_naive!("Etc/UTC") |> recent_minutes_label()
+
+  defp recent_minutes_label(%DateTime{} = at) do
+    minutes = DateTime.diff(DateTime.utc_now(), at, :second) |> div(60)
+
+    cond do
+      minutes < 0 -> nil
+      minutes == 0 -> gettext("just now")
+      minutes < @recently_updated_window_minutes -> gettext("%{n}m ago", n: minutes)
+      true -> nil
+    end
+  end
+
   # ── Modal component ─────────────────────────────────────────────────
 
   attr :title, :string, required: true

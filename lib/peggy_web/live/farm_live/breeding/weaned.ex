@@ -8,6 +8,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
   alias Peggy.{Breeding, Policy}
   alias PeggyWeb.FarmLive.Breeding.Shared
 
+  @per_page Shared.per_page()
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -36,6 +38,30 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                 phx-debounce="300"
                 placeholder={gettext("e.g. 1234")}
                 class="input input-sm input-bordered font-mono"
+              />
+            </label>
+
+            <label class="form-control w-40">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Weaned from")}</span>
+              </div>
+              <input
+                type="date"
+                name="weaned_from"
+                value={@filters.weaned_from}
+                class="input input-sm input-bordered"
+              />
+            </label>
+
+            <label class="form-control w-40">
+              <div class="label py-1">
+                <span class="label-text text-xs">{gettext("Weaned to")}</span>
+              </div>
+              <input
+                type="date"
+                name="weaned_to"
+                value={@filters.weaned_to}
+                class="input input-sm input-bordered"
               />
             </label>
           </form>
@@ -98,6 +124,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
               {gettext("No weanings match the filters.")}
             </p>
           </div>
+
+          <.infinite_scroll has_more={@has_more} total={@total} id="weaned-sentinel" />
         </section>
       </div>
     </Layouts.app>
@@ -110,14 +138,24 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
 
     {:ok,
      socket
-     |> assign(can_record: Policy.can?(scope, :record_breeding))
+     |> assign(
+       can_record: Policy.can?(scope, :record_breeding),
+       per_page: @per_page,
+       page: 1,
+       total: 0,
+       has_more: false
+     )
      |> stream_configure(:weaned, dom_id: &"weaning-#{&1.id}")
      |> stream(:weaned, [])}
   end
 
   @impl true
   def handle_params(params, _uri, socket) do
-    filters = %{q: params["q"] || ""}
+    filters = %{
+      q: params["q"] || "",
+      weaned_from: params["weaned_from"] || "",
+      weaned_to: params["weaned_to"] || ""
+    }
 
     {:noreply,
      socket
@@ -127,9 +165,17 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
 
   @impl true
   def handle_event("filter_weaned", params, socket) do
-    query = %{"q" => params["q"] || "", "page" => 1}
+    query = %{
+      "q" => params["q"] || "",
+      "weaned_from" => params["weaned_from"] || "",
+      "weaned_to" => params["weaned_to"] || "",
+      "page" => 1
+    }
+
     {:noreply, push_patch(socket, to: Shared.tab_path(socket, "weaned", query))}
   end
+
+  def handle_event("load_more", _, socket), do: {:noreply, append_rows(socket)}
 
   def handle_event("delete_weaning", %{"weaning-id" => id}, socket) do
     scope = socket.assigns.current_scope
@@ -165,11 +211,44 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
 
   defp load_rows(socket) do
     scope = socket.assigns.current_scope
-    filters = socket.assigns.filters
-    rows = Breeding.list_recent_weanings(scope, search: filters.q)
+
+    opts = list_opts(socket, 0)
+    rows = Breeding.list_recent_weanings(scope, opts)
+    total = Breeding.count_recent_weanings(scope, opts)
 
     socket
-    |> assign(total: length(rows))
+    |> assign(total: total, page: 1, has_more: length(rows) < total)
     |> stream(:weaned, rows, reset: true)
   end
+
+  defp append_rows(socket) do
+    scope = socket.assigns.current_scope
+    next_page = socket.assigns.page + 1
+    offset = (next_page - 1) * @per_page
+
+    opts = list_opts(socket, offset)
+    rows = Breeding.list_recent_weanings(scope, opts)
+    loaded = next_page * @per_page
+
+    socket =
+      Enum.reduce(rows, socket, fn row, acc -> stream_insert(acc, :weaned, row) end)
+
+    assign(socket, page: next_page, has_more: loaded < socket.assigns.total)
+  end
+
+  defp list_opts(socket, offset) do
+    f = socket.assigns.filters
+
+    [
+      search: f.q,
+      weaned_from: blank_to_nil(f.weaned_from),
+      weaned_to: blank_to_nil(f.weaned_to),
+      limit: @per_page,
+      offset: offset
+    ]
+  end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(v), do: v
 end
