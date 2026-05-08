@@ -696,12 +696,22 @@ defmodule Peggy.Imports do
 
         v ->
           case Integer.parse(to_string(v)) do
-            {n, ""} when n >= 0 ->
+            {n, ""} when n > 0 ->
               issues
+
+            {n, ""} when n <= 0 ->
+              [
+                %{
+                  level: :err,
+                  kind: :empty_wean,
+                  msg: "weaned_count must be > 0 (rows with 0 piglets are skipped)"
+                }
+                | issues
+              ]
 
             _ ->
               [
-                %{level: :err, kind: :bad_int, msg: "weaned_count must be a non-negative integer"}
+                %{level: :err, kind: :bad_int, msg: "weaned_count must be a positive integer"}
                 | issues
               ]
           end
@@ -896,12 +906,9 @@ defmodule Peggy.Imports do
   a file rolls back that file but leaves earlier files intact, with
   the failure reason recorded in the per-file `errors` list.
   """
-  def commit(scope, report, opts \\ [])
-
-  def commit(%Scope{} = scope, %{summary: %{blocking_errors: 0}} = report, opts) do
+  def commit(%Scope{} = scope, %{summary: %{blocking_errors: 0}} = report) do
     run_id = generate_run_id()
     via = "csv_import:#{run_id}"
-    thresholds = legacy_thresholds(opts)
 
     locations = commit_locations(scope, report.locations, via)
     sows = commit_sows(scope, report.sows, via)
@@ -916,7 +923,7 @@ defmodule Peggy.Imports do
     # its own duplicate parent via the back-fill cascade.
     events = build_event_timeline(report)
     pens = pen_index(scope)
-    {services, farrowings, weanings} = commit_events(scope, events, via, pens, thresholds)
+    {services, farrowings, weanings} = commit_events(scope, events, via, pens)
 
     # Culls run AFTER the event timeline so any open service the
     # timeline left behind (e.g. a sow whose last legacy event was a
@@ -949,192 +956,8 @@ defmodule Peggy.Imports do
      }}
   end
 
-  def commit(_scope, %{summary: %{blocking_errors: n}}, _opts) when n > 0,
+  def commit(_scope, %{summary: %{blocking_errors: n}}) when n > 0,
     do: {:error, :blocking_errors}
-
-  # ── Legacy-batch lifecycle inference ──────────────────────────────
-
-  @default_legacy_thresholds [weaner_max: 70, grower_max: 130, finisher_max: 200]
-
-  @doc "Default age thresholds (days) for legacy weaner-batch classification."
-  def default_legacy_thresholds, do: @default_legacy_thresholds
-
-  defp legacy_thresholds(opts) do
-    Keyword.merge(@default_legacy_thresholds, opts |> Keyword.take([:weaner_max, :grower_max, :finisher_max]))
-  end
-
-  @doc """
-  Classifies an imported weaner batch from its age in days against
-  per-import thresholds:
-
-      age ≤ weaner_max          → :weaner
-      weaner_max < age ≤ grower_max  → :grower
-      grower_max < age ≤ finisher_max → :finisher
-      finisher_max < age        → :sold_finisher
-                                  (already-departed; importer records
-                                   a sale movement at dob + finisher_max)
-  """
-  def classify_legacy_batch(age_days, thresholds \\ @default_legacy_thresholds)
-      when is_integer(age_days) do
-    cond do
-      age_days <= thresholds[:weaner_max] -> :weaner
-      age_days <= thresholds[:grower_max] -> :grower
-      age_days <= thresholds[:finisher_max] -> :finisher
-      true -> :sold_finisher
-    end
-  end
-
-  @doc """
-  Pre-flight count of how each weaning row in the report would be
-  classified by `classify_legacy_batch/2`. Used by the import preview
-  so operators can see "5 weaner / 12 grower / 17 finisher / 278 sold
-  finisher" before they hit Commit.
-
-  Returns `%{weaner: n, grower: n, finisher: n, sold_finisher: n}`.
-  Rows whose `weaned_count` is 0 (no batch) are skipped.
-  """
-  def preview_legacy_batches(%Scope{} = scope, report, opts \\ []) do
-    thresholds = legacy_thresholds(opts)
-    today = Peggy.FarmClock.today(scope)
-    lactation = Breeding.lactation_days(scope)
-
-    rows =
-      Map.get(report.weanings, :ok, []) ++ Map.get(report.weanings, :warn, [])
-
-    counts = %{weaner: 0, grower: 0, finisher: 0, sold_finisher: 0}
-
-    Enum.reduce(rows, counts, fn row, acc ->
-      with %Date{} = farrowed_at <- parse_farrowed_at(row, lactation),
-           wc when is_integer(wc) and wc > 0 <- parse_int(row["weaned_count"]) do
-        kind = classify_legacy_batch(Date.diff(today, farrowed_at), thresholds)
-        Map.update!(acc, kind, &(&1 + 1))
-      else
-        _ -> acc
-      end
-    end)
-  end
-
-  # Legacy wean rows carry `weaned_at` but not always `farrowed_at`.
-  # When missing, infer farrowed_at = weaned_at − farm lactation length
-  # (good enough for the age-bucket classification — being a few days
-  # off won't move a finisher into a grower).
-  defp parse_farrowed_at(row, lactation_days) do
-    cond do
-      row["farrowed_at"] not in [nil, ""] ->
-        parse_date_or_nil(row["farrowed_at"])
-
-      row["weaned_at"] not in [nil, ""] ->
-        case parse_date_or_nil(row["weaned_at"]) do
-          %Date{} = d -> Date.add(d, -lactation_days)
-          _ -> nil
-        end
-
-      true ->
-        nil
-    end
-  end
-
-  # Inline post-weaning step: bring an imported batch up to its
-  # current legacy state. Stage promotes weaner → grower → finisher
-  # purely from age; for `:sold_finisher` we also record a sale
-  # movement dated at dob + finisher_max so the batch lands as
-  # `sold` with the right departure history.
-  defp finalize_legacy_batch(_scope, nil, _farrowing, _via, _thresholds), do: :ok
-
-  defp finalize_legacy_batch(scope, %Animal{} = batch, %Farrowing{} = farrowing, via, thresholds) do
-    case farrowing.farrowed_at do
-      %Date{} = dob ->
-        age = Date.diff(Peggy.FarmClock.today(scope), dob)
-        kind = classify_legacy_batch(age, thresholds)
-        apply_legacy_classification(scope, batch, farrowing, kind, via, thresholds)
-
-      _ ->
-        :ok
-    end
-  end
-
-  defp finalize_legacy_batch(_scope, _batch, _farrowing, _via, _thresholds), do: :ok
-
-  defp apply_legacy_classification(_scope, _batch, _farrowing, :weaner, _via, _thresholds), do: :ok
-
-  defp apply_legacy_classification(scope, batch, _farrowing, kind, _via, _thresholds)
-       when kind in [:grower, :finisher] do
-    case Animals.update_stage(scope, batch, Atom.to_string(kind)) do
-      {:ok, _} -> :ok
-      err -> err
-    end
-  end
-
-  defp apply_legacy_classification(scope, batch, farrowing, :sold_finisher, via, thresholds) do
-    sold_at = Date.add(farrowing.farrowed_at, thresholds[:finisher_max])
-
-    with {:ok, batch} <- Animals.update_stage(scope, batch, "finisher"),
-         {:ok, _} <- sell_off_legacy_batch(scope, batch, farrowing.pen_id, sold_at, via) do
-      :ok
-    end
-  end
-
-  defp apply_legacy_classification(_scope, _batch, _farrowing, _kind, _via, _thresholds), do: :ok
-
-  # Sells off the entire batch in one shot. Weaned batches normally
-  # have no placements (post-weaning the pool sits "between pens" until
-  # the operator moves it), so we first synthesize a placement at the
-  # farrowing pen — the most plausible "where they were when they
-  # left" — and then record the sale, which flips status → "sold" via
-  # the standard departure flow.
-  defp sell_off_legacy_batch(scope, batch, fallback_pen_id, sold_at, via) do
-    batch =
-      batch
-      |> Repo.reload!()
-      |> Repo.preload(:placements, force: true)
-
-    active_placements = Enum.filter(batch.placements, &is_nil(&1.removed_at))
-
-    placements =
-      case active_placements do
-        [_ | _] ->
-          active_placements
-
-        [] when not is_nil(fallback_pen_id) ->
-          place_attrs = %{
-            "reason" => "placement",
-            "to_pen_id" => fallback_pen_id,
-            "quantity" => batch.quantity,
-            "moved_at" => sold_at,
-            "notes" => "legacy import (#{via}): synthetic placement before sale"
-          }
-
-          case Animals.record_movement(scope, batch, place_attrs) do
-            {:ok, _} ->
-              batch
-              |> Repo.reload!()
-              |> Repo.preload(:placements, force: true)
-              |> Map.fetch!(:placements)
-              |> Enum.filter(&is_nil(&1.removed_at))
-
-            _ ->
-              []
-          end
-
-        _ ->
-          []
-      end
-
-    Enum.reduce_while(placements, {:ok, batch}, fn placement, {:ok, _} ->
-      sale_attrs = %{
-        "reason" => "sale",
-        "from_pen_id" => placement.pen_id,
-        "quantity" => placement.quantity,
-        "moved_at" => sold_at,
-        "notes" => "legacy import (#{via}): aged-out finisher"
-      }
-
-      case Animals.record_movement(scope, Repo.reload!(batch), sale_attrs) do
-        {:ok, _} -> {:cont, {:ok, batch}}
-        err -> {:halt, err}
-      end
-    end)
-  end
 
   defp empty_file_state, do: %{rows: [], ok: [], warn: [], err: []}
 
@@ -1297,7 +1120,7 @@ defmodule Peggy.Imports do
     end
   end
 
-  defp commit_events(scope, events, via, pens, thresholds) do
+  defp commit_events(scope, events, via, pens) do
     init = %{
       services: %{ok: 0, failed: 0, errors: []},
       farrowings: %{ok: 0, failed: 0, errors: []},
@@ -1307,12 +1130,7 @@ defmodule Peggy.Imports do
     final =
       Enum.reduce(events, init, fn event, acc ->
         file_acc = Map.fetch!(acc, event.file)
-
-        updated =
-          run_row(file_acc, event.row, fn ->
-            process_event(scope, event, via, pens, thresholds)
-          end)
-
+        updated = run_row(file_acc, event.row, fn -> process_event(scope, event, via, pens) end)
         Map.put(acc, event.file, updated)
       end)
 
@@ -1331,7 +1149,7 @@ defmodule Peggy.Imports do
   # We drop those values and route the row as an open service so it can
   # participate in the chain. `abortion / death / cull` aren't inferable
   # from anything else, so we keep the pre-closed historic path.
-  defp process_event(scope, %{kind: :service, row: row}, via, _pens, _thresholds) do
+  defp process_event(scope, %{kind: :service, row: row}, via, _pens) do
     case row["result"] do
       result when result in ["abortion", "death", "cull"] ->
         commit_closed_service(scope, row, via)
@@ -1341,12 +1159,12 @@ defmodule Peggy.Imports do
     end
   end
 
-  defp process_event(scope, %{kind: :farrowing, row: row}, via, pens, _thresholds) do
+  defp process_event(scope, %{kind: :farrowing, row: row}, via, pens) do
     do_commit_farrowing(scope, row, via, pens)
   end
 
-  defp process_event(scope, %{kind: :weaning, row: row}, via, pens, thresholds) do
-    do_commit_weaning(scope, row, via, pens, thresholds)
+  defp process_event(scope, %{kind: :weaning, row: row}, via, pens) do
+    do_commit_weaning(scope, row, via, pens)
   end
 
   # Open service: route through `record_service_with_backfill` so the
@@ -1497,10 +1315,8 @@ defmodule Peggy.Imports do
   end
 
   # Weaning: if the sow exists and has an open farrowing (no live
-  # weaning row yet), attach to it. Otherwise cascade. After a
-  # successful insert, fold the batch through the legacy-classifier so
-  # aged-out batches land at grower / finisher / sold-finisher.
-  defp do_commit_weaning(scope, row, via, pens, thresholds) do
+  # weaning row yet), attach to it. Otherwise cascade.
+  defp do_commit_weaning(scope, row, via, pens) do
     sow_tag = row["sow_ear_tag"]
 
     dest_pen_id =
@@ -1521,32 +1337,31 @@ defmodule Peggy.Imports do
       }
       |> drop_nils()
 
-    result =
-      case Animals.find_by_ear_tag(scope, sow_tag) do
-        %Animal{id: sow_id} ->
-          case Breeding.latest_open_farrowing_for_sow(scope, sow_id) do
-            %Farrowing{} = farrowing ->
-              Breeding.record_weaning(scope, farrowing, attrs)
+    case Animals.find_by_ear_tag(scope, sow_tag) do
+      %Animal{id: sow_id} ->
+        case Breeding.latest_open_farrowing_for_sow(scope, sow_id) do
+          %Farrowing{} = farrowing ->
+            case Breeding.record_weaning(scope, farrowing, attrs) do
+              {:ok, _, _} -> :ok
+              err -> err
+            end
 
-            nil ->
-              Breeding.record_weaning_with_backfill(scope, {:existing_sow, sow_id}, attrs)
-          end
+          nil ->
+            case Breeding.record_weaning_with_backfill(scope, {:existing_sow, sow_id}, attrs) do
+              {:ok, _, _} -> :ok
+              err -> err
+            end
+        end
 
-        nil ->
-          Breeding.record_weaning_with_backfill(
-            scope,
-            {:new_sow, %{"ear_tag" => sow_tag}},
-            attrs
-          )
-      end
-
-    case result do
-      {:ok, weaning, batch} ->
-        farrowing = Repo.get!(Farrowing, weaning.farrowing_id)
-        finalize_legacy_batch(scope, batch, farrowing, via, thresholds)
-
-      err ->
-        err
+      nil ->
+        case Breeding.record_weaning_with_backfill(
+               scope,
+               {:new_sow, %{"ear_tag" => sow_tag}},
+               attrs
+             ) do
+          {:ok, _, _} -> :ok
+          err -> err
+        end
     end
   end
 
