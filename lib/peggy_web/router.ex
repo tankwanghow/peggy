@@ -94,6 +94,7 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/breeding/batch-weaning", FarmLive.BatchWeaning, :show
       live "/farms/:farm_slug/breeding/close-services", FarmLive.BatchCloseServices, :show
       live "/farms/:farm_slug/reports", FarmLive.Reports, :index
+      live "/farms/:farm_slug/reports/inferred", FarmLive.Reports.Inferred, :index
       get "/farms/:farm_slug/reports/export", ReportsController, :export
       live "/farms/:farm_slug/tasks", FarmLive.Tasks, :index
       live "/farms/:farm_slug/audit", FarmLive.Audit, :index

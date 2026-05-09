@@ -1804,8 +1804,7 @@ defmodule Peggy.Breeding do
 
         abortions =
           from(s in Service,
-            where:
-              s.farm_id == ^farm.id and is_nil(s.deleted_at) and s.result == "abortion",
+            where: s.farm_id == ^farm.id and is_nil(s.deleted_at) and s.result == "abortion",
             group_by: s.sow_id,
             select: %{sow_id: s.sow_id, last_at: max(s.result_at)}
           )
@@ -3203,6 +3202,7 @@ defmodule Peggy.Breeding do
     dest_pen_id = to_int(attrs["destination_pen_id"])
     weaned_at = attrs["weaned_at"]
     batch_tag = normalize_batch_tag(attrs["batch_tag"])
+    created_via = attrs["created_via"]
     sow = Repo.get!(Animal, farrowing.sow_id)
 
     cond do
@@ -3221,7 +3221,15 @@ defmodule Peggy.Breeding do
         multi =
           Multi.new()
           |> Multi.insert(:weaning, Weaning.changeset(%Weaning{}, weaning_attrs))
-          |> consolidate_piglets(farm, farrowing, sow, weaned_count, batch_tag, weaned_at)
+          |> consolidate_piglets(
+            farm,
+            farrowing,
+            sow,
+            weaned_count,
+            batch_tag,
+            weaned_at,
+            created_via
+          )
           |> audit_new_batch_animal(scope)
           |> audit_wean_movement(scope)
           |> link_weaning_to_batch()
@@ -3458,7 +3466,7 @@ defmodule Peggy.Breeding do
 
   # weaned_count == 0: no weaner batch created; deaths/fostering are
   # already captured in the `LitterEvent` ledger.
-  defp consolidate_piglets(multi, _farm, _farrowing, _sow, 0, _tag, _weaned_at) do
+  defp consolidate_piglets(multi, _farm, _farrowing, _sow, 0, _tag, _weaned_at, _via) do
     Multi.run(multi, :batch, fn _repo, _ -> {:ok, nil} end)
   end
 
@@ -3466,8 +3474,10 @@ defmodule Peggy.Breeding do
   # to its `weaning_id`) that adds `count` to the batch's quantity. The
   # first wean against a new tag inserts the Animal batch with
   # `quantity: 0` first; subsequent weans reuse the same row. Uniform
-  # write path = uniform delete path.
-  defp consolidate_piglets(multi, farm, farrowing, sow, count, batch_tag, weaned_at)
+  # write path = uniform delete path. `created_via` from the weaning is
+  # propagated only to *new* batch rows so import rollback can find them
+  # via the same `csv_import:<run_id>` tag.
+  defp consolidate_piglets(multi, farm, farrowing, sow, count, batch_tag, weaned_at, created_via)
        when count >= 1 and is_binary(batch_tag) do
     service = Repo.get!(Service, farrowing.service_id)
 
@@ -3492,7 +3502,8 @@ defmodule Peggy.Breeding do
             "sire_id" => service.boar_id,
             "farrowing_id" => farrowing.id,
             "farm_id" => farm.id,
-            "current_pen_id" => nil
+            "current_pen_id" => nil,
+            "created_via" => created_via
           })
           |> repo.insert()
       end

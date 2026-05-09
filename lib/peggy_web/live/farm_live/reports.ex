@@ -66,6 +66,16 @@ defmodule PeggyWeb.FarmLive.Reports do
           >
             <.icon name="hero-arrow-down-tray-micro" class="size-3" /> {gettext("Weanings")}
           </.link>
+
+          <span class="ml-4 text-xs uppercase tracking-wide text-base-content/50">
+            {gettext("Audit")}
+          </span>
+          <.link
+            navigate={~p"/farms/#{@current_scope.farm.slug}/reports/inferred"}
+            class="btn btn-outline btn-xs"
+          >
+            <.icon name="hero-magnifying-glass-micro" class="size-3" /> {gettext("Inferred rows")}
+          </.link>
         </div>
 
         <dl class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

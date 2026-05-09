@@ -1002,25 +1002,45 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   end
 
   defp rows_from_service(s, animal_id) do
-    open = %{
-      id: "s-#{s.id}",
-      date: s.served_at,
-      priority: 1,
-      kind: :service,
-      data: %{service: s, animal_id: animal_id}
-    }
+    # A re-serviced service collapses to a single "Service closed" row at
+    # served_at — the open and close are the same cycle.
+    re_serviced? = s.result == "re_service" && s.result_at
 
-    close =
-      if s.result && s.result_at do
-        closed_kind = if s.result == "farrowing", do: :farrowing, else: :service_closed
-
+    open =
+      unless re_serviced? do
         %{
-          id: "sc-#{s.id}",
-          date: s.result_at,
-          priority: if(closed_kind == :farrowing, do: 3, else: 6),
-          kind: closed_kind,
+          id: "s-#{s.id}",
+          date: s.served_at,
+          priority: 1,
+          kind: :service,
           data: %{service: s, animal_id: animal_id}
         }
+      end
+
+    close =
+      cond do
+        re_serviced? ->
+          %{
+            id: "sc-#{s.id}",
+            date: s.served_at,
+            priority: 1,
+            kind: :service_closed,
+            data: %{service: s, animal_id: animal_id}
+          }
+
+        s.result && s.result_at ->
+          closed_kind = if s.result == "farrowing", do: :farrowing, else: :service_closed
+
+          %{
+            id: "sc-#{s.id}",
+            date: s.result_at,
+            priority: if(closed_kind == :farrowing, do: 3, else: 6),
+            kind: closed_kind,
+            data: %{service: s, animal_id: animal_id}
+          }
+
+        true ->
+          nil
       end
 
     wean =
@@ -1085,6 +1105,10 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   end
 
   defp history_summary(%{kind: :farrowing}), do: gettext("Farrowing recorded")
+
+  defp history_summary(%{kind: :service_closed, data: %{service: %{result: "re_service"} = s}}) do
+    "re-serviced at #{s.result_at}"
+  end
 
   defp history_summary(%{kind: :service_closed, data: %{service: s}}) do
     "Result: #{s.result}"

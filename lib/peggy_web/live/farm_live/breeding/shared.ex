@@ -22,7 +22,10 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
   `:last_event_date`, and (for `:served`) `:mounting_count`.
   """
   attr :entry, :map, required: true
-  attr :label_class, :string, default: "text-green-600 font-bold tracking-wide text-base-content/50"
+
+  attr :label_class, :string,
+    default: "text-green-600 font-bold tracking-wide text-base-content/50"
+
   attr :detail_class, :string, default: ""
   attr :empty_class, :string, default: "text-base-content/40"
   attr :empty_text, :string, default: "—"

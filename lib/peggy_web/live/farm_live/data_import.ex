@@ -13,7 +13,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
 
   alias Peggy.{Imports, Policy}
 
-  @file_kinds ~w(locations sows services farrowings weanings culls)a
+  @file_kinds ~w(locations sows services farrowings weanings culls movements)a
   # 5 MB per file ≈ ~50k typical sow rows. Hard limit on rows is
   # enforced inside Imports.parse_and_validate (10k per file).
   @max_file_size 5 * 1024 * 1024
@@ -46,7 +46,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
             )}
           </p>
 
-          <form id="import-upload" phx-change="validate_upload" phx-submit="run_validation">
+          <form id="import-upload" phx-change="validate_upload" phx-submit="run_validation" class="grid grid-cols-2">
             <div :for={kind <- @file_kinds} class="rounded-md border border-base-200 p-3 mb-3">
               <div class="flex items-baseline justify-between gap-3">
                 <label for={"upload-#{kind}"} class="font-mono font-semibold">
@@ -137,7 +137,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
                     "services"
                   )} · {run.counts.farrowings} {gettext("farrowings")} · {run.counts.weanings} {gettext(
                     "weanings"
-                  )}
+                  )} · {run.counts.movements} {gettext("movements")}
                 </div>
               </li>
             </ul>
@@ -210,6 +210,17 @@ defmodule PeggyWeb.FarmLive.DataImport do
                   {@report.summary.culls_errors} {gettext("errors")}
                 </span>
               </dd>
+              <dt class="text-base-content/60">{gettext("Movements")}</dt>
+              <dd>
+                {@report.summary.movements_in} {gettext("rows")} ·
+                <span class="text-success">
+                  {@report.summary.movements_importable} {gettext("ok")}
+                </span>
+                ·
+                <span :if={@report.summary.movements_errors > 0} class="text-error">
+                  {@report.summary.movements_errors} {gettext("errors")}
+                </span>
+              </dd>
             </dl>
           </div>
 
@@ -219,6 +230,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
           <.report_block label="farrowings.csv" file={@report.farrowings} />
           <.report_block label="weanings.csv" file={@report.weanings} />
           <.report_block label="culls.csv" file={@report.culls} />
+          <.report_block label="movements.csv" file={@report.movements} />
 
           <div class="flex gap-2 justify-end">
             <button type="button" phx-click="back_to_upload" class="btn btn-ghost">
@@ -259,6 +271,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
               <.outcome_row label="farrowings.csv" file={@outcome.farrowings} />
               <.outcome_row label="weanings.csv" file={@outcome.weanings} />
               <.outcome_row label="culls.csv" file={@outcome.culls} />
+              <.outcome_row label="movements.csv" file={@outcome.movements} />
             </ul>
           </div>
 
@@ -443,11 +456,12 @@ defmodule PeggyWeb.FarmLive.DataImport do
       {:ok, counts} ->
         msg =
           gettext(
-            "Rolled back %{a} animals, %{s} services, %{f} farrowings, %{w} weanings.",
+            "Rolled back %{a} animals, %{s} services, %{f} farrowings, %{w} weanings, %{m} movements.",
             a: counts.animals,
             s: counts.services,
             f: counts.farrowings,
-            w: counts.weanings
+            w: counts.weanings,
+            m: counts.movements
           )
 
         {:noreply,

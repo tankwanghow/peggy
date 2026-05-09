@@ -708,6 +708,69 @@ defmodule Peggy.Reports do
     end)
   end
 
+  # ── Inferred / backfilled rows audit ──────────────────────────────
+
+  @doc """
+  Lists every `inferred=true` service for the farm, with the related
+  sow's ear-tag, the served_at date, the resolved result (if any), and
+  the `created_via` tag so an operator can trace each row back to its
+  import run. Used by the post-import audit page so the ~200 rows that
+  the back-fill cascade synthesised can be eyeballed.
+
+  Newest served_at first.
+  """
+  def list_inferred_services(%Scope{farm: %{id: farm_id}}) do
+    from(s in Peggy.Breeding.Service,
+      join: a in Peggy.Animals.Animal,
+      on: a.id == s.sow_id,
+      left_join: f in Peggy.Breeding.Farrowing,
+      on: f.service_id == s.id and is_nil(f.deleted_at),
+      where: s.farm_id == ^farm_id and s.inferred == true and is_nil(s.deleted_at),
+      order_by: [desc: s.served_at, desc: s.id],
+      select: %{
+        id: s.id,
+        sow_id: a.id,
+        sow_ear_tag: a.ear_tag,
+        served_at: s.served_at,
+        service_type: s.service_type,
+        result: s.result,
+        result_at: s.result_at,
+        created_via: s.created_via,
+        farrowing_id: f.id,
+        farrowed_at: f.farrowed_at
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Lists sows registered via the inferred/back-fill path — i.e. animals
+  the import auto-created when a service or farrowing referenced an
+  unknown ear-tag. Filters by `inferred=true` (set by both the import
+  pipeline and the back-fill cascade) and excludes departed rows.
+
+  Newest first.
+  """
+  def list_inferred_sows(%Scope{farm: %{id: farm_id}}) do
+    from(a in Peggy.Animals.Animal,
+      where:
+        a.farm_id == ^farm_id and a.stage == "sow" and a.inferred == true and
+          a.status in ~w(active served open lactating dry),
+      order_by: [desc: a.inserted_at, desc: a.id],
+      select: %{
+        id: a.id,
+        ear_tag: a.ear_tag,
+        status: a.status,
+        breed: a.breed,
+        dob: a.dob,
+        needs_review: a.needs_review,
+        created_via: a.created_via,
+        inserted_at: a.inserted_at
+      }
+    )
+    |> Repo.all()
+  end
+
   # Tiny CSV builder. Quotes fields containing comma / quote / newline,
   # doubles internal quotes per RFC 4180. Returns iodata.
   defp build_csv(headers, rows, row_fn) do

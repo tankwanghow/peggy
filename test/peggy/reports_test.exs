@@ -99,4 +99,56 @@ defmodule Peggy.ReportsTest do
     assert s.services_count == 0
     assert s.farrowings_count == 0
   end
+
+  describe "list_inferred_sows/1 + list_inferred_services/1" do
+    test "lists only inferred rows for the farm", %{scope: scope, sow1: real_sow} do
+      inferred_sow =
+        animal_fixture(scope,
+          ear_tag: "INF1",
+          stage: "sow",
+          inferred: true,
+          needs_review: true,
+          created_via: "csv_import:run-A"
+        )
+
+      _real_service =
+        Peggy.Repo.insert!(%Peggy.Breeding.Service{
+          farm_id: scope.farm.id,
+          sow_id: real_sow.id,
+          service_type: "ai",
+          served_at: ~D[2026-02-01],
+          last_serviced_at: ~D[2026-02-01],
+          inferred: false
+        })
+
+      _inferred_service =
+        Peggy.Repo.insert!(%Peggy.Breeding.Service{
+          farm_id: scope.farm.id,
+          sow_id: inferred_sow.id,
+          service_type: "ai",
+          served_at: ~D[2026-02-15],
+          last_serviced_at: ~D[2026-02-15],
+          inferred: true,
+          created_via: "csv_import:run-A"
+        })
+
+      sows = Reports.list_inferred_sows(scope)
+      assert [%{ear_tag: "INF1", needs_review: true}] = sows
+
+      services = Reports.list_inferred_services(scope)
+      assert [%{sow_ear_tag: "INF1", served_at: ~D[2026-02-15]}] = services
+    end
+
+    test "scopes to the farm", %{scope: scope} do
+      _ =
+        animal_fixture(scope, ear_tag: "INF_HERE", stage: "sow", inferred: true)
+
+      other_user = user_fixture()
+      other_farm = farm_fixture(other_user)
+      other_scope = scope_for(other_user, other_farm)
+
+      assert Reports.list_inferred_sows(other_scope) == []
+      assert Reports.list_inferred_services(other_scope) == []
+    end
+  end
 end

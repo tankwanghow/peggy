@@ -251,7 +251,8 @@ defmodule Peggy.Animals.Animal do
       :dam_id,
       :farrowing_id,
       :current_pen_id,
-      :farm_id
+      :farm_id,
+      :created_via
     ])
     |> validate_required([:tracking_type, :stage, :ear_tag, :quantity, :status, :farm_id])
     |> validate_inclusion(:tracking_type, @tracking_types)

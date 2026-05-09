@@ -11,7 +11,7 @@ files programmatically from another farm-management system's export.
 
 ## Overview
 
-You can import up to five CSV files in one run:
+You can import up to seven CSV files in one run:
 
 | File              | Required? | What it loads                                |
 |-------------------|-----------|----------------------------------------------|
@@ -20,6 +20,8 @@ You can import up to five CSV files in one run:
 | `services.csv`    | optional  | Mating / AI events.                          |
 | `farrowings.csv`  | optional  | Birth events with litter counts.             |
 | `weanings.csv`    | optional  | Weaning events.                              |
+| `culls.csv`       | optional  | Sows departed (cull / death / sale / etc).   |
+| `movements.csv`   | optional  | Per-sow chronological pen history.           |
 
 The files are **dependent on each other**:
 
@@ -130,7 +132,6 @@ Adds breeding-herd animals (sows and boars) to the farm.
 | `breed`         | string  | Free text, e.g. "Landrace", "Yorkshire".                   |
 | `dob`           | date    | `YYYY-MM-DD`. The animal's date of birth.                  |
 | `status`        | enum    | `active` (default) · `open` · `served` · `lactating` · `dry` · `culled`. |
-| `current_pen`   | string  | `HOUSE-PEN` (e.g. `EB-12`). Case-insensitive. Unknown pens become a warning; the sow is imported with no pen. |
 | `sire_tag`      | string  | Ear tag of the sire (must exist in DB or in this file).    |
 | `dam_tag`       | string  | Ear tag of the dam.                                        |
 | `legacy_parity` | integer | Parity prior to Peggy (≥ 0). Adds to in-system farrowing count when computing displayed parity. |
@@ -147,9 +148,10 @@ Adds breeding-herd animals (sows and boars) to the farm.
 - Unknown `status` value.
 - Negative or non-integer `legacy_parity`.
 
-**Warnings** (proceed allowed):
-- `current_pen` code doesn't match an active pen on the farm — the
-  sow is created with no pen, ready to be assigned later.
+The sow's pen is **not** set from `sows.csv` — every imported sow
+starts pen-less. If `movements.csv` is uploaded in the same run, its
+last per-sow row sets `current_pen_id`. Otherwise pens are assigned
+through the regular UI.
 
 ### Stage assignment
 
@@ -161,11 +163,11 @@ now — they have different lifecycle assumptions.
 ### Example
 
 ```csv
-ear_tag,breed,dob,status,current_pen,legacy_parity,notes
-SOW1001,Landrace,2024-03-15,active,EB-12,0,
-SOW1002,Landrace,2023-08-01,served,EB-12,4,Returned from culling pool
-SOW1003,Yorkshire,2024-05-20,open,HB-04,2,
-SOW1004,Yorkshire,2022-11-10,lactating,FA-07,6,
+ear_tag,breed,dob,status,legacy_parity,notes
+SOW1001,Landrace,2024-03-15,active,0,
+SOW1002,Landrace,2023-08-01,served,4,Returned from culling pool
+SOW1003,Yorkshire,2024-05-20,open,2,
+SOW1004,Yorkshire,2022-11-10,lactating,6,
 ```
 
 ---
@@ -329,8 +331,11 @@ Records weaning events.
 |---------------------|---------|-------------------------------------------------------------------------|
 | `avg_wean_weight_g` | integer | Average weaner weight at weaning, in grams.                             |
 | `batch_tag`         | string  | Free-text id for the resulting weaner batch. Reusing the same `batch_tag` pools multiple weanings into one batch animal. Defaults to `W<weaned_at>` if omitted (e.g. `W2026-05-25`). |
-| `destination_pen`   | string  | `HOUSE-PEN` to which the sow moves after weaning.                       |
 | `notes`             | string  | Free text.                                                              |
+
+The sow's post-wean pen is **not** set from `weanings.csv` — record
+the transfer in `movements.csv` (the next-dated movement after
+`weaned_at`) instead.
 
 ### Validation
 
@@ -348,9 +353,9 @@ Records weaning events.
 ### Example
 
 ```csv
-sow_ear_tag,weaned_at,weaned_count,avg_wean_weight_g,batch_tag,destination_pen
-SOW1001,2026-05-25,11,7300,W2026-05-25,DA-03
-SOW1004,2026-05-15,9,6800,W2026-05-15,DA-03
+sow_ear_tag,weaned_at,weaned_count,avg_wean_weight_g,batch_tag
+SOW1001,2026-05-25,11,7300,W2026-05-25
+SOW1004,2026-05-15,9,6800,W2026-05-15
 ```
 
 ---
@@ -421,12 +426,88 @@ SOW1010,2026-05-05,slaughtered,
 
 ---
 
+## File 7 — `movements.csv` (optional)
+
+Records the per-sow pen-change history extracted from the legacy
+system, **and is the only way to set each sow's pen** (sows.csv no
+longer carries a pen field). Each row is one move: ear tag, the date
+it happened, and the destination `(house_code, pen_code)`. The
+importer chains them chronologically per sow so each row's
+`from_pen_id` is the previous row's `to_pen_id` (and the first row
+gets `from_pen_id = nil`). After all of a sow's rows are inserted,
+the **last** row's `to_pen_id` is written back to her
+`current_pen_id`.
+
+If you skip `movements.csv` entirely, sows are imported without a
+pen and you assign them through the Locations UI.
+
+### Columns
+
+**Required:**
+
+| Column        | Type   | Notes                                                          |
+|---------------|--------|----------------------------------------------------------------|
+| `ear_tag`     | string | Must exist in `sows.csv` or in the DB.                         |
+| `moved_at`    | date   | `YYYY-MM-DD`. The date the sow arrived at this pen.            |
+| `house_code`  | string | Destination house. Case-insensitive.                           |
+| `pen_code`    | string | Destination pen. Case-insensitive.                             |
+
+**Optional:**
+
+| Column   | Type    | Notes        |
+|----------|---------|--------------|
+| `notes`  | string  | Free text.   |
+
+### Validation
+
+**Errors:**
+- Blank `ear_tag`, `moved_at`, `house_code`, or `pen_code`.
+- Bad `moved_at` format.
+
+**Warnings:**
+- `ear_tag` not in `sows.csv` or DB → all of that sow's movement rows
+  are skipped at commit (no auto-backfill — a movement is meaningless
+  without an animal).
+- `(house_code, pen_code)` not found among existing pens or
+  `locations.csv` → that single row is skipped at commit. Tip: if
+  you're importing legacy movements, regenerate `locations.csv`
+  first so every pen referenced by a movement exists.
+
+### What it does at commit
+
+For each sow, rows are grouped, sorted by `moved_at` ascending, then
+inserted as `Movement` records:
+
+- Row 1 → `reason = "placement"`, `from_pen_id = nil`,
+  `to_pen_id = <looked-up pen>`, `quantity = 1`.
+- Row 2..N → `reason = "pen_transfer"`,
+  `from_pen_id = <prev row's to_pen_id>`,
+  `to_pen_id = <looked-up pen>`.
+
+After processing all rows for a sow, `Animal.current_pen_id` is set
+to the last successful row's `to_pen_id`. The sow's `status` is not
+touched here — that's set by `sows.csv` (and adjusted by `culls.csv`
+for departed sows).
+
+### Example
+
+```csv
+ear_tag,moved_at,house_code,pen_code,notes
+SOW1001,2024-02-09,1U,69,arrival
+SOW1001,2024-05-22,DB,37,
+SOW1001,2024-06-24,4I,47,after farrow
+SOW1001,2024-07-11,2U,31,
+SOW1001,2024-10-04,HA,41,re-bred
+```
+
+---
+
 ## How the files relate
 
 ```
 locations.csv      ─▶  creates houses + pens
                        │
-sows.csv           ─▶  creates animals (current_pen looked up here)
+sows.csv           ─▶  creates animals (no pen — assigned by movements)
                        │
 services.csv       ─▶  attached to a sow by ear_tag
                        │
@@ -435,6 +516,8 @@ farrowings.csv     ─▶  closes the matching open service (within 114±3d)
 weanings.csv       ─▶  closes the matching open farrowing (≥ ~21d old)
                        │
 culls.csv          ─▶  closes any leftover open service + departs the sow
+                       │
+movements.csv      ─▶  per-sow pen history; last row sets current_pen_id
                        │
                        ▼
               breeding KPIs + downstream lifecycle

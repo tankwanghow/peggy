@@ -1,6 +1,7 @@
 defmodule PeggyWeb.FarmLive.AnimalDetail do
   use PeggyWeb, :live_view
 
+  alias Peggy.AnimalActivity
   alias Peggy.Animals
   alias Peggy.Animals.{Animal, Movement}
   alias Peggy.Breeding
@@ -14,12 +15,32 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <div class="mx-auto max-w-5xl">
         <div class="text-sm text-base-content/60 mb-1">
-          <.link
-            navigate={~p"/farms/#{@current_scope.farm.slug}/animals"}
-            class="text-primary underline hover:text-primary/80"
+          <button
+            id="animal-detail-back"
+            phx-hook=".HistoryBack"
+            type="button"
+            data-fallback-href={~p"/farms/#{@current_scope.farm.slug}/animals"}
+            class="text-primary underline hover:text-primary/80 cursor-pointer"
           >
-            ← {gettext("All animals")}
-          </.link>
+            ← {gettext("Back")}
+          </button>
+          <script :type={Phoenix.LiveView.ColocatedHook} name=".HistoryBack">
+            export default {
+              mounted() {
+                this.handler = () => {
+                  if (window.history.length > 1) {
+                    window.history.back()
+                  } else if (this.el.dataset.fallbackHref) {
+                    window.location.href = this.el.dataset.fallbackHref
+                  }
+                }
+                this.el.addEventListener("click", this.handler)
+              },
+              destroyed() {
+                this.el.removeEventListener("click", this.handler)
+              }
+            }
+          </script>
         </div>
         <.header>
           <span class="font-mono">{@animal.ear_tag || "##{@animal.id}"}</span>
@@ -292,8 +313,8 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 <td class="py-2 text-base-content/60">{m.notes}</td>
                 <td :if={@can_move} class="py-2 text-right">
                   <button
-                    :if={m.id == @latest_movement_id}
-                    phx-click="undo_last_movement"
+                    :if={@latest_event == {:movement, m.id}}
+                    phx-click="undo_last_event"
                     class="btn btn-ghost btn-sm text-error"
                     data-confirm={
                       gettext("Undo this movement? This will reverse all related state changes.")
@@ -339,12 +360,10 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 <td class="py-2 text-base-content/60">{history_notes(row)}</td>
                 <td :if={@can_move} class="py-2 text-right">
                   <button
-                    :if={history_undoable?(row, @latest_movement_id)}
-                    phx-click="undo_last_movement"
+                    :if={history_undoable?(row, @latest_event)}
+                    phx-click="undo_last_event"
                     class="btn btn-ghost btn-sm text-error"
-                    data-confirm={
-                      gettext("Undo this movement? This will reverse all related state changes.")
-                    }
+                    data-confirm={undo_confirm_text(@latest_event)}
                   >
                     {gettext("Undo")}
                   </button>
@@ -518,7 +537,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     move_cs =
       Animals.change_movement(new_movement(socket.assigns.current_scope, animal, placements), %{})
 
-    latest_id = movements |> List.first() |> then(&(&1 && &1.id))
+    latest_event = latest_event_for(scope, animal)
     parity = sow_parity(scope, animal)
 
     {:ok,
@@ -533,13 +552,47 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
        edit_form: nil,
        move_form: to_form(move_cs, as: :movement),
        movement_count: length(movements),
-       latest_movement_id: latest_id,
+       latest_event: latest_event,
        history_count: length(history),
        ac: move_ac_items(scope, placements),
        promote_stage: nil
      )
      |> stream(:movements, movements)
      |> stream(:history, history)}
+  end
+
+  defp latest_event_for(scope, %Animal{} = animal) do
+    case AnimalActivity.latest_event(scope, animal) do
+      nil -> nil
+      {kind, row} -> {kind, row.id}
+    end
+  end
+
+  # Re-reads everything that depends on animal state (used after every
+  # write — record_movement, undo_last_event). Keeps mount and refresh
+  # paths in sync without duplicating the assign list.
+  defp refresh_animal_state(socket) do
+    scope = socket.assigns.current_scope
+    animal = Animals.get_animal!(scope, socket.assigns.animal.id)
+    placements = Animals.list_placements(scope, animal)
+    movements = Animals.list_movements(scope, animal)
+    {services, litter_events} = breeding_data(scope, animal)
+    history = build_history(animal, movements, services, litter_events)
+
+    move_cs = Animals.change_movement(new_movement(scope, animal, placements), %{})
+
+    socket
+    |> assign(
+      animal: animal,
+      placements: placements,
+      movement_count: length(movements),
+      latest_event: latest_event_for(scope, animal),
+      history_count: length(history),
+      move_form: to_form(move_cs, as: :movement),
+      ac: move_ac_items(scope, placements)
+    )
+    |> stream(:movements, movements, reset: true)
+    |> stream(:history, history, reset: true)
   end
 
   defp breeding_data(scope, %Animal{tracking_type: "individual"} = animal) do
@@ -588,29 +641,46 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   end
 
   defp rows_from_service(s, animal_id) do
-    open = %{
-      id: "s-#{s.id}",
-      date: s.served_at,
-      priority: 1,
-      kind: :service,
-      data: %{service: s, animal_id: animal_id}
-    }
+    # A re-serviced service collapses to a single "Service closed" row at
+    # served_at — the open and close events are the same biological cycle
+    # and rendering them separately just doubled the noise.
+    re_serviced? = s.result == "re_service" && s.result_at
 
-    close =
-      if s.result && s.result_at do
-        closed_kind =
-          case s.result do
-            "farrowing" -> :farrowing
-            _ -> :service_closed
-          end
-
+    open =
+      unless re_serviced? do
         %{
-          id: "sc-#{s.id}",
-          date: s.result_at,
-          priority: if(closed_kind == :farrowing, do: 3, else: 6),
-          kind: closed_kind,
+          id: "s-#{s.id}",
+          date: s.served_at,
+          priority: 1,
+          kind: :service,
           data: %{service: s, animal_id: animal_id}
         }
+      end
+
+    close =
+      cond do
+        re_serviced? ->
+          %{
+            id: "sc-#{s.id}",
+            date: s.served_at,
+            priority: 1,
+            kind: :service_closed,
+            data: %{service: s, animal_id: animal_id}
+          }
+
+        s.result && s.result_at ->
+          closed_kind = if s.result == "farrowing", do: :farrowing, else: :service_closed
+
+          %{
+            id: "sc-#{s.id}",
+            date: s.result_at,
+            priority: if(closed_kind == :farrowing, do: 3, else: 6),
+            kind: closed_kind,
+            data: %{service: s, animal_id: animal_id}
+          }
+
+        true ->
+          nil
       end
 
     wean =
@@ -671,30 +741,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
     case Animals.record_movement(scope, animal, params) do
       {:ok, _} ->
-        animal = Animals.get_animal!(scope, animal.id)
-        placements = Animals.list_placements(scope, animal)
-        movements = Animals.list_movements(scope, animal)
-        {services, litter_events} = breeding_data(scope, animal)
-        history = build_history(animal, movements, services, litter_events)
-
-        move_cs =
-          Animals.change_movement(
-            new_movement(socket.assigns.current_scope, animal, placements),
-            %{}
-          )
-
         {:noreply,
          socket
-         |> assign(
-           animal: animal,
-           placements: placements,
-           movement_count: length(movements),
-           history_count: length(history)
-         )
-         |> assign(:move_form, to_form(move_cs, as: :movement))
-         |> assign(:ac, move_ac_items(scope, placements))
-         |> stream(:movements, movements, reset: true)
-         |> stream(:history, history, reset: true)
+         |> refresh_animal_state()
          |> push_event("ac:reset", %{id: "move-pen-picker"})
          |> push_event("ac:reset", %{id: "move-from-pen-picker"})
          |> put_flash(:info, gettext("Movement recorded."))}
@@ -709,46 +758,23 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     end
   end
 
-  def handle_event("undo_last_movement", _, socket) do
+  def handle_event("undo_last_event", _, socket) do
     if socket.assigns.can_move do
       scope = socket.assigns.current_scope
       animal = socket.assigns.animal
 
-      case Animals.undo_last_movement(scope, animal) do
-        {:ok, _} ->
-          animal = Animals.get_animal!(scope, animal.id)
-          placements = Animals.list_placements(scope, animal)
-          movements = Animals.list_movements(scope, animal)
-          {services, litter_events} = breeding_data(scope, animal)
-          history = build_history(animal, movements, services, litter_events)
-          latest_id = movements |> List.first() |> then(&(&1 && &1.id))
-
-          move_cs =
-            Animals.change_movement(
-              new_movement(socket.assigns.current_scope, animal, placements),
-              %{}
-            )
-
+      case AnimalActivity.undo_latest(scope, animal) do
+        {:ok, kind, _} ->
           {:noreply,
            socket
-           |> assign(
-             animal: animal,
-             placements: placements,
-             movement_count: length(movements),
-             latest_movement_id: latest_id,
-             history_count: length(history),
-             move_form: to_form(move_cs, as: :movement),
-             ac: move_ac_items(scope, placements)
-           )
-           |> stream(:movements, movements, reset: true)
-           |> stream(:history, history, reset: true)
-           |> put_flash(:info, gettext("Movement undone."))}
+           |> refresh_animal_state()
+           |> put_flash(:info, undo_success_flash(kind))}
 
-        {:error, :no_movements} ->
-          {:noreply, put_flash(socket, :error, gettext("No movements to undo."))}
+        {:error, :no_events} ->
+          {:noreply, put_flash(socket, :error, gettext("Nothing to undo."))}
 
-        {:error, _} ->
-          {:noreply, put_flash(socket, :error, gettext("Could not undo movement."))}
+        {:error, kind, reason} ->
+          {:noreply, put_flash(socket, :error, undo_error_flash(kind, reason))}
       end
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
@@ -1034,8 +1060,68 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
   defp history_notes(%{kind: :litter_event, data: e}), do: e.notes
   defp history_notes(_), do: nil
 
-  defp history_undoable?(%{kind: :movement, data: %{id: id}}, latest_id), do: id == latest_id
+  defp history_undoable?(%{kind: :movement, data: %{id: id}}, {:movement, id}), do: true
+
+  defp history_undoable?(%{kind: kind, data: %{service: %{id: id}}}, {:service, id})
+       when kind in [:service, :service_closed],
+       do: true
+
+  defp history_undoable?(%{kind: :farrowing, data: %{service: %{farrowing: %{id: id}}}}, {:farrowing, id}),
+    do: true
+
+  defp history_undoable?(%{kind: :weaning, data: %{weaning: %{id: id}}}, {:weaning, id}),
+    do: true
+
+  defp history_undoable?(%{kind: :litter_event, data: %{id: id}}, {:litter_event, id}),
+    do: true
+
   defp history_undoable?(_, _), do: false
+
+  defp undo_confirm_text({:movement, _}),
+    do: gettext("Undo this movement? This will reverse all related state changes.")
+
+  defp undo_confirm_text({:service, _}),
+    do: gettext("Undo this service? The sow will return to her prior status.")
+
+  defp undo_confirm_text({:farrowing, _}),
+    do: gettext("Undo this farrowing? The sow returns to served and the service reopens.")
+
+  defp undo_confirm_text({:weaning, _}),
+    do:
+      gettext(
+        "Undo this weaning? The sow returns to lactating and the weaner-batch quantity is decremented."
+      )
+
+  defp undo_confirm_text({:litter_event, _}),
+    do: gettext("Undo this litter event?")
+
+  defp undo_confirm_text(_), do: gettext("Undo this event?")
+
+  defp undo_success_flash(:movement), do: gettext("Movement undone.")
+  defp undo_success_flash(:service), do: gettext("Service undone.")
+  defp undo_success_flash(:farrowing), do: gettext("Farrowing undone.")
+  defp undo_success_flash(:weaning), do: gettext("Weaning undone.")
+  defp undo_success_flash(:litter_event), do: gettext("Litter event undone.")
+
+  defp undo_error_flash(:service, :service_has_closed_outcome),
+    do: gettext("Can't undo: this service already has a recorded outcome (farrowing/abortion).")
+
+  defp undo_error_flash(:farrowing, :farrowing_has_weaning),
+    do: gettext("Can't undo: weaning is already recorded — undo the weaning first.")
+
+  defp undo_error_flash(:farrowing, :farrowing_has_activity),
+    do:
+      gettext(
+        "Can't undo: piglet activity (deaths/fostering) is recorded against this farrowing."
+      )
+
+  defp undo_error_flash(:weaning, :weaning_has_activity),
+    do: gettext("Can't undo: post-weaning activity is recorded against this batch.")
+
+  defp undo_error_flash(:litter_event, :weaning_closed),
+    do: gettext("Can't undo: the litter has already been weaned.")
+
+  defp undo_error_flash(_kind, _reason), do: gettext("Could not undo.")
 
   # Renders the Detail cell per row kind. Uses links for mate/counterpart
   # sow so the user can jump between animals.
@@ -1071,6 +1157,14 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         · {gettext("mummified")} {@row.data.service.farrowing.mummified}
       <% end %>
     </span>
+    """
+  end
+
+  defp history_detail(%{row: %{kind: :service_closed, data: %{service: %{result: "re_service"} = s}}} = assigns) do
+    assigns = assign(assigns, re_serviced_at: s.result_at)
+
+    ~H"""
+    <span>{gettext("re-serviced at")} {@re_serviced_at}</span>
     """
   end
 

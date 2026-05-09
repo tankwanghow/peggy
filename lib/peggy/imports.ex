@@ -25,7 +25,7 @@ defmodule Peggy.Imports do
   alias NimbleCSV.RFC4180, as: CSV
   alias Peggy.{Animals, Audit, Breeding, Locations, Repo}
   alias Peggy.Accounts.Scope
-  alias Peggy.Animals.Animal
+  alias Peggy.Animals.{Animal, Movement}
   alias Peggy.Audit.AuditLog
   alias Peggy.Breeding.{Farrowing, Service, Weaning}
   alias Peggy.Locations.{House, Pen}
@@ -41,7 +41,7 @@ defmodule Peggy.Imports do
     },
     sows: %{
       required: ~w(ear_tag),
-      optional: ~w(breed dob status current_pen sire_tag dam_tag legacy_parity rfid notes)
+      optional: ~w(breed dob status sire_tag dam_tag legacy_parity rfid notes)
     },
     services: %{
       required: ~w(sow_ear_tag served_at service_type),
@@ -53,7 +53,7 @@ defmodule Peggy.Imports do
     },
     weanings: %{
       required: ~w(sow_ear_tag weaned_at weaned_count),
-      optional: ~w(avg_wean_weight_g batch_tag destination_pen notes)
+      optional: ~w(avg_wean_weight_g batch_tag notes)
     },
     # Final-state CSV. Covers any sow no longer in the herd: cull,
     # natural death, sold-as-breeder, etc. Closes the sow's last open
@@ -62,6 +62,14 @@ defmodule Peggy.Imports do
     culls: %{
       required: ~w(ear_tag culled_at),
       optional: ~w(reason notes)
+    },
+    # Per-sow chronological pen history. Inserts `pen_transfer` movement
+    # rows so the audit trail shows where each sow has been. Doesn't
+    # touch `current_pen_id` — sows.csv already set that to the latest
+    # pen, and we treat movements.csv as historical record only.
+    movements: %{
+      required: ~w(ear_tag moved_at house_code pen_code),
+      optional: ~w(notes)
     }
   }
 
@@ -119,7 +127,7 @@ defmodule Peggy.Imports do
     sows = parse_file(:sows, files[:sows])
     sow_index = build_sow_index(sows.rows)
 
-    sows = validate_sows(sows, combined_pens)
+    sows = validate_sows(sows)
 
     # Combined index of "what sow ear tags will exist after sows.csv
     # commits": existing DB rows + freshly imported sows.
@@ -134,6 +142,10 @@ defmodule Peggy.Imports do
 
     culls = parse_file(:culls, files[:culls]) |> validate_culls(combined_sows)
 
+    movements =
+      parse_file(:movements, files[:movements])
+      |> validate_movements(combined_sows, combined_pens)
+
     %{
       locations: locations,
       sows: sows,
@@ -141,7 +153,8 @@ defmodule Peggy.Imports do
       farrowings: farrowings,
       weanings: weanings,
       culls: culls,
-      summary: summarise(locations, sows, services, farrowings, weanings, culls)
+      movements: movements,
+      summary: summarise(locations, sows, services, farrowings, weanings, culls, movements)
     }
   end
 
@@ -399,12 +412,12 @@ defmodule Peggy.Imports do
 
   # ── Sow validation ─────────────────────────────────────────────────
 
-  defp validate_sows(%{err: errs} = state, _pens) when errs != [], do: state
+  defp validate_sows(%{err: errs} = state) when errs != [], do: state
 
-  defp validate_sows(%{rows: rows} = state, pens) do
+  defp validate_sows(%{rows: rows} = state) do
     {ok, warn, err, _seen} =
       Enum.reduce(rows, {[], [], [], MapSet.new()}, fn row, {ok_acc, warn_acc, err_acc, seen} ->
-        {row_status, msgs} = check_sow_row(row, pens, seen)
+        {row_status, msgs} = check_sow_row(row, seen)
         seen = if row["ear_tag"], do: MapSet.put(seen, row["ear_tag"]), else: seen
 
         case row_status do
@@ -417,7 +430,7 @@ defmodule Peggy.Imports do
     %{state | ok: Enum.reverse(ok), warn: Enum.reverse(warn), err: Enum.reverse(err)}
   end
 
-  defp check_sow_row(row, pens, seen) do
+  defp check_sow_row(row, seen) do
     issues = []
 
     issues =
@@ -466,19 +479,6 @@ defmodule Peggy.Imports do
                 | issues
               ]
           end
-      end
-
-    issues =
-      case row["current_pen"] do
-        nil ->
-          issues
-
-        code ->
-          if Map.has_key?(pens, String.upcase(code)),
-            do: issues,
-            else: [
-              %{level: :warn, kind: :unknown_pen, msg: "pen \"#{code}\" not found"} | issues
-            ]
       end
 
     classify(issues)
@@ -699,19 +699,29 @@ defmodule Peggy.Imports do
             {n, ""} when n > 0 ->
               issues
 
-            {n, ""} when n <= 0 ->
+            {0, ""} ->
+              [
+                %{
+                  level: :warn,
+                  kind: :empty_wean,
+                  msg: "weaned_count is 0"
+                }
+                | issues
+              ]
+
+            {n, ""} when n < 0 ->
               [
                 %{
                   level: :err,
-                  kind: :empty_wean,
-                  msg: "weaned_count must be > 0 (rows with 0 piglets are skipped)"
+                  kind: :bad_int,
+                  msg: "weaned_count must be >= 0 (negative not allowed)"
                 }
                 | issues
               ]
 
             _ ->
               [
-                %{level: :err, kind: :bad_int, msg: "weaned_count must be a positive integer"}
+                %{level: :err, kind: :bad_int, msg: "weaned_count must be a non-negative integer"}
                 | issues
               ]
           end
@@ -812,6 +822,85 @@ defmodule Peggy.Imports do
     classify(issues)
   end
 
+  # ── Movements validation ──────────────────────────────────────────
+
+  defp validate_movements(%{err: errs} = state, _sows, _pens) when errs != [], do: state
+
+  defp validate_movements(%{rows: rows} = state, sow_index, pen_index) do
+    {ok, warn, err} =
+      Enum.reduce(rows, {[], [], []}, fn row, {o, w, e} ->
+        {status, msgs} = check_movement_row(row, sow_index, pen_index)
+
+        case status do
+          :ok -> {[row | o], w, e}
+          :warn -> {o, [row_with_msgs(row, msgs) | w], e}
+          :err -> {o, w, [row_with_msgs(row, msgs) | e]}
+        end
+      end)
+
+    %{state | ok: Enum.reverse(ok), warn: Enum.reverse(warn), err: Enum.reverse(err)}
+  end
+
+  defp check_movement_row(row, sow_index, pen_index) do
+    issues = []
+
+    issues =
+      if is_nil(row["ear_tag"]),
+        do: [%{level: :err, kind: :missing, msg: "ear_tag is required"} | issues],
+        else: issues
+
+    issues =
+      case parse_date(row["moved_at"]) do
+        {:ok, _} -> issues
+        :empty -> [%{level: :err, kind: :missing, msg: "moved_at is required"} | issues]
+        :invalid -> [%{level: :err, kind: :bad_date, msg: "moved_at must be YYYY-MM-DD"} | issues]
+      end
+
+    issues =
+      if is_nil(row["house_code"]),
+        do: [%{level: :err, kind: :missing, msg: "house_code is required"} | issues],
+        else: issues
+
+    issues =
+      if is_nil(row["pen_code"]),
+        do: [%{level: :err, kind: :missing, msg: "pen_code is required"} | issues],
+        else: issues
+
+    issues =
+      if row["ear_tag"] && not Map.has_key?(sow_index, row["ear_tag"]),
+        do: [
+          %{
+            level: :warn,
+            kind: :unknown_sow,
+            msg:
+              "sow \"#{row["ear_tag"]}\" not in sows.csv or DB — movement will be skipped at commit"
+          }
+          | issues
+        ],
+        else: issues
+
+    issues =
+      if row["house_code"] && row["pen_code"] do
+        key = String.upcase("#{row["house_code"]}-#{row["pen_code"]}")
+
+        if Map.has_key?(pen_index, key),
+          do: issues,
+          else: [
+            %{
+              level: :warn,
+              kind: :unknown_pen,
+              msg:
+                "pen \"#{row["house_code"]}-#{row["pen_code"]}\" not found — movement will be skipped at commit"
+            }
+            | issues
+          ]
+      else
+        issues
+      end
+
+    classify(issues)
+  end
+
   # ── Helpers ────────────────────────────────────────────────────────
 
   defp existing_sows_index(scope) do
@@ -856,7 +945,7 @@ defmodule Peggy.Imports do
 
   defp row_with_msgs(row, msgs), do: Map.put(row, :issues, msgs)
 
-  defp summarise(locations, sows, services, farrowings, weanings, culls) do
+  defp summarise(locations, sows, services, farrowings, weanings, culls, movements) do
     %{
       locations_in: length(locations.rows),
       locations_importable: length(locations.ok) + length(locations.warn),
@@ -876,11 +965,14 @@ defmodule Peggy.Imports do
       culls_in: length(culls.rows),
       culls_importable: length(culls.ok) + length(culls.warn),
       culls_errors: length(culls.err),
+      movements_in: length(movements.rows),
+      movements_importable: length(movements.ok) + length(movements.warn),
+      movements_errors: length(movements.err),
       blocking_errors:
         length(locations.err) +
           length(sows.err) + length(services.err) +
           length(farrowings.err) + length(weanings.err) +
-          length(culls.err)
+          length(culls.err) + length(movements.err)
     }
   end
 
@@ -913,17 +1005,14 @@ defmodule Peggy.Imports do
     locations = commit_locations(scope, report.locations, via)
     sows = commit_sows(scope, report.sows, via)
 
-    # Services / farrowings / weanings commit as a single per-sow
-    # chronological timeline. This lets a farrowing close its matching
-    # open service before the *next* service for that sow is inserted —
-    # otherwise the auto-resolver in `record_service` would mis-classify
-    # the prior service as `re_service`. It also allows farrowings to
-    # attach to services from services.csv and weanings to attach to
-    # farrowings from farrowings.csv, instead of every event creating
-    # its own duplicate parent via the back-fill cascade.
+    # Services / farrowings / weanings / movements commit as a single
+    # per-sow chronological timeline. Movements are interleaved so that
+    # by the time a farrowing event runs, the sow's current_pen_id
+    # reflects the pen she was in on that date (Farrowing.pen_id falls
+    # back to sow.current_pen_id when the row has no explicit pen).
     events = build_event_timeline(report)
     pens = pen_index(scope)
-    {services, farrowings, weanings} = commit_events(scope, events, via, pens)
+    {services, farrowings, weanings, movements} = commit_events(scope, events, via, pens)
 
     # Culls run AFTER the event timeline so any open service the
     # timeline left behind (e.g. a sow whose last legacy event was a
@@ -940,7 +1029,8 @@ defmodule Peggy.Imports do
         "services_ok" => services.ok,
         "farrowings_ok" => farrowings.ok,
         "weanings_ok" => weanings.ok,
-        "culls_ok" => culls.ok
+        "culls_ok" => culls.ok,
+        "movements_ok" => movements.ok
       }
     )
 
@@ -952,7 +1042,8 @@ defmodule Peggy.Imports do
        services: services,
        farrowings: farrowings,
        weanings: weanings,
-       culls: culls
+       culls: culls,
+       movements: movements
      }}
   end
 
@@ -1021,15 +1112,12 @@ defmodule Peggy.Imports do
 
   defp commit_sows(scope, file, via) do
     rows = file.ok ++ file.warn
-    pens = pen_index(scope)
 
+    # Sows are inserted with no pen — movements.csv (if provided) sets
+    # current_pen_id via the chain of pen_transfer movements processed
+    # later. Sows with no movement history land pen-less; assign through
+    # the UI.
     Enum.reduce(rows, %{ok: 0, failed: 0, errors: []}, fn row, acc ->
-      pen_id =
-        case row["current_pen"] do
-          nil -> nil
-          code -> Map.get(pens, String.upcase(code))
-        end
-
       attrs =
         %{
           "tracking_type" => "individual",
@@ -1040,7 +1128,6 @@ defmodule Peggy.Imports do
           "status" => row["status"] || "active",
           "rfid" => row["rfid"],
           "notes" => row["notes"],
-          "current_pen_id" => pen_id,
           "legacy_parity" => parse_int(row["legacy_parity"]) || 0,
           "created_via" => via
         }
@@ -1096,13 +1183,35 @@ defmodule Peggy.Imports do
         }
       end)
 
-    (services_events ++ farrowing_events ++ weaning_events)
+    movement_events =
+      case report do
+        %{movements: %{ok: ok, warn: warn}} ->
+          Enum.map(ok ++ warn, fn r ->
+            %{
+              kind: :movement,
+              file: :movements,
+              line: r[:line],
+              sow_ear_tag: r["ear_tag"],
+              date: parse_date_or_nil(r["moved_at"]),
+              row: r
+            }
+          end)
+
+        _ ->
+          []
+      end
+
+    (services_events ++ farrowing_events ++ weaning_events ++ movement_events)
     |> Enum.group_by(& &1.sow_ear_tag)
     |> Enum.flat_map(fn {_tag, events} ->
       Enum.sort_by(events, fn e -> {date_sort_key(e.date), kind_rank(e.kind), e.line} end)
     end)
   end
 
+  # Same-day tie-break: a movement on date D applies BEFORE the
+  # service/farrowing/weaning of that day so the breeding event reads
+  # the correct pen.
+  defp kind_rank(:movement), do: -1
   defp kind_rank(:service), do: 0
   defp kind_rank(:farrowing), do: 1
   defp kind_rank(:weaning), do: 2
@@ -1124,7 +1233,8 @@ defmodule Peggy.Imports do
     init = %{
       services: %{ok: 0, failed: 0, errors: []},
       farrowings: %{ok: 0, failed: 0, errors: []},
-      weanings: %{ok: 0, failed: 0, errors: []}
+      weanings: %{ok: 0, failed: 0, errors: []},
+      movements: %{ok: 0, failed: 0, errors: []}
     }
 
     final =
@@ -1137,7 +1247,8 @@ defmodule Peggy.Imports do
     {
       %{final.services | errors: Enum.reverse(final.services.errors)},
       %{final.farrowings | errors: Enum.reverse(final.farrowings.errors)},
-      %{final.weanings | errors: Enum.reverse(final.weanings.errors)}
+      %{final.weanings | errors: Enum.reverse(final.weanings.errors)},
+      %{final.movements | errors: Enum.reverse(final.movements.errors)}
     }
   end
 
@@ -1165,6 +1276,10 @@ defmodule Peggy.Imports do
 
   defp process_event(scope, %{kind: :weaning, row: row}, via, pens) do
     do_commit_weaning(scope, row, via, pens)
+  end
+
+  defp process_event(scope, %{kind: :movement, row: row}, _via, pens) do
+    do_commit_movement(scope, row, pens)
   end
 
   # Open service: route through `record_service_with_backfill` so the
@@ -1316,14 +1431,8 @@ defmodule Peggy.Imports do
 
   # Weaning: if the sow exists and has an open farrowing (no live
   # weaning row yet), attach to it. Otherwise cascade.
-  defp do_commit_weaning(scope, row, via, pens) do
+  defp do_commit_weaning(scope, row, via, _pens) do
     sow_tag = row["sow_ear_tag"]
-
-    dest_pen_id =
-      case row["destination_pen"] do
-        nil -> nil
-        code -> Map.get(pens, String.upcase(code))
-      end
 
     attrs =
       %{
@@ -1331,7 +1440,6 @@ defmodule Peggy.Imports do
         "weaned_count" => parse_int(row["weaned_count"]),
         "avg_wean_weight_g" => parse_int(row["avg_wean_weight_g"]),
         "batch_tag" => row["batch_tag"] || "W#{row["weaned_at"]}",
-        "destination_pen_id" => dest_pen_id,
         "notes" => row["notes"],
         "created_via" => via
       }
@@ -1555,6 +1663,58 @@ defmodule Peggy.Imports do
   defp cull_sow_status("transferred"), do: "transferred"
   defp cull_sow_status(_), do: "culled"
 
+  # ── Movement event commit ─────────────────────────────────────────
+  #
+  # Each row inserts one `Movement` and updates the sow's
+  # `current_pen_id`. Because rows are processed inside the per-sow
+  # chronological event timeline (movements ranked before
+  # services/farrowings/weanings on the same date), the sow's
+  # `current_pen_id` accurately reflects her pen at every breeding
+  # event. The very first move for a sow is `placement`
+  # (`from_pen_id = nil`); subsequent ones are `pen_transfer` with
+  # `from_pen_id = sow.current_pen_id`.
+
+  defp do_commit_movement(scope, row, pens) do
+    pen_key = String.upcase("#{row["house_code"]}-#{row["pen_code"]}")
+    sow_tag = row["ear_tag"]
+    to_pen_id = Map.get(pens, pen_key)
+    sow = sow_tag && Animals.find_by_ear_tag(scope, sow_tag)
+
+    cond do
+      is_nil(sow) ->
+        {:error, :sow_not_found}
+
+      is_nil(to_pen_id) ->
+        {:error, {:pen_not_found, pen_key}}
+
+      true ->
+        from_pen_id = sow.current_pen_id
+
+        attrs = %{
+          "farm_id" => scope.farm.id,
+          "animal_id" => sow.id,
+          "reason" => if(is_nil(from_pen_id), do: "placement", else: "pen_transfer"),
+          "quantity" => 1,
+          "moved_at" => row["moved_at"],
+          "from_pen_id" => from_pen_id,
+          "to_pen_id" => to_pen_id,
+          "notes" => row["notes"]
+        }
+
+        Repo.transaction(fn ->
+          with {:ok, mv} <- %Movement{} |> Movement.changeset(attrs) |> Repo.insert(),
+               {:ok, _sow} <-
+                 sow
+                 |> Ecto.Changeset.change(%{current_pen_id: to_pen_id})
+                 |> Repo.update() do
+            mv
+          else
+            {:error, cs} -> Repo.rollback(cs)
+          end
+        end)
+    end
+  end
+
   # ── Commit helpers ───────────────────────────────────────────────
 
   # Runs one row's commit body in isolation: any raise (e.g. an
@@ -1661,7 +1821,8 @@ defmodule Peggy.Imports do
           sows: audit.changes["sows_ok"] || 0,
           services: audit.changes["services_ok"] || 0,
           farrowings: audit.changes["farrowings_ok"] || 0,
-          weanings: audit.changes["weanings_ok"] || 0
+          weanings: audit.changes["weanings_ok"] || 0,
+          movements: audit.changes["movements_ok"] || 0
         }
       }
     end)
@@ -1708,6 +1869,10 @@ defmodule Peggy.Imports do
           weanings = delete_weanings_for_rollback(farm.id, via, animal_ids)
           farrowings = delete_farrowings_for_rollback(farm.id, via, animal_ids)
           services = delete_services_for_rollback(farm.id, via, animal_ids)
+          # Movements: deleted by animal_id since the schema doesn't carry
+          # `created_via`. Any movement attached to one of the imported
+          # sows is part of the import (legacy history).
+          movements = delete_movements_for_rollback(farm.id, animal_ids)
           animals = delete_tagged(Animal, farm.id, via)
 
           Audit.log_now!(scope, "import.rollback",
@@ -1718,6 +1883,7 @@ defmodule Peggy.Imports do
               "weanings" => weanings,
               "farrowings" => farrowings,
               "services" => services,
+              "movements" => movements,
               "animals" => animals
             }
           )
@@ -1726,6 +1892,7 @@ defmodule Peggy.Imports do
             weanings: weanings,
             farrowings: farrowings,
             services: services,
+            movements: movements,
             animals: animals
           }
         rescue
@@ -1803,6 +1970,19 @@ defmodule Peggy.Imports do
         where:
           s.farm_id == ^farm_id and
             (s.created_via == ^via or s.sow_id in ^animal_ids)
+      )
+      |> Repo.delete_all()
+
+    n
+  end
+
+  # Movements: schema has no `created_via`, so we scope strictly by
+  # animal_id — every movement attached to an imported sow is part of
+  # the run's legacy history.
+  defp delete_movements_for_rollback(farm_id, animal_ids) do
+    {n, _} =
+      from(m in Movement,
+        where: m.farm_id == ^farm_id and m.animal_id in ^animal_ids
       )
       |> Repo.delete_all()
 

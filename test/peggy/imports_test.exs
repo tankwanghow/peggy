@@ -21,9 +21,9 @@ defmodule Peggy.ImportsTest do
     test "happy path: all rows clean", %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,breed,dob,status,current_pen
-        SOW001,Landrace,2024-03-15,active,EB-12
-        SOW002,Yorkshire,2024-05-20,open,EB-12
+        ear_tag,breed,dob,status
+        SOW001,Landrace,2024-03-15,active
+        SOW002,Yorkshire,2024-05-20,open
         """)
 
       result = Imports.parse_and_validate(scope, %{sows: sows_path})
@@ -105,32 +105,38 @@ defmodule Peggy.ImportsTest do
       assert Enum.any?(issues, &(&1.kind == :bad_status))
     end
 
-    test "unknown pen is a warning, not an error", %{scope: scope} do
-      sows_path =
+    test "unknown pen on movements.csv is a warning, not an error", %{scope: scope} do
+      sows_path = write_csv("ear_tag\nSOW001\n")
+
+      movements_path =
         write_csv("""
-        ear_tag,current_pen
-        SOW001,QQ-99
+        ear_tag,moved_at,house_code,pen_code
+        SOW001,2026-01-15,QQ,99
         """)
 
-      result = Imports.parse_and_validate(scope, %{sows: sows_path})
+      result =
+        Imports.parse_and_validate(scope, %{sows: sows_path, movements: movements_path})
 
-      assert result.sows.ok == []
-      assert [%{issues: issues}] = result.sows.warn
+      assert result.movements.ok == []
+      assert [%{issues: issues}] = result.movements.warn
       assert Enum.any?(issues, &(&1.kind == :unknown_pen))
-      assert result.sows.err == []
+      assert result.movements.err == []
     end
 
-    test "pen lookup is case-insensitive", %{scope: scope} do
-      sows_path =
+    test "pen lookup is case-insensitive (movements.csv)", %{scope: scope} do
+      sows_path = write_csv("ear_tag\nSOW001\n")
+
+      movements_path =
         write_csv("""
-        ear_tag,current_pen
-        SOW001,eb-12
+        ear_tag,moved_at,house_code,pen_code
+        SOW001,2026-01-15,eb,12
         """)
 
-      result = Imports.parse_and_validate(scope, %{sows: sows_path})
+      result =
+        Imports.parse_and_validate(scope, %{sows: sows_path, movements: movements_path})
 
-      assert length(result.sows.ok) == 1
-      assert result.sows.warn == []
+      assert length(result.movements.ok) == 1
+      assert result.movements.warn == []
     end
 
     test "headers are normalised (case + whitespace)", %{scope: scope} do
@@ -288,7 +294,7 @@ defmodule Peggy.ImportsTest do
       assert Enum.any?(issues, &(&1.kind == :missing))
     end
 
-    test "weaned_count <= 0 is an error (no batch animal would be created)",
+    test "weaned_count = 0 is a warning; negative is an error",
          %{scope: scope} do
       weanings_path =
         write_csv("""
@@ -299,11 +305,11 @@ defmodule Peggy.ImportsTest do
 
       result = Imports.parse_and_validate(scope, %{weanings: weanings_path})
 
-      assert length(result.weanings.err) == 2
+      assert [%{issues: warn_issues}] = result.weanings.warn
+      assert Enum.any?(warn_issues, &(&1.kind == :empty_wean and &1.level == :warn))
 
-      Enum.each(result.weanings.err, fn %{issues: issues} ->
-        assert Enum.any?(issues, &(&1.kind == :empty_wean))
-      end)
+      assert [%{issues: err_issues}] = result.weanings.err
+      assert Enum.any?(err_issues, &(&1.kind == :bad_int))
     end
   end
 
@@ -415,7 +421,7 @@ defmodule Peggy.ImportsTest do
 
       sows_path =
         write_csv("""
-        ear_tag,current_pen
+        ear_tag
         SOW001,QQ-99
         """)
 
@@ -478,9 +484,9 @@ defmodule Peggy.ImportsTest do
     test "commits a clean sows.csv only run", %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,breed,dob,status,current_pen
-        SOW001,Landrace,2024-03-15,active,EB-12
-        SOW002,Yorkshire,2024-05-20,open,EB-12
+        ear_tag,breed,dob,status
+        SOW001,Landrace,2024-03-15,active
+        SOW002,Yorkshire,2024-05-20,open
         """)
 
       report = Imports.parse_and_validate(scope, %{sows: sows_path})
@@ -490,31 +496,39 @@ defmodule Peggy.ImportsTest do
       assert outcome.sows.failed == 0
       assert outcome.run_id =~ ~r/^\d+-[a-f0-9]+$/
 
-      # Verify rows landed and got tagged.
+      # Verify rows landed and got tagged. Sows arrive pen-less; pens
+      # come from movements.csv when supplied.
       assert sow1 = Peggy.Animals.find_by_ear_tag(scope, "SOW001")
       assert sow1.created_via == "csv_import:#{outcome.run_id}"
-      assert sow1.current_pen_id != nil
+      assert is_nil(sow1.current_pen_id)
     end
 
-    test "commits locations.csv before sows.csv so pen lookups succeed", %{scope: scope} do
+    test "commits locations.csv before movements.csv so pen lookups succeed", %{scope: scope} do
       locations_path =
         write_csv("""
         house_code,house_purpose,pen_code,capacity
         FA,farrowing,01,12
         """)
 
-      sows_path =
+      sows_path = write_csv("ear_tag\nSOW100\n")
+
+      movements_path =
         write_csv("""
-        ear_tag,current_pen
-        SOW100,FA-01
+        ear_tag,moved_at,house_code,pen_code
+        SOW100,2026-01-15,FA,01
         """)
 
       report =
-        Imports.parse_and_validate(scope, %{locations: locations_path, sows: sows_path})
+        Imports.parse_and_validate(scope, %{
+          locations: locations_path,
+          sows: sows_path,
+          movements: movements_path
+        })
 
       assert {:ok, outcome} = Imports.commit(scope, report)
       assert outcome.locations.ok == 1
       assert outcome.sows.ok == 1
+      assert outcome.movements.ok == 1
 
       sow = Peggy.Animals.find_by_ear_tag(scope, "SOW100")
       assert sow.current_pen_id != nil
@@ -608,7 +622,7 @@ defmodule Peggy.ImportsTest do
     test "rollback for unknown run_id returns zero counts (no error)", %{scope: scope} do
       assert {:ok, counts} = Imports.rollback(scope, "does-not-exist")
 
-      assert counts == %{weanings: 0, farrowings: 0, services: 0, animals: 0}
+      assert counts == %{weanings: 0, farrowings: 0, services: 0, movements: 0, animals: 0}
     end
   end
 
@@ -618,8 +632,8 @@ defmodule Peggy.ImportsTest do
     } do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        MATCH1,EB-12
+        ear_tag
+        MATCH1
         """)
 
       services_path =
@@ -630,8 +644,8 @@ defmodule Peggy.ImportsTest do
 
       farrowings_path =
         write_csv("""
-        sow_ear_tag,farrowed_at,born_alive
-        MATCH1,2026-04-25,11
+        sow_ear_tag,farrowed_at,born_alive,pen
+        MATCH1,2026-04-25,11,EB-12
         """)
 
       report =
@@ -663,8 +677,8 @@ defmodule Peggy.ImportsTest do
     test "weaning attaches to existing farrowing from farrowings.csv", %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        MATCH2,EB-12
+        ear_tag
+        MATCH2
         """)
 
       services_path =
@@ -675,8 +689,8 @@ defmodule Peggy.ImportsTest do
 
       farrowings_path =
         write_csv("""
-        sow_ear_tag,farrowed_at,born_alive
-        MATCH2,2026-04-25,10
+        sow_ear_tag,farrowed_at,born_alive,pen
+        MATCH2,2026-04-25,10,EB-12
         """)
 
       weanings_path =
@@ -724,8 +738,8 @@ defmodule Peggy.ImportsTest do
     } do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        CYCLES,EB-12
+        ear_tag
+        CYCLES
         """)
 
       services_path =
@@ -737,8 +751,8 @@ defmodule Peggy.ImportsTest do
 
       farrowings_path =
         write_csv("""
-        sow_ear_tag,farrowed_at,born_alive
-        CYCLES,2026-04-25,12
+        sow_ear_tag,farrowed_at,born_alive,pen
+        CYCLES,2026-04-25,12,EB-12
         """)
 
       weanings_path =
@@ -871,8 +885,8 @@ defmodule Peggy.ImportsTest do
          %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        HINT2,EB-12
+        ear_tag
+        HINT2
         """)
 
       services_path =
@@ -883,8 +897,8 @@ defmodule Peggy.ImportsTest do
 
       farrowings_path =
         write_csv("""
-        sow_ear_tag,farrowed_at,born_alive
-        HINT2,2026-04-25,10
+        sow_ear_tag,farrowed_at,born_alive,pen
+        HINT2,2026-04-25,10,EB-12
         """)
 
       report =
@@ -1007,8 +1021,8 @@ defmodule Peggy.ImportsTest do
     test "commit closes the open service as cull and marks sow culled", %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        OUT1,EB-12
+        ear_tag
+        OUT1
         """)
 
       services_path =
@@ -1101,11 +1115,11 @@ defmodule Peggy.ImportsTest do
          %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        SELL1,EB-12
-        SLAY1,EB-12
-        XFER1,EB-12
-        DEAD2,EB-12
+        ear_tag
+        SELL1
+        SLAY1
+        XFER1
+        DEAD2
         """)
 
       culls_path =
@@ -1150,8 +1164,8 @@ defmodule Peggy.ImportsTest do
          %{scope: scope} do
       sows_path =
         write_csv("""
-        ear_tag,current_pen
-        MARK1,EB-12
+        ear_tag
+        MARK1
         """)
 
       culls_path =
