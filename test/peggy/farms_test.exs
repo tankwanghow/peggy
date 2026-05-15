@@ -140,4 +140,59 @@ defmodule Peggy.FarmsTest do
       assert :error = Farms.get_invitation_by_token(encoded)
     end
   end
+
+  describe "breeding_parameter_changeset promotion thresholds" do
+    test "accepts ordered values" do
+      cs = Farm.breeding_parameter_changeset(%Farm{}, valid_breeding_params())
+      assert cs.valid?
+    end
+
+    test "rejects weaner ≥ grower" do
+      cs =
+        Farm.breeding_parameter_changeset(
+          %Farm{},
+          valid_breeding_params(weaner_to_grower_days: 120, grower_to_finisher_days: 120)
+        )
+
+      assert {"must be greater than weaner→grower days", _} =
+               cs.errors[:grower_to_finisher_days]
+    end
+
+    test "rejects grower ≥ overdue" do
+      cs =
+        Farm.breeding_parameter_changeset(
+          %Farm{},
+          valid_breeding_params(grower_to_finisher_days: 200, finisher_overdue_days: 200)
+        )
+
+      assert {"must be greater than grower→finisher days", _} =
+               cs.errors[:finisher_overdue_days]
+    end
+
+    test "rejects out-of-range thresholds" do
+      cs =
+        Farm.breeding_parameter_changeset(
+          %Farm{},
+          valid_breeding_params(weaner_to_grower_days: 10)
+        )
+
+      refute cs.valid?
+      assert cs.errors[:weaner_to_grower_days]
+    end
+  end
+
+  defp valid_breeding_params(overrides \\ []) do
+    Enum.into(overrides, %{
+      gestation_days: 114,
+      lactation_days: 24,
+      minimum_sow_age_days: 365,
+      gestation_tolerance_days: 3,
+      collapse_window_days: 7,
+      recent_weaner_batch_days: 60,
+      wean_due_days: 21,
+      weaner_to_grower_days: 70,
+      grower_to_finisher_days: 120,
+      finisher_overdue_days: 200
+    })
+  end
 end

@@ -23,6 +23,11 @@ Initial Requirements
 - Parentage (sire/dam), genealogy view
 - House → pen hierarchy with capacity limits
 - Movement log (pen-to-pen, farm-to-farm, sale, slaughter, death)
+- Stage promotion (weaner → grower → finisher) is operator-confirmed,
+  not auto. The "Promote batch animals" triage screen lists batches whose
+  age has crossed per-farm thresholds and offers bulk promotion. A third
+  bucket flags overdue finishers (still on farm past the configured
+  age) for departure.
 
 ## 4. Breeding & Reproduction
 - Heat detection log

@@ -147,10 +147,12 @@ Can build a farm map; every create/update/delete shows up in the audit log with 
 - `move!/2` is the single chokepoint: updates `current_pen_id`, inserts `movements`, updates `batches.head_count`, validates pen capacity, audit-logs. Everything else (sales, mortality) calls it.
 - `undo_last_movement/2` reverses **only the most recent** movement (individual or batch): restores `current_pen_id`, restores `status` from `movement.previous_status`, reopens any linked breeding service, decrements/upserts placements for batch cases, writes `movement.undone` audit entry.
 - **Centralized query scopes** on `Animal` — `scope_present/1`, `scope_breeding_herd/1`, `scope_serviceable/1`, `scope_saleable/1` (excludes `under_treatment` and withdrawal-blocked). Every LiveView autocomplete and filter uses these; never inline `where: status == "active"`.
+- **Stage promotion** — `promote_batch_stage/3` (single batch), `suggest_promotions/1` (returns the three triage buckets), `promote_many/3` (per-row partial-success bulk wrapper). Age is computed from `animal.dob`, which for a pooled batch represents its **oldest** piglets — promote on the leader's age, operator confirms each row.
 
 ### UI (desktop)
 - `/farms/:slug/animals` — spreadsheet grid: filter by stage/pen/status, bulk edit pen, paste-from-Excel for bulk register
 - `/farms/:slug/animals/:id` — animal card with genealogy tree, movement timeline, upcoming vax/treatments (stubbed until Phase 5)
+- `/farms/:slug/animals/promote` — **operator-triggered** triage screen. Three sections: Weaner→Grower, Grower→Finisher (both bulk-promotable), and Overdue finishers (each row links to the existing departure flow on the animal detail page; no bulk — sale/slaughter want per-batch detail). Thresholds (`weaner_to_grower_days`, `grower_to_finisher_days`, `finisher_overdue_days`) live on the farm, editable in Settings → Breeding parameters, clamped + ordered.
 - `/farms/:slug/batches` — list + grid entry
 - `/farms/:slug/movements` — log view, filterable
 

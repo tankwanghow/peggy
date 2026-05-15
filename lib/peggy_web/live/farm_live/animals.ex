@@ -19,6 +19,12 @@ defmodule PeggyWeb.FarmLive.Animals do
           {gettext("Animals")}
           <:subtitle>{gettext("Individual pigs and batches")}</:subtitle>
           <:actions>
+            <.link
+              navigate={~p"/farms/#{@current_scope.farm.slug}/animals/promote"}
+              class="btn btn-sm btn-ghost"
+            >
+              {gettext("Promote batches")}
+            </.link>
             <.iframe_print_button
               id="animals-print-btn"
               url={print_path(@current_scope.farm.slug, assigns)}

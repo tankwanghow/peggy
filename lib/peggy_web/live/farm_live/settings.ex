@@ -221,6 +221,49 @@ defmodule PeggyWeb.FarmLive.Settings do
               </span>
             </label>
 
+            <label class="form-control">
+              <.input
+                field={@breeding_form[:weaner_to_grower_days]}
+                type="number"
+                label={gettext("Weaner → Grower (days from birth)")}
+                min="35"
+                max="120"
+              />
+              <span class="text-xs text-base-content/60 mt-1">
+                {gettext(
+                  "Default 70. Weaner batches older than this surface in the “Promote batch animals” triage screen."
+                )}
+              </span>
+            </label>
+
+            <label class="form-control">
+              <.input
+                field={@breeding_form[:grower_to_finisher_days]}
+                type="number"
+                label={gettext("Grower → Finisher (days from birth)")}
+                min="70"
+                max="200"
+              />
+              <span class="text-xs text-base-content/60 mt-1">
+                {gettext("Default 120. Grower batches older than this are flagged for promotion.")}
+              </span>
+            </label>
+
+            <label class="form-control sm:col-span-2">
+              <.input
+                field={@breeding_form[:finisher_overdue_days]}
+                type="number"
+                label={gettext("Finisher overdue (days from birth)")}
+                min="140"
+                max="365"
+              />
+              <span class="text-xs text-base-content/60 mt-1">
+                {gettext(
+                  "Default 200. Finisher batches still on farm past this age are flagged for departure (sale / slaughter)."
+                )}
+              </span>
+            </label>
+
             <div class="sm:col-span-2">
               <.button class="btn btn-primary" phx-disable-with={gettext("Saving...")}>
                 {gettext("Save breeding parameters")}

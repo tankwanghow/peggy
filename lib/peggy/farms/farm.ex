@@ -26,6 +26,12 @@ defmodule Peggy.Farms.Farm do
     field :recent_weaner_batch_days, :integer, default: 60
     field :wean_due_days, :integer, default: 21
 
+    # Thresholds for the "Promote batch animals" triage screen. Days
+    # measured from the batch's `dob` (founding farrowing date).
+    field :weaner_to_grower_days, :integer, default: 70
+    field :grower_to_finisher_days, :integer, default: 120
+    field :finisher_overdue_days, :integer, default: 200
+
     field :deleted_at, :utc_datetime
     belongs_to :deleted_by, Peggy.Accounts.User
 
@@ -45,6 +51,9 @@ defmodule Peggy.Farms.Farm do
     collapse_window_days
     recent_weaner_batch_days
     wean_due_days
+    weaner_to_grower_days
+    grower_to_finisher_days
+    finisher_overdue_days
   )a
 
   def breeding_parameter_fields, do: @breeding_parameter_fields
@@ -93,5 +102,50 @@ defmodule Peggy.Farms.Farm do
       less_than_or_equal_to: 180
     )
     |> validate_number(:wean_due_days, greater_than_or_equal_to: 14, less_than_or_equal_to: 42)
+    |> validate_number(:weaner_to_grower_days,
+      greater_than_or_equal_to: 35,
+      less_than_or_equal_to: 120
+    )
+    |> validate_number(:grower_to_finisher_days,
+      greater_than_or_equal_to: 70,
+      less_than_or_equal_to: 200
+    )
+    |> validate_number(:finisher_overdue_days,
+      greater_than_or_equal_to: 140,
+      less_than_or_equal_to: 365
+    )
+    |> validate_promotion_threshold_order()
+  end
+
+  # The three promotion thresholds drive a triage screen that groups
+  # batches by stage; if the values overlap (e.g. weaner threshold ≥
+  # grower threshold) the buckets become incoherent. Reject at the
+  # changeset boundary so settings UI surfaces the error inline.
+  defp validate_promotion_threshold_order(changeset) do
+    weaner = get_field(changeset, :weaner_to_grower_days)
+    grower = get_field(changeset, :grower_to_finisher_days)
+    overdue = get_field(changeset, :finisher_overdue_days)
+
+    cond do
+      is_nil(weaner) or is_nil(grower) or is_nil(overdue) ->
+        changeset
+
+      weaner >= grower ->
+        add_error(
+          changeset,
+          :grower_to_finisher_days,
+          "must be greater than weaner→grower days"
+        )
+
+      grower >= overdue ->
+        add_error(
+          changeset,
+          :finisher_overdue_days,
+          "must be greater than grower→finisher days"
+        )
+
+      true ->
+        changeset
+    end
   end
 end

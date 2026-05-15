@@ -829,6 +829,220 @@ defmodule Peggy.Animals do
   end
 
   @doc """
+  Returns batch animals whose age has crossed a per-farm threshold,
+  bucketed by the action the operator should take.
+
+    * `:weaner_to_grower` — `stage="weaner"` and age ≥ `weaner_to_grower_days`
+    * `:grower_to_finisher` — `stage="grower"` and age ≥ `grower_to_finisher_days`
+    * `:finisher_overdue` — `stage="finisher"` and age ≥ `finisher_overdue_days`
+      (no next stage; the row should already be sold/slaughtered)
+
+  Each entry is `%{animal: animal, age_days: int, last_weaned_at: date | nil}`.
+  Sorted by oldest-first within each bucket so legacy rows surface first.
+
+  Filters: present status only, `quantity > 0`. Age is computed from
+  `animal.dob`, which for a pooled batch represents the **oldest**
+  piglets in the pool — promoting on the leader's age is the convention
+  (stage is a batch-level field; the operator confirms each row anyway).
+  """
+  def suggest_promotions(%Scope{farm: farm}) do
+    today = FarmClock.today(farm)
+
+    weaner_cutoff = Date.add(today, -farm.weaner_to_grower_days)
+    grower_cutoff = Date.add(today, -farm.grower_to_finisher_days)
+    overdue_cutoff = Date.add(today, -farm.finisher_overdue_days)
+
+    base =
+      from(a in Animal,
+        as: :a,
+        where:
+          a.farm_id == ^farm.id and a.tracking_type == "batch" and a.quantity > 0 and
+            not is_nil(a.dob),
+        left_join: w in Peggy.Breeding.Weaning,
+        on: w.batch_animal_id == a.id and is_nil(w.deleted_at),
+        group_by: a.id,
+        select: {a, max(w.weaned_at)}
+      )
+      |> Animal.scope_present()
+
+    rows =
+      base
+      |> where(
+        [a: a],
+        (a.stage == "weaner" and a.dob <= ^weaner_cutoff) or
+          (a.stage == "grower" and a.dob <= ^grower_cutoff) or
+          (a.stage == "finisher" and a.dob <= ^overdue_cutoff)
+      )
+      |> Repo.all()
+
+    rows
+    |> Enum.map(fn {animal, last_weaned_at} ->
+      %{
+        animal: animal,
+        age_days: Date.diff(today, animal.dob),
+        last_weaned_at: last_weaned_at
+      }
+    end)
+    |> Enum.group_by(fn %{animal: a} -> bucket_for(a.stage) end)
+    |> Map.new(fn {bucket, entries} ->
+      {bucket, Enum.sort_by(entries, & &1.animal.dob, Date)}
+    end)
+    |> Map.put_new(:weaner_to_grower, [])
+    |> Map.put_new(:grower_to_finisher, [])
+    |> Map.put_new(:finisher_overdue, [])
+  end
+
+  defp bucket_for("weaner"), do: :weaner_to_grower
+  defp bucket_for("grower"), do: :grower_to_finisher
+  defp bucket_for("finisher"), do: :finisher_overdue
+
+  @doc """
+  Promotes a list of batch animals to `target_stage`. Each row is run in
+  its own transaction via `promote_batch_stage/3`, so a failure on one
+  row does **not** roll back the others.
+
+  Returns `%{ok: [animal, ...], errors: [{animal_id, reason}, ...]}`.
+
+  `reason` is either an `Ecto.Changeset` (validation failure), or one of
+  the atoms returned by `promote_batch_stage/3` (`:batch_only`,
+  `:unauthorized`, `:not_found`).
+  """
+  def promote_many(%Scope{farm: farm} = scope, animal_ids, target_stage)
+      when is_list(animal_ids) and is_binary(target_stage) do
+    Enum.reduce(animal_ids, %{ok: [], errors: []}, fn id, acc ->
+      case Repo.get(Animal, id) do
+        %Animal{farm_id: fid} = animal when fid == farm.id ->
+          case promote_batch_stage(scope, animal, target_stage) do
+            {:ok, promoted} -> %{acc | ok: [promoted | acc.ok]}
+            {:error, reason} -> %{acc | errors: [{id, reason} | acc.errors]}
+          end
+
+        _ ->
+          %{acc | errors: [{id, :not_found} | acc.errors]}
+      end
+    end)
+    |> Map.update!(:ok, &Enum.reverse/1)
+    |> Map.update!(:errors, &Enum.reverse/1)
+  end
+
+  @doc """
+  Departs an entire batch in one shot — one departure movement per
+  active placement, looping with the animal reloaded between calls so
+  the final movement leaves `quantity = 0` and flips status to the
+  reason's departed status (`sale → sold`, `slaughter → slaughtered`,
+  etc.).
+
+  Used by the "one-click sale" action on the overdue-finisher section
+  of the promote-batches triage screen, where pricing/buyer detail is
+  not collected.
+
+  `reason` must be in `@departure_reasons` (`sale · slaughter · death ·
+  farm_transfer`). Returns `{:ok, animal_after}` on success.
+
+  On failure the partial movements that already committed are not
+  rolled back — fix the data and retry; later calls are idempotent
+  once `quantity = 0`.
+  """
+  def depart_entire_batch(%Scope{farm: farm} = scope, %Animal{farm_id: fid} = animal, reason)
+      when fid == farm.id and is_binary(reason) do
+    cond do
+      animal.tracking_type != "batch" ->
+        {:error, :batch_only}
+
+      reason not in @departure_reasons ->
+        {:error, :invalid_reason}
+
+      not Animal.present_status?(animal.status) ->
+        {:error, :already_departed}
+
+      true ->
+        placements = list_placements(scope, animal)
+        do_depart_entire_batch(scope, animal, placements, reason)
+    end
+  end
+
+  defp do_depart_entire_batch(_scope, %Animal{quantity: 0} = animal, _, _reason),
+    do: {:ok, animal}
+
+  defp do_depart_entire_batch(%Scope{farm: farm} = scope, %Animal{} = animal, [], reason) do
+    # No active placements but quantity > 0 — common for legacy batches
+    # imported without pen state. Bypass the normal record_movement
+    # pipeline (which requires a from_pen_id for departure reasons) and
+    # write the Movement + Animal update directly.
+    moved_at = FarmClock.today(scope)
+    qty = animal.quantity
+    target_status = Map.fetch!(@departure_statuses, reason)
+
+    movement_cs =
+      Movement.changeset(%Movement{}, %{
+        reason: reason,
+        quantity: qty,
+        moved_at: moved_at,
+        animal_id: animal.id,
+        farm_id: farm.id,
+        from_pen_id: nil,
+        previous_status: animal.status,
+        notes: "Auto-departure: no active placement"
+      })
+
+    Multi.new()
+    |> Multi.insert(:movement, movement_cs)
+    |> Multi.update(
+      :animal,
+      Animal.changeset(animal, %{quantity: 0, status: target_status})
+    )
+    |> audit_movement(scope, animal)
+    |> Repo.transaction()
+    |> unwrap(:animal)
+  end
+
+  defp do_depart_entire_batch(scope, %Animal{} = animal, placements, reason) do
+    moved_at = FarmClock.today(scope)
+
+    Enum.reduce_while(placements, {:ok, animal}, fn placement, {:ok, current} ->
+      attrs = %{
+        "reason" => reason,
+        "from_pen_id" => placement.pen_id,
+        "quantity" => placement.quantity,
+        "moved_at" => moved_at
+      }
+
+      case record_movement(scope, current, attrs) do
+        {:ok, _movement} ->
+          {:cont, {:ok, Repo.get!(Animal, animal.id)}}
+
+        {:error, _} = err ->
+          {:halt, err}
+      end
+    end)
+  end
+
+  @doc """
+  Departs many batches in one shot. Each batch is processed via
+  `depart_entire_batch/3` independently — per-row partial success:
+  a failed batch does not block the others.
+
+  Returns `%{ok: [animal, ...], errors: [{animal_id, reason}, ...]}`.
+  """
+  def depart_many(%Scope{farm: farm} = scope, animal_ids, reason)
+      when is_list(animal_ids) and is_binary(reason) do
+    Enum.reduce(animal_ids, %{ok: [], errors: []}, fn id, acc ->
+      case Repo.get(Animal, id) do
+        %Animal{farm_id: fid} = animal when fid == farm.id ->
+          case depart_entire_batch(scope, animal, reason) do
+            {:ok, departed} -> %{acc | ok: [departed | acc.ok]}
+            {:error, r} -> %{acc | errors: [{id, r} | acc.errors]}
+          end
+
+        _ ->
+          %{acc | errors: [{id, :not_found} | acc.errors]}
+      end
+    end)
+    |> Map.update!(:ok, &Enum.reverse/1)
+    |> Map.update!(:errors, &Enum.reverse/1)
+  end
+
+  @doc """
   Records many batch movements for one batch animal atomically.
 
   Supported reasons: `"placement"` and `"pen_transfer"` — the two

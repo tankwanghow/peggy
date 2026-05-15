@@ -44,6 +44,13 @@ defmodule PeggyWeb.MobileLive.Animals do
                 {active_filter_count(@filters)}
               </span>
             </button>
+            <.link
+              navigate={~p"/m/#{@current_scope.farm.slug}/animals/promote"}
+              class="btn btn-ghost btn-square btn-lg"
+              aria-label={gettext("Promote batches")}
+            >
+              <.icon name="hero-academic-cap" class="size-6 text-success" />
+            </.link>
             <button
               :if={@can_manage}
               type="button"

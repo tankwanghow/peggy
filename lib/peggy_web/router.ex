@@ -78,6 +78,7 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/admin/import", FarmLive.DataImport, :show
       get "/farms/:farm_slug/admin/import/template/:type", DataImportController, :template
       live "/farms/:farm_slug/animals/bulk-move", FarmLive.BulkMove, :show
+      live "/farms/:farm_slug/animals/promote", FarmLive.PromoteBatches, :index
       live "/farms/:farm_slug/animals/:id", FarmLive.AnimalDetail, :show
       live "/farms/:farm_slug/animals/:id/trace", FarmLive.AnimalTrace, :show
       live "/farms/:farm_slug/animals/:id/batch-entry", FarmLive.BatchEntry, :show
@@ -104,6 +105,7 @@ defmodule PeggyWeb.Router do
       live "/m/:farm_slug/locations", MobileLive.Locations, :index
       live "/m/:farm_slug/tasks", MobileLive.Tasks, :index
       live "/m/:farm_slug/animals", MobileLive.Animals, :index
+      live "/m/:farm_slug/animals/promote", MobileLive.PromoteBatches, :index
       live "/m/:farm_slug/animals/:id", MobileLive.AnimalDetail, :show
       live "/m/:farm_slug/breeding/serviceable", MobileLive.Breeding.Serviceable, :index
       live "/m/:farm_slug/breeding/gestating", MobileLive.Breeding.Gestating, :index

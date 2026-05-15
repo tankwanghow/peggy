@@ -1398,4 +1398,355 @@ defmodule Peggy.AnimalsTest do
       assert Enum.map(rows, & &1.ear_tag) == ["NR1"]
     end
   end
+
+  describe "suggest_promotions/1" do
+    setup %{user: user} do
+      today = ~D[2026-05-15]
+
+      farm =
+        farm_fixture(user, %{
+          slug: "promote-#{System.unique_integer([:positive])}"
+        })
+
+      {:ok, farm} =
+        farm
+        |> Ecto.Changeset.change(%{
+          simulated_today: today,
+          weaner_to_grower_days: 70,
+          grower_to_finisher_days: 120,
+          finisher_overdue_days: 200
+        })
+        |> Peggy.Repo.update()
+
+      scope = scope_for(user, farm)
+      %{scope: scope, today: today}
+    end
+
+    test "buckets are empty when no batches exist", %{scope: scope} do
+      assert %{
+               weaner_to_grower: [],
+               grower_to_finisher: [],
+               finisher_overdue: []
+             } = Animals.suggest_promotions(scope)
+    end
+
+    test "weaner exactly at threshold is suggested", %{scope: scope, today: today} do
+      a = batch_with_dob(scope, "weaner", Date.add(today, -70))
+      assert %{weaner_to_grower: [%{animal: %{id: id}}]} = Animals.suggest_promotions(scope)
+      assert id == a.id
+    end
+
+    test "weaner under threshold is excluded", %{scope: scope, today: today} do
+      _a = batch_with_dob(scope, "weaner", Date.add(today, -69))
+      assert %{weaner_to_grower: []} = Animals.suggest_promotions(scope)
+    end
+
+    test "grower past threshold lands in grower bucket", %{scope: scope, today: today} do
+      a = batch_with_dob(scope, "grower", Date.add(today, -120))
+      assert %{grower_to_finisher: [%{animal: %{id: id}}]} = Animals.suggest_promotions(scope)
+      assert id == a.id
+    end
+
+    test "finisher past overdue lands in overdue bucket", %{scope: scope, today: today} do
+      a = batch_with_dob(scope, "finisher", Date.add(today, -200))
+
+      assert %{finisher_overdue: [%{animal: %{id: id}, age_days: 200}]} =
+               Animals.suggest_promotions(scope)
+
+      assert id == a.id
+    end
+
+    test "departed and zero-quantity batches are excluded", %{scope: scope, today: today} do
+      old = Date.add(today, -300)
+      live = batch_with_dob(scope, "weaner", old)
+
+      empty = batch_with_dob(scope, "weaner", old)
+      empty |> Ecto.Changeset.change(%{quantity: 0}) |> Peggy.Repo.update!()
+
+      sold = batch_with_dob(scope, "weaner", old)
+      sold |> Ecto.Changeset.change(%{status: "sold"}) |> Peggy.Repo.update!()
+
+      ids =
+        scope
+        |> Animals.suggest_promotions()
+        |> Map.fetch!(:weaner_to_grower)
+        |> Enum.map(& &1.animal.id)
+
+      assert ids == [live.id]
+    end
+
+    test "individual animals are excluded", %{scope: scope, today: today} do
+      _ind =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "IND1",
+          stage: "sow",
+          dob: Date.add(today, -1000)
+        })
+
+      assert %{weaner_to_grower: [], grower_to_finisher: [], finisher_overdue: []} =
+               Animals.suggest_promotions(scope)
+    end
+
+    test "rows are sorted oldest-first within a bucket", %{scope: scope, today: today} do
+      a_younger = batch_with_dob(scope, "weaner", Date.add(today, -75))
+      a_oldest = batch_with_dob(scope, "weaner", Date.add(today, -120))
+
+      ids =
+        scope
+        |> Animals.suggest_promotions()
+        |> Map.fetch!(:weaner_to_grower)
+        |> Enum.map(& &1.animal.id)
+
+      assert ids == [a_oldest.id, a_younger.id]
+    end
+  end
+
+  describe "promote_many/3" do
+    setup %{user: user} do
+      today = ~D[2026-05-15]
+
+      farm =
+        farm_fixture(user, %{
+          slug: "pm-#{System.unique_integer([:positive])}"
+        })
+
+      {:ok, farm} =
+        farm
+        |> Ecto.Changeset.change(%{simulated_today: today})
+        |> Peggy.Repo.update()
+
+      scope = scope_for(user, farm)
+      %{scope: scope, today: today}
+    end
+
+    test "promotes the listed batches and returns ok rows", %{scope: scope, today: today} do
+      a = batch_with_dob(scope, "weaner", Date.add(today, -90))
+      b = batch_with_dob(scope, "weaner", Date.add(today, -90))
+
+      result = Animals.promote_many(scope, [a.id, b.id], "grower")
+      assert length(result.ok) == 2
+      assert result.errors == []
+      assert Enum.all?(result.ok, &(&1.stage == "grower"))
+    end
+
+    test "per-row partial success: bad row reports an error, good row commits",
+         %{scope: scope, today: today} do
+      good = batch_with_dob(scope, "weaner", Date.add(today, -90))
+
+      {:ok, ind} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "IND-PM",
+          stage: "sow"
+        })
+
+      result = Animals.promote_many(scope, [good.id, ind.id], "grower")
+
+      assert [%{id: id, stage: "grower"}] = result.ok
+      assert id == good.id
+      assert [{ind_id, :batch_only}] = result.errors
+      assert ind_id == ind.id
+    end
+
+    test "unknown animal id surfaces as :not_found in errors", %{scope: scope} do
+      result = Animals.promote_many(scope, [-1], "grower")
+      assert result.ok == []
+      assert result.errors == [{-1, :not_found}]
+    end
+  end
+
+  describe "depart_entire_batch/3" do
+    setup %{user: user} do
+      farm = farm_fixture(user, %{slug: "depart-#{System.unique_integer([:positive])}"})
+      scope = scope_for(user, farm)
+      house = house_fixture(scope, code: "DH1")
+      pen_a = pen_fixture(scope, house, code: "PA", capacity: 100)
+      pen_b = pen_fixture(scope, house, code: "PB", capacity: 100)
+      %{scope: scope, pen_a: pen_a, pen_b: pen_b}
+    end
+
+    test "single-pen batch: one movement, qty drops to 0, status flips to sold",
+         %{scope: scope, pen_a: pen_a} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 30,
+          current_pen_id: pen_a.id
+        })
+
+      {:ok, after_dep} = Animals.depart_entire_batch(scope, batch, "sale")
+
+      assert after_dep.quantity == 0
+      assert after_dep.status == "sold"
+
+      assert Animals.list_placements(scope, after_dep) == []
+    end
+
+    test "multi-pen batch: one movement per placement, status flips on the last one",
+         %{scope: scope, pen_a: pen_a, pen_b: pen_b} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 30,
+          current_pen_id: pen_a.id
+        })
+
+      {:ok, _} =
+        Animals.record_movement(scope, batch, %{
+          reason: "pen_transfer",
+          from_pen_id: pen_a.id,
+          to_pen_id: pen_b.id,
+          quantity: 12,
+          moved_at: Date.utc_today()
+        })
+
+      batch = Animals.get_animal!(scope, batch.id)
+      assert batch.quantity == 30
+      assert length(Animals.list_placements(scope, batch)) == 2
+
+      {:ok, after_dep} = Animals.depart_entire_batch(scope, batch, "slaughter")
+
+      assert after_dep.quantity == 0
+      assert after_dep.status == "slaughtered"
+      assert Animals.list_placements(scope, after_dep) == []
+    end
+
+    test "rejects individual animals", %{scope: scope} do
+      {:ok, ind} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "DEP-IND",
+          stage: "sow"
+        })
+
+      assert {:error, :batch_only} = Animals.depart_entire_batch(scope, ind, "sale")
+    end
+
+    test "rejects unknown reason", %{scope: scope, pen_a: pen_a} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 5,
+          current_pen_id: pen_a.id
+        })
+
+      assert {:error, :invalid_reason} =
+               Animals.depart_entire_batch(scope, batch, "vacation")
+    end
+
+    test "legacy batch with no active placement still departs cleanly",
+         %{scope: scope} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 14
+        })
+
+      assert Animals.list_placements(scope, batch) == []
+
+      {:ok, after_dep} = Animals.depart_entire_batch(scope, batch, "sale")
+
+      assert after_dep.quantity == 0
+      assert after_dep.status == "sold"
+
+      [movement] = Animals.list_movements(scope, after_dep)
+      assert movement.reason == "sale"
+      assert movement.from_pen_id == nil
+      assert movement.quantity == 14
+    end
+
+    test "no-op on already-departed batch", %{scope: scope, pen_a: pen_a} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 5,
+          current_pen_id: pen_a.id
+        })
+
+      {:ok, _} = Animals.depart_entire_batch(scope, batch, "sale")
+      reloaded = Animals.get_animal!(scope, batch.id)
+      assert {:error, :already_departed} = Animals.depart_entire_batch(scope, reloaded, "sale")
+    end
+  end
+
+  describe "depart_many/3" do
+    setup %{user: user} do
+      farm = farm_fixture(user, %{slug: "dm-#{System.unique_integer([:positive])}"})
+      scope = scope_for(user, farm)
+      house = house_fixture(scope, code: "MH1")
+      pen = pen_fixture(scope, house, code: "MP", capacity: 100)
+      %{scope: scope, pen: pen}
+    end
+
+    test "departs every batch and reports them in :ok", %{scope: scope, pen: pen} do
+      {:ok, a} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 10,
+          current_pen_id: pen.id
+        })
+
+      {:ok, b} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 8,
+          current_pen_id: pen.id
+        })
+
+      result = Animals.depart_many(scope, [a.id, b.id], "sale")
+      assert length(result.ok) == 2
+      assert result.errors == []
+      assert Enum.all?(result.ok, &(&1.status == "sold"))
+    end
+
+    test "per-row partial success: individual animal errors out, batch commits",
+         %{scope: scope, pen: pen} do
+      {:ok, batch} =
+        Animals.create_animal(scope, %{
+          tracking_type: "batch",
+          stage: "finisher",
+          quantity: 6,
+          current_pen_id: pen.id
+        })
+
+      {:ok, ind} =
+        Animals.create_animal(scope, %{
+          tracking_type: "individual",
+          ear_tag: "DM-IND",
+          stage: "sow"
+        })
+
+      result = Animals.depart_many(scope, [batch.id, ind.id], "sale")
+      assert [%{id: id, status: "sold"}] = result.ok
+      assert id == batch.id
+      assert [{ind_id, :batch_only}] = result.errors
+      assert ind_id == ind.id
+    end
+  end
+
+  defp batch_with_dob(scope, stage, dob, extra \\ %{}) do
+    {:ok, batch} =
+      Animals.create_animal(
+        scope,
+        Map.merge(
+          %{
+            tracking_type: "batch",
+            stage: stage,
+            quantity: 20,
+            dob: dob
+          },
+          extra
+        )
+      )
+
+    batch
+  end
 end
