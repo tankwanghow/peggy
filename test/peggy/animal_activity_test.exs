@@ -163,9 +163,7 @@ defmodule Peggy.AnimalActivityTest do
       # service directly would be blocked anyway. Ask for the service
       # via direct delete to confirm precondition.
       service =
-        Peggy.Repo.one!(
-          Ecto.Query.from(s in Peggy.Breeding.Service, where: s.sow_id == ^sow.id)
-        )
+        Peggy.Repo.one!(Ecto.Query.from(s in Peggy.Breeding.Service, where: s.sow_id == ^sow.id))
 
       assert {:error, :service_has_closed_outcome} = Breeding.delete_service(scope, service)
     end

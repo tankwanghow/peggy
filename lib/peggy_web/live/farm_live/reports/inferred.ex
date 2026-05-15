@@ -39,7 +39,10 @@ defmodule PeggyWeb.FarmLive.Reports.Inferred do
             )}
           </p>
 
-          <div :if={@sows == []} class="mt-3 rounded-lg border border-base-200 p-4 text-sm text-base-content/60">
+          <div
+            :if={@sows == []}
+            class="mt-3 rounded-lg border border-base-200 p-4 text-sm text-base-content/60"
+          >
             {gettext("No inferred sows.")}
           </div>
 
@@ -96,7 +99,10 @@ defmodule PeggyWeb.FarmLive.Reports.Inferred do
             )}
           </p>
 
-          <div :if={@services == []} class="mt-3 rounded-lg border border-base-200 p-4 text-sm text-base-content/60">
+          <div
+            :if={@services == []}
+            class="mt-3 rounded-lg border border-base-200 p-4 text-sm text-base-content/60"
+          >
             {gettext("No inferred services.")}
           </div>
 

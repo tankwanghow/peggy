@@ -46,7 +46,12 @@ defmodule PeggyWeb.FarmLive.DataImport do
             )}
           </p>
 
-          <form id="import-upload" phx-change="validate_upload" phx-submit="run_validation" class="grid grid-cols-2">
+          <form
+            id="import-upload"
+            phx-change="validate_upload"
+            phx-submit="run_validation"
+            class="grid grid-cols-2"
+          >
             <div :for={kind <- @file_kinds} class="rounded-md border border-base-200 p-3 mb-3">
               <div class="flex items-baseline justify-between gap-3">
                 <label for={"upload-#{kind}"} class="font-mono font-semibold">

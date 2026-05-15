@@ -11,8 +11,7 @@ defmodule PeggyWeb.DataImportController do
     "services" => "sow_ear_tag,served_at,service_type,boar_ear_tag,result,result_at,notes\n",
     "farrowings" =>
       "sow_ear_tag,farrowed_at,born_alive,stillborn,mummified,total_birth_weight_g,pen,notes\n",
-    "weanings" =>
-      "sow_ear_tag,weaned_at,weaned_count,avg_wean_weight_g,batch_tag,notes\n",
+    "weanings" => "sow_ear_tag,weaned_at,weaned_count,avg_wean_weight_g,batch_tag,notes\n",
     "culls" => "ear_tag,culled_at,reason,notes\n",
     "movements" => "ear_tag,moved_at,house_code,pen_code,notes\n"
   }

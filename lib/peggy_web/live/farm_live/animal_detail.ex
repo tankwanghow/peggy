@@ -1066,8 +1066,11 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
        when kind in [:service, :service_closed],
        do: true
 
-  defp history_undoable?(%{kind: :farrowing, data: %{service: %{farrowing: %{id: id}}}}, {:farrowing, id}),
-    do: true
+  defp history_undoable?(
+         %{kind: :farrowing, data: %{service: %{farrowing: %{id: id}}}},
+         {:farrowing, id}
+       ),
+       do: true
 
   defp history_undoable?(%{kind: :weaning, data: %{weaning: %{id: id}}}, {:weaning, id}),
     do: true
@@ -1160,7 +1163,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     """
   end
 
-  defp history_detail(%{row: %{kind: :service_closed, data: %{service: %{result: "re_service"} = s}}} = assigns) do
+  defp history_detail(
+         %{row: %{kind: :service_closed, data: %{service: %{result: "re_service"} = s}}} = assigns
+       ) do
     assigns = assign(assigns, re_serviced_at: s.result_at)
 
     ~H"""

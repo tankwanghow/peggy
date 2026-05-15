@@ -974,7 +974,6 @@ defmodule Peggy.ImportsTest do
     end
   end
 
-
   describe "culls.csv" do
     test "parse_and_validate flags missing ear_tag, bad date, bad reason", %{scope: scope} do
       culls_path =
