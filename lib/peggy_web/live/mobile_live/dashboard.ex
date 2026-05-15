@@ -12,7 +12,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
     ~H"""
     <Layouts.mobile_app flash={@flash} current_scope={@current_scope} active={:home}>
       <header class="px-4 pt-4 pb-2">
-        <h1 class="text-2xl font-bold leading-tight">{@current_scope.farm.name}</h1>
+        <h1 class="text-2xl font-bold leading-tight">{@current_scope.farm.slug}</h1>
         <p class="text-xs text-base-content/60 font-mono">
           {gettext("Reference date")}: {@today}
         </p>

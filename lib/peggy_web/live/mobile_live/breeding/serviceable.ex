@@ -431,7 +431,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
        sheet_sow_tag: nil,
        svc: nil,
        sort: "idle",
-       dir: "asc"
+       dir: "desc"
      )
      |> assign(MovementForm.init())
      |> stream_configure(:serviceable, dom_id: &"serviceable-#{&1.animal.id}")
@@ -460,7 +460,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
   defp status_param(_), do: "all"
 
   # Combined `sort=<field>-<dir>` URL param (e.g. "tag-desc"). Single
-  # form binding, falls back to (idle, asc) on anything unrecognised.
+  # form binding, falls back to (idle, desc) on anything unrecognised.
   @sort_options ~w(idle-asc idle-desc tag-asc tag-desc parity-asc parity-desc pen-asc status-asc)
 
   defp parse_sort_param(s) when is_binary(s) do
@@ -468,13 +468,13 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       [field, dir] = String.split(s, "-", parts: 2)
       {field, dir}
     else
-      {"idle", "asc"}
+      {"idle", "desc"}
     end
   end
 
-  defp parse_sort_param(_), do: {"idle", "asc"}
+  defp parse_sort_param(_), do: {"idle", "desc"}
 
-  defp sort_to_param("idle", "asc"), do: nil
+  defp sort_to_param("idle", "desc"), do: nil
   defp sort_to_param(field, dir), do: "#{field}-#{dir}"
 
   # Combined-direction options for the mobile filter-drawer dropdown.
@@ -674,7 +674,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       {_k, ""} -> true
       {_k, nil} -> true
       {"status", "all"} -> true
-      {"sort", "idle-asc"} -> true
+      {"sort", "idle-desc"} -> true
       _ -> false
     end)
     |> Map.new()
@@ -688,7 +688,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       f.pen_search != "",
       f.min_parity != "",
       f.max_parity != "",
-      not (assigns.sort == "idle" and assigns.dir == "asc")
+      not (assigns.sort == "idle" and assigns.dir == "desc")
     ]
     |> Enum.count(& &1)
   end

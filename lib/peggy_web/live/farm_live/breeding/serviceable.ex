@@ -311,7 +311,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
        per_page: @per_page,
        today: FarmClock.today(scope),
        sort: "idle",
-       dir: "asc",
+       dir: "desc",
        svc: nil,
        ac: Shared.default_ac(scope)
      )
@@ -344,8 +344,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
   defp serviceable_sort_param(s) when s in @sort_columns, do: s
   defp serviceable_sort_param(_), do: "idle"
 
-  defp dir_param("desc"), do: "desc"
-  defp dir_param(_), do: "asc"
+  defp dir_param("asc"), do: "asc"
+  defp dir_param(_), do: "desc"
 
   defp status_param(s) when s in ~w(open dry active served_outside_window), do: s
   defp status_param(_), do: "all"
@@ -458,7 +458,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
       {_k, ""} -> true
       {"status", "all"} -> true
       {"sort", "idle"} -> true
-      {"dir", "asc"} -> true
+      {"dir", "desc"} -> true
       _ -> false
     end)
     |> Map.new()
