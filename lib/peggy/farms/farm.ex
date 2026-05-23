@@ -6,6 +6,9 @@ defmodule Peggy.Farms.Farm do
   @unit_systems ~w(metric imperial)
   @plans ~w(free pro)
 
+  # Slugs that collide with literal `/farms/<word>` routes.
+  @reserved_slugs ~w(restore new admin settings)
+
   schema "farms" do
     field :slug, :string
     field :name, :string
@@ -67,6 +70,7 @@ defmodule Peggy.Farms.Farm do
       message: "lowercase letters, digits, and hyphens only"
     )
     |> validate_length(:slug, min: 3, max: 40)
+    |> validate_exclusion(:slug, @reserved_slugs, message: "is reserved")
     |> validate_length(:name, min: 1, max: 120)
     |> validate_inclusion(:unit_system, @unit_systems)
     |> validate_inclusion(:plan, @plans)

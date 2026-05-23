@@ -59,6 +59,7 @@ defmodule PeggyWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
 
       live "/farms", FarmLive.Index, :index
+      live "/farms/restore", FarmLive.Restore, :show
     end
 
     live_session :farm_scoped,
@@ -77,6 +78,8 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/onboarding/herd", FarmLive.HerdImport, :show
       live "/farms/:farm_slug/admin/import", FarmLive.DataImport, :show
       get "/farms/:farm_slug/admin/import/template/:type", DataImportController, :template
+      live "/farms/:farm_slug/admin/backup", FarmLive.BackupRestore, :show
+      get "/farms/:farm_slug/backup/download", BackupController, :download
       live "/farms/:farm_slug/animals/bulk-move", FarmLive.BulkMove, :show
       live "/farms/:farm_slug/animals/promote", FarmLive.PromoteBatches, :index
       live "/farms/:farm_slug/animals/:id", FarmLive.AnimalDetail, :show

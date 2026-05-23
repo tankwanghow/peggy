@@ -15,7 +15,8 @@ defmodule PeggyWeb.FarmLive.Settings do
         <section
           :if={
             Peggy.Policy.can?(@current_scope, :view_audit) or
-              Peggy.Policy.can?(@current_scope, :import_data)
+              Peggy.Policy.can?(@current_scope, :import_data) or
+              Peggy.Policy.can?(@current_scope, :delete_farm)
           }
           class="mt-6"
         >
@@ -46,6 +47,21 @@ defmodule PeggyWeb.FarmLive.Settings do
                   <div class="font-semibold">{gettext("Audit log")}</div>
                   <div class="text-xs text-base-content/60">
                     {gettext("Immutable history of every change on this farm.")}
+                  </div>
+                </div>
+                <.icon name="hero-chevron-right-micro" class="size-4 text-base-content/40" />
+              </.link>
+            </li>
+            <li :if={Peggy.Policy.can?(@current_scope, :delete_farm)}>
+              <.link
+                navigate={~p"/farms/#{@current_scope.farm.slug}/admin/backup"}
+                class="flex items-center gap-3 rounded-md border border-base-200 bg-base-100 p-3 active:bg-base-200 hover:bg-base-200/50"
+              >
+                <.icon name="hero-archive-box-arrow-down" class="size-5 text-primary" />
+                <div class="flex-1">
+                  <div class="font-semibold">{gettext("Backup & restore")}</div>
+                  <div class="text-xs text-base-content/60">
+                    {gettext("Download a full snapshot or restore one into a new farm.")}
                   </div>
                 </div>
                 <.icon name="hero-chevron-right-micro" class="size-4 text-base-content/40" />

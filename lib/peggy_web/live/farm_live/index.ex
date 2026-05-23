@@ -106,7 +106,15 @@ defmodule PeggyWeb.FarmLive.Index do
         </section>
 
         <div class="mt-10">
-          <.header>{gettext("Create a farm")}</.header>
+          <div class="flex items-baseline justify-between gap-2">
+            <.header>{gettext("Create a farm")}</.header>
+            <.link
+              navigate={~p"/farms/restore"}
+              class="text-sm text-primary underline-offset-2 hover:underline"
+            >
+              {gettext("Restore from backup")}
+            </.link>
+          </div>
           <.form
             for={@form}
             id="new-farm-form"
