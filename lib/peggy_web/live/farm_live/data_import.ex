@@ -39,6 +39,21 @@ defmodule PeggyWeb.FarmLive.DataImport do
           <.step active={@step == :done} done={false} label="3. Commit" />
         </ol>
 
+        <div
+          :if={@busy != nil}
+          id="import-progress"
+          class="mt-4 alert alert-info text-sm"
+          aria-live="polite"
+        >
+          <span class="loading loading-spinner loading-sm"></span>
+          <div>
+            <p class="font-semibold">{busy_label(@busy)}</p>
+            <p class="text-xs">
+              {gettext("Working on it. Large files can take a minute — please don't navigate away.")}
+            </p>
+          </div>
+        </div>
+
         <section :if={@step == :upload} class="mt-6 space-y-4">
           <p class="text-sm text-base-content/70">
             {gettext(
@@ -91,7 +106,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
               <.button
                 class="btn btn-primary"
                 phx-disable-with={gettext("Validating...")}
-                disabled={not has_sows_upload?(@uploads)}
+                disabled={not has_sows_upload?(@uploads) or @busy != nil}
               >
                 {gettext("Validate")}
               </.button>
@@ -122,6 +137,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
                     type="button"
                     phx-click="rollback"
                     phx-value-run-id={run.run_id}
+                    disabled={@busy != nil}
                     data-confirm={
                       gettext(
                         "Roll back this import? This deletes %{a} animals, %{s} services, %{f} farrowings, %{w} weanings.",
@@ -245,7 +261,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
               type="button"
               phx-click="commit"
               phx-disable-with={gettext("Committing...")}
-              disabled={@report.summary.blocking_errors > 0}
+              disabled={@report.summary.blocking_errors > 0 or @busy != nil}
               class="btn btn-primary"
             >
               {gettext("Commit import")}
@@ -394,6 +410,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
           step: :upload,
           report: nil,
           outcome: nil,
+          busy: nil,
           runs: Imports.list_runs(scope)
         )
         |> allow_uploads()
@@ -427,67 +444,26 @@ defmodule PeggyWeb.FarmLive.DataImport do
   end
 
   def handle_event("run_validation", _params, socket) do
+    # Consume uploads (synchronously — they live in this LV's upload
+    # state) then defer the parse/validate work to handle_info so the
+    # busy banner has a chance to render.
     paths = consume_uploads_to_temp(socket)
-    report = Imports.parse_and_validate(socket.assigns.current_scope, paths)
+    send(self(), {:run_validation, paths})
 
-    {:noreply, assign(socket, step: :review, report: report)}
+    {:noreply, socket |> assign(:busy, :validating) |> clear_flash()}
   end
 
   def handle_event("back_to_upload", _, socket),
     do: {:noreply, assign(socket, step: :upload, report: nil)}
 
   def handle_event("commit", _, socket) do
-    scope = socket.assigns.current_scope
-
-    case Imports.commit(scope, socket.assigns.report) do
-      {:ok, outcome} ->
-        {:noreply,
-         socket
-         |> assign(step: :done, outcome: outcome, runs: Imports.list_runs(scope))
-         |> put_flash(:info, gettext("Import committed."))}
-
-      {:error, :blocking_errors} ->
-        {:noreply, put_flash(socket, :error, gettext("Cannot commit — blocking errors remain."))}
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Commit failed: #{inspect(reason)}")}
-    end
+    send(self(), :run_commit)
+    {:noreply, socket |> assign(:busy, :committing) |> clear_flash()}
   end
 
   def handle_event("rollback", %{"run-id" => run_id}, socket) do
-    scope = socket.assigns.current_scope
-
-    case Imports.rollback(scope, run_id) do
-      {:ok, counts} ->
-        msg =
-          gettext(
-            "Rolled back %{a} animals, %{s} services, %{f} farrowings, %{w} weanings, %{m} movements.",
-            a: counts.animals,
-            s: counts.services,
-            f: counts.farrowings,
-            w: counts.weanings,
-            m: counts.movements
-          )
-
-        {:noreply,
-         socket
-         |> assign(runs: Imports.list_runs(scope))
-         |> put_flash(:info, msg)}
-
-      {:error, {:fk_violation, msg}} ->
-        {:noreply,
-         put_flash(
-           socket,
-           :error,
-           gettext(
-             "Rollback failed: post-import dependencies block deletion (%{msg}).",
-             msg: msg
-           )
-         )}
-
-      {:error, reason} ->
-        {:noreply, put_flash(socket, :error, "Rollback failed: #{inspect(reason)}")}
-    end
+    send(self(), {:run_rollback, run_id})
+    {:noreply, socket |> assign(:busy, :rolling_back) |> clear_flash()}
   end
 
   def handle_event("restart", _, socket) do
@@ -502,7 +478,77 @@ defmodule PeggyWeb.FarmLive.DataImport do
      |> allow_uploads()}
   end
 
+  # ── Deferred work ──────────────────────────────────────────────────
+
+  @impl true
+  def handle_info({:run_validation, paths}, socket) do
+    report = Imports.parse_and_validate(socket.assigns.current_scope, paths)
+    {:noreply, assign(socket, step: :review, report: report, busy: nil)}
+  end
+
+  def handle_info(:run_commit, socket) do
+    scope = socket.assigns.current_scope
+
+    socket =
+      case Imports.commit(scope, socket.assigns.report) do
+        {:ok, outcome} ->
+          socket
+          |> assign(step: :done, outcome: outcome, runs: Imports.list_runs(scope))
+          |> put_flash(:info, gettext("Import committed."))
+
+        {:error, :blocking_errors} ->
+          put_flash(socket, :error, gettext("Cannot commit — blocking errors remain."))
+
+        {:error, reason} ->
+          put_flash(socket, :error, "Commit failed: #{inspect(reason)}")
+      end
+
+    {:noreply, assign(socket, :busy, nil)}
+  end
+
+  def handle_info({:run_rollback, run_id}, socket) do
+    scope = socket.assigns.current_scope
+
+    socket =
+      case Imports.rollback(scope, run_id) do
+        {:ok, counts} ->
+          msg =
+            gettext(
+              "Rolled back %{a} animals, %{s} services, %{f} farrowings, %{w} weanings, %{m} movements.",
+              a: counts.animals,
+              s: counts.services,
+              f: counts.farrowings,
+              w: counts.weanings,
+              m: counts.movements
+            )
+
+          socket
+          |> assign(runs: Imports.list_runs(scope))
+          |> put_flash(:info, msg)
+
+        {:error, {:fk_violation, msg}} ->
+          put_flash(
+            socket,
+            :error,
+            gettext(
+              "Rollback failed: post-import dependencies block deletion (%{msg}).",
+              msg: msg
+            )
+          )
+
+        {:error, reason} ->
+          put_flash(socket, :error, "Rollback failed: #{inspect(reason)}")
+      end
+
+    {:noreply, assign(socket, :busy, nil)}
+  end
+
   # ── Helpers ────────────────────────────────────────────────────────
+
+  defp busy_label(:validating), do: gettext("Validating CSVs...")
+  defp busy_label(:committing), do: gettext("Committing import...")
+  defp busy_label(:rolling_back), do: gettext("Rolling back import...")
+  defp busy_label(_), do: gettext("Working...")
 
   defp consume_uploads_to_temp(socket) do
     Enum.reduce(@file_kinds, %{}, fn kind, acc ->
