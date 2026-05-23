@@ -181,8 +181,9 @@ defmodule Peggy.Reports do
       )
       |> Repo.one()
 
-    # Lactating farrowings older than 21 days with no weaning yet.
-    wean_cutoff = Date.add(today, -21)
+    # Lactating farrowings older than the farm's `wean_due_days` with
+    # no weaning yet.
+    wean_cutoff = Date.add(today, -Peggy.Breeding.wean_due_days(scope))
 
     due_to_wean_count =
       from(f in "breeding_farrowings",

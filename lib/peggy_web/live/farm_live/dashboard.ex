@@ -1,7 +1,7 @@
 defmodule PeggyWeb.FarmLive.Dashboard do
   use PeggyWeb, :live_view
 
-  alias Peggy.{FarmClock, Reports}
+  alias Peggy.{Breeding, FarmClock, Reports}
 
   @stage_labels %{
     "sow" => "Sows",
@@ -51,7 +51,7 @@ defmodule PeggyWeb.FarmLive.Dashboard do
               />
               <.action_row
                 icon="hero-hand-raised-micro"
-                label={gettext("Litters due to wean (>21d)")}
+                label={gettext("Litters due to wean (>%{d}d)", d: @wean_due_days)}
                 count={@actions.due_to_wean_count}
                 href={~p"/farms/#{@current_scope.farm.slug}/breeding/lactating?age=wean_due"}
               />
@@ -209,6 +209,7 @@ defmodule PeggyWeb.FarmLive.Dashboard do
     {:ok,
      socket
      |> assign(:today, FarmClock.today(scope))
+     |> assign(:wean_due_days, Breeding.wean_due_days(scope))
      |> assign(:snapshot, Reports.herd_snapshot(scope))
      |> assign(:actions, Reports.action_list(scope))}
   end

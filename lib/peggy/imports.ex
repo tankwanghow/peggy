@@ -1473,6 +1473,15 @@ defmodule Peggy.Imports do
     end
   end
 
+  # Wider tolerance used only when matching imported farrowing rows to
+  # an existing open service. Legacy bookkeeping often records served_at
+  # a few days off the conception ideal (heat first observed vs. actual
+  # mating). Without this slack, the importer synthesises a backfill
+  # service that orphans the real (slightly off-window) open service.
+  # 14 days is well under the 21-day estrous cycle, so it can't
+  # accidentally match a service from a neighbouring cycle.
+  @import_gestation_tolerance_days 14
+
   # Locates an open (no result, not deleted) service for the sow whose
   # served_at is within the gestation window of farrowed_at. Returns
   # the most recent match or nil.
@@ -1480,7 +1489,7 @@ defmodule Peggy.Imports do
 
   defp find_open_service_for_farrowing(%Scope{farm: farm}, sow_id, %Date{} = farrowed_at) do
     gestation = Breeding.gestation_days(farm)
-    tol = Breeding.gestation_tolerance_days(farm)
+    tol = max(Breeding.gestation_tolerance_days(farm), @import_gestation_tolerance_days)
     earliest = Date.add(farrowed_at, -(gestation + tol))
     latest = Date.add(farrowed_at, -(gestation - tol))
 

@@ -3063,7 +3063,7 @@ defmodule Peggy.Breeding do
               f.farrowed_at <= ^Date.add(today, -14) and f.farrowed_at > ^Date.add(today, -21)
 
         "wean_due" ->
-          from f in q, where: f.farrowed_at <= ^Date.add(today, -21)
+          from f in q, where: f.farrowed_at <= ^Date.add(today, -wean_due_days(farm))
 
         _ ->
           q
