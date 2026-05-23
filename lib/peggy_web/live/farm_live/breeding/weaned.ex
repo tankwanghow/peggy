@@ -73,7 +73,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                   <th class="py-2">{gettext("Sow")}</th>
                   <th class="py-2">{gettext("Weaned at")}</th>
                   <th class="py-2 text-right">{gettext("Weaned count")}</th>
-                  <th class="py-2 text-right">{gettext("Avg wt (g)")}</th>
+                  <th class="py-2 text-right">
+                    {gettext("Avg wt (%{u})", u: Peggy.Units.weight_g_unit(@current_scope))}
+                  </th>
                   <th class="py-2">{gettext("Batch")}</th>
                   <th class="py-2">{gettext("Dest. pen")}</th>
                   <th :if={@can_record} class="py-2"></th>
@@ -90,7 +92,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                   </td>
                   <td class="py-2">{w.weaned_at}</td>
                   <td class="py-2 text-right">{w.weaned_count}</td>
-                  <td class="py-2 text-right">{w.avg_wean_weight_g}</td>
+                  <td class="py-2 text-right">
+                    {Peggy.Units.format_weight_g(w.avg_wean_weight_g, @current_scope)}
+                  </td>
                   <td class="py-2 font-mono">
                     <.link
                       :if={w.batch_animal}

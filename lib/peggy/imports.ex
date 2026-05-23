@@ -1397,7 +1397,7 @@ defmodule Peggy.Imports do
         "created_via" => via,
         # served_at is only consumed by the back-fill cascade. When we
         # match an existing open service, `record_farrowing` ignores it.
-        "served_at" => derive_served_at(row["farrowed_at"])
+        "served_at" => derive_served_at(scope, row["farrowed_at"])
       }
       |> drop_nils()
 
@@ -1779,10 +1779,13 @@ defmodule Peggy.Imports do
 
   defp parse_int(_), do: nil
 
-  defp derive_served_at(farrowed_at_str) do
+  defp derive_served_at(scope, farrowed_at_str) do
     case parse_date(farrowed_at_str) do
-      {:ok, %Date{} = d} -> Date.add(d, -114) |> Date.to_iso8601()
-      _ -> nil
+      {:ok, %Date{} = d} ->
+        d |> Date.add(-Breeding.gestation_days(scope)) |> Date.to_iso8601()
+
+      _ ->
+        nil
     end
   end
 

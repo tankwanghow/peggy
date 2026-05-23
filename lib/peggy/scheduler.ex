@@ -2,7 +2,7 @@ defmodule Peggy.Scheduler do
   @moduledoc """
   Hourly tick that auto-enqueues farm-level tasks:
 
-    * `wean`   — lactating sows past `lactation_days` with no weaning
+    * `wean`   — lactating sows past `wean_due_days` with no weaning
     * `farrow` — open services due to farrow within 7 days
 
   Per-farm, idempotent: each candidate maps to a stable
@@ -160,7 +160,7 @@ defmodule Peggy.Scheduler do
   defp system_scope(farm), do: %Scope{user: nil, farm: farm, role: nil}
 
   defp gestation_days(farm), do: Peggy.Breeding.gestation_days(farm)
-  defp wean_due_days(farm), do: farm.wean_due_days || 21
+  defp wean_due_days(farm), do: Peggy.Breeding.wean_due_days(farm)
 
   defp tally(results, kind) do
     Enum.count(results, fn

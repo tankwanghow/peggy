@@ -77,6 +77,11 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Time zone database — needed for `DateTime.now/1` and `shift_zone/2`
+# to handle real zones like "Asia/Singapore". Without this the stdlib
+# only knows about UTC.
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

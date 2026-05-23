@@ -68,7 +68,8 @@ defmodule Peggy.MixProject do
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
       {:nimble_csv, "~> 1.2"},
-      {:gen_smtp, "~> 1.2"}
+      {:gen_smtp, "~> 1.2"},
+      {:tzdata, "~> 1.1"}
     ]
   end
 

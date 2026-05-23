@@ -224,7 +224,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
                 <span class="font-mono text-xs text-base-content/60">{row.date}</span>
               </div>
               <p class="mt-1 text-sm leading-snug">
-                {history_summary(row)}
+                {history_summary(row, @current_scope)}
               </p>
             </li>
             <li
@@ -1079,7 +1079,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   defp history_kind_color(:litter_event), do: "text-warning"
   defp history_kind_color(:movement), do: "text-base-content/70"
 
-  defp history_summary(%{kind: :movement, data: m}) do
+  defp history_summary(%{kind: :movement, data: m}, _scope) do
     parts = [
       m.reason && String.capitalize(m.reason),
       m.from_pen && "from #{pen_code(m.from_pen)}",
@@ -1090,7 +1090,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
     parts |> Enum.filter(& &1) |> Enum.join(" · ")
   end
 
-  defp history_summary(%{kind: :service, data: %{service: s}}) do
+  defp history_summary(%{kind: :service, data: %{service: s}}, _scope) do
     parts = [
       String.upcase(s.service_type),
       s.boar && "boar #{s.boar.ear_tag}"
@@ -1099,27 +1099,34 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
     parts |> Enum.filter(& &1) |> Enum.join(" · ")
   end
 
-  defp history_summary(%{kind: :farrowing, data: %{service: %{farrowing: f}}})
+  defp history_summary(%{kind: :farrowing, data: %{service: %{farrowing: f}}}, _scope)
        when not is_nil(f) do
     "Born alive #{f.born_alive}, stillborn #{f.stillborn || 0}, mummified #{f.mummified || 0}"
   end
 
-  defp history_summary(%{kind: :farrowing}), do: gettext("Farrowing recorded")
+  defp history_summary(%{kind: :farrowing}, _scope), do: gettext("Farrowing recorded")
 
-  defp history_summary(%{kind: :service_closed, data: %{service: %{result: "re_service"} = s}}) do
+  defp history_summary(
+         %{kind: :service_closed, data: %{service: %{result: "re_service"} = s}},
+         _scope
+       ) do
     "re-serviced at #{s.result_at}"
   end
 
-  defp history_summary(%{kind: :service_closed, data: %{service: s}}) do
+  defp history_summary(%{kind: :service_closed, data: %{service: s}}, _scope) do
     "Result: #{s.result}"
   end
 
-  defp history_summary(%{kind: :weaning, data: %{weaning: w}}) do
-    "Weaned #{w.weaned_count}" <>
-      if(w.avg_wean_weight_g, do: " · avg #{w.avg_wean_weight_g}g", else: "")
+  defp history_summary(%{kind: :weaning, data: %{weaning: w}}, scope) do
+    avg =
+      if w.avg_wean_weight_g,
+        do: " · avg #{Peggy.Units.format_weight_g(w.avg_wean_weight_g, scope)}",
+        else: ""
+
+    "Weaned #{w.weaned_count}" <> avg
   end
 
-  defp history_summary(%{kind: :litter_event, data: e}) do
+  defp history_summary(%{kind: :litter_event, data: e}, _scope) do
     kind = humanize_litter_kind(e.kind)
     "#{kind} ×#{e.quantity}" <> if(e.notes && e.notes != "", do: " — #{e.notes}", else: "")
   end

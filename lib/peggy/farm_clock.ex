@@ -17,16 +17,26 @@ defmodule Peggy.FarmClock do
   alias Peggy.Farms.Farm
 
   @doc """
-  Returns the farm's "today". Falls back to `Date.utc_today/0` when:
+  Returns the farm's "today" — the calendar date in the farm's
+  configured `timezone`. Precedence:
 
-    * `simulated_today` is `nil`
-    * the input is `nil` (no farm in scope yet)
+    1. `simulated_today` if set (already a fixed date)
+    2. `Date` derived from `DateTime.now(farm.timezone)`
+    3. `Date.utc_today/0` (fallback when no farm or unknown zone)
 
   Accepts a `%Scope{}`, a `%Farm{}`, or `nil`.
   """
   @spec today(Scope.t() | Farm.t() | nil) :: Date.t()
   def today(%Scope{farm: %Farm{} = farm}), do: today(farm)
   def today(%Farm{simulated_today: %Date{} = d}), do: d
+
+  def today(%Farm{timezone: tz}) when is_binary(tz) and tz != "" do
+    case DateTime.now(tz) do
+      {:ok, dt} -> DateTime.to_date(dt)
+      _ -> Date.utc_today()
+    end
+  end
+
   def today(_), do: Date.utc_today()
 
   @doc "True when the farm has a non-nil `simulated_today`."
