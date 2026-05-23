@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -vE \"^\\\\[debug\\\\]|^SELECT|^UPDATE|^INSERT|^↳|^\\\\s*$\")",
+      "Bash(awk 'NR>=2900 && NR<=3070 && /^\\\\s*def\\(p\\)?\\\\s/' lib/peggy/breeding.ex)",
+      "Bash(awk 'NR==1 || /^\\\\s*defp?\\\\s+\\\\w+/ {fn=$0; ln=NR} NR==3066 {print ln, fn; exit}' lib/peggy/breeding.ex)",
+      "Bash(awk -F: '$1 <= 3066')",
+      "Bash(grep -rEn \"-24\\\\\\)|, 24[^0-9]|\\\\* 24|Date.add\\\\\\(.*, ?-?24\\\\b\" lib/peggy/ lib/peggy_web/ --include=\"*.ex\")",
+      "Bash(cp lib/peggy/imports.ex /tmp/imports.ex.full)",
+      "Bash(git checkout *)",
+      "Bash(cp /tmp/imports.ex.full lib/peggy/imports.ex)",
+      "Bash(rm /tmp/imports.ex.full)"
+    ]
+  }
+}
