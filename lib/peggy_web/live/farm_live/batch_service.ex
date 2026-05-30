@@ -47,6 +47,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
                   <th class="py-2">{gettext("Sow ear tag")}</th>
                   <th class="py-2">{gettext("Service type")}</th>
                   <th class="py-2">{gettext("Boar")}</th>
+                  <th class="py-2">{gettext("Semen")}</th>
                   <th class="py-2">{gettext("Served at")}</th>
                   <th class="py-2">{gettext("Current pen")}</th>
                   <th class="py-2">{gettext("Breed (new sow)")}</th>
@@ -154,6 +155,17 @@ defmodule PeggyWeb.FarmLive.BatchService do
                       >
                         —
                       </span>
+                    </td>
+                    <td class="py-1 px-0.5">
+                      <input
+                        type="text"
+                        name={"rows[#{row.tmp_id}][semen]"}
+                        value={row.semen}
+                        autocomplete="off"
+                        spellcheck="false"
+                        class="input w-full font-mono"
+                        placeholder={gettext("optional")}
+                      />
                     </td>
                     <td class="py-1 px-0.5">
                       <input
@@ -378,7 +390,8 @@ defmodule PeggyWeb.FarmLive.BatchService do
     base = %{
       service_type: r.service_type,
       served_at: r.served_at,
-      notes: r.notes
+      notes: r.notes,
+      semen: presence(r.semen)
     }
 
     base =
@@ -420,6 +433,7 @@ defmodule PeggyWeb.FarmLive.BatchService do
       service_type: "ai",
       boar_id: nil,
       boar_label: nil,
+      semen: nil,
       served_at: default_date,
       pen_input: "",
       pen_id: nil,
@@ -459,7 +473,8 @@ defmodule PeggyWeb.FarmLive.BatchService do
         pen_id: pen_id,
         pen_state: pen_state,
         breed: presence(Map.get(params, "breed")),
-        notes: Map.get(params, "notes")
+        notes: Map.get(params, "notes"),
+        semen: presence(Map.get(params, "semen"))
     }
   end
 

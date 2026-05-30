@@ -1145,6 +1145,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
           {mate.ear_tag}
         </.link>
       <% end %>
+      <%= if @row.data.service.semen do %>
+        · {gettext("semen")} <span class="font-mono">{@row.data.service.semen}</span>
+      <% end %>
     </span>
     """
   end

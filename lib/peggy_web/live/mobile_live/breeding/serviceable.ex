@@ -96,6 +96,12 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 status_color(e.animal.status)
               ]}>
                 {e.animal.status}
+                <span
+                  :if={e.animal.status == "served"}
+                  class="ml-1 badge badge-sm badge-warning"
+                >
+                  {gettext("in heat")}
+                </span>
               </span>
             </div>
 
@@ -163,7 +169,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                     value="served_outside_window"
                     selected={@filters.status == "served_outside_window"}
                   >
-                    {gettext("Served (re-service)")}
+                    {gettext("Served (still in heat)")}
                   </option>
                 </select>
               </label>
@@ -253,7 +259,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 <.icon name="hero-chevron-left" class="size-5" />
               </button>
               <div class={["flex-1", @sheet_mode == :menu && "text-center"]}>
-                <div class="font-mono font-bold text-lg">{@sheet_sow_tag}</div>
+                <.link
+                  :if={@sheet_animal}
+                  navigate={~p"/m/#{@current_scope.farm.slug}/animals/#{@sheet_animal.id}"}
+                  class="font-mono font-bold text-lg text-primary underline underline-offset-2 decoration-dotted active:decoration-solid"
+                >
+                  {@sheet_sow_tag}
+                </.link>
+                <div
+                  :if={is_nil(@sheet_animal)}
+                  class="font-mono font-bold text-lg"
+                >
+                  {@sheet_sow_tag}
+                </div>
                 <div :if={@sheet_animal} class="text-xs text-base-content/60">
                   <span class={["uppercase font-semibold", status_color(@sheet_animal.status)]}>
                     {@sheet_animal.status}
@@ -273,7 +291,11 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-pink-500/10"
               >
                 <.icon name="hero-heart" class="size-7 text-pink-500" />
-                <span class="text-xs">{gettext("Service")}</span>
+                <span class="text-xs">
+                  {if @sheet_animal && @sheet_animal.status == "served",
+                    do: gettext("+ Mount"),
+                    else: gettext("Service")}
+                </span>
               </button>
               <button
                 phx-click="action_move"
@@ -332,6 +354,21 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                   name="served_at"
                   value={@svc.served_at}
                   class="input input-bordered input-lg w-full mt-1"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">
+                  {gettext("Semen (optional)")}
+                </span>
+                <input
+                  type="text"
+                  name="semen"
+                  value={@svc.semen}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  placeholder={gettext("Semen code")}
+                  class="input input-bordered input-lg w-full mt-1 font-mono"
                 />
               </label>
 
@@ -558,21 +595,34 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
 
   def handle_event("action_service", _, socket) do
     if socket.assigns.can_record do
+      scope = socket.assigns.current_scope
       sow = socket.assigns.sheet_animal
-      today = FarmClock.today(socket.assigns.current_scope)
+      today = FarmClock.today(scope)
+
+      # Pre-fill from the existing open service when the sow is mid-
+      # heat (already served). The resolver will collapse this entry
+      # into a mounting on the existing service.
+      prior = Breeding.latest_open_service_for_sow(scope, sow.id)
+
+      {boar_tag, boar_state, boar_id} =
+        case prior && prior.boar do
+          %{id: id, ear_tag: tag} -> {tag, :resolved, id}
+          _ -> {"", :empty, nil}
+        end
 
       svc = %{
         sow_id: sow.id,
         sow_tag: sow.ear_tag,
         sow_status: sow.status,
-        service_type: "ai",
+        service_type: (prior && prior.service_type) || "ai",
         served_at: to_string(today),
-        boar_tag: "",
-        boar_state: :empty,
-        boar_id: nil,
+        boar_tag: boar_tag,
+        boar_state: boar_state,
+        boar_id: boar_id,
         pen_code: pen_code_for(sow),
         pen_state: pen_state_for(sow),
         pen_id: sow.current_pen_id,
+        semen: prior && prior.semen,
         error_message: nil
       }
 
@@ -774,6 +824,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
       svc
       | service_type: service_type,
         served_at: Map.get(params, "served_at", svc.served_at),
+        semen: Shared.presence(Map.get(params, "semen", svc.semen)),
         error_message: nil
     }
 
@@ -849,6 +900,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
           }
           |> maybe_put("boar_id", svc.boar_id)
           |> maybe_put("pen_id", svc.pen_id)
+          |> maybe_put("semen", svc.semen)
 
         case Breeding.record_service_with_backfill(socket.assigns.current_scope, attrs) do
           {:ok, %{sow: sow}} ->

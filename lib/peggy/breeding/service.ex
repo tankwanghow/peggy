@@ -3,7 +3,7 @@ defmodule Peggy.Breeding.Service do
   import Ecto.Changeset
 
   @service_types ~w(ai natural)
-  @results ~w(farrowing abortion re_service death cull)
+  @results ~w(farrowing abortion failed_pregnancy re_service death cull)
 
   schema "breeding_services" do
     field :service_type, :string
@@ -14,6 +14,7 @@ defmodule Peggy.Breeding.Service do
     field :result_at, :date
     field :result_notes, :string
     field :notes, :string
+    field :semen, :string
     field :inferred, :boolean, default: false
     field :created_via, :string
     belongs_to :origin_audit, Peggy.Audit.AuditLog
@@ -41,6 +42,7 @@ defmodule Peggy.Breeding.Service do
       :result_at,
       :result_notes,
       :notes,
+      :semen,
       :inferred,
       :created_via,
       :origin_audit_id,

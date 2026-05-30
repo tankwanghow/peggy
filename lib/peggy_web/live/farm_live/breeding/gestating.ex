@@ -401,7 +401,20 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
               />
             </div>
 
-            <div class="col-span-2">
+            <div>
+              <label class="label">
+                <span class="label-text">{gettext("Semen (optional)")}</span>
+              </label>
+              <input
+                type="text"
+                name="semen"
+                value={@svc.semen}
+                class="input input-bordered w-full font-mono"
+                placeholder={gettext("dose / batch / boar code")}
+              />
+            </div>
+
+            <div>
               <.autocomplete
                 id={"service-pen-picker-#{@svc.resolved_sow_id || "none"}"}
                 label={gettext("Service pen (optional)")}
@@ -412,10 +425,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                 class="w-full input font-mono"
                 placeholder={gettext("Search pens...")}
               />
-              <p class="mt-1 text-xs text-base-content/60">
-                {gettext(
-                  "If set: new sow placed, or existing sow transferred when different from current pen."
-                )}
+              <p class="text-xs text-base-content/60">
+                {gettext("If different from current pen.")}
               </p>
             </div>
 
@@ -665,6 +676,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
               label={gettext("Result")}
               options={[
                 {gettext("Abortion"), "abortion"},
+                {gettext("Failed pregnancy"), "failed_pregnancy"},
                 {gettext("Death"), "death"},
                 {gettext("Cull"), "cull"}
               ]}
@@ -799,6 +811,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
          boar_id: nil,
          pen_id: nil,
          notes: nil,
+         semen: nil,
          default_dob:
            to_string(
              Date.add(today, -Breeding.minimum_sow_age_days(socket.assigns.current_scope))
@@ -1434,6 +1447,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
         boar_id: if(service_type == "natural", do: boar_id, else: nil),
         pen_id: pen_id,
         notes: Shared.presence(Map.get(params, "notes")),
+        semen: Shared.presence(Map.get(params, "semen")),
         backfill: backfill,
         force_create: force_create,
         error_message: nil
@@ -1511,7 +1525,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
       sow_ear_tag: svc.sow_ear_tag,
       service_type: svc.service_type,
       served_at: svc.served_at,
-      notes: svc.notes
+      notes: svc.notes,
+      semen: svc.semen
     }
 
     base =

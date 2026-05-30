@@ -50,7 +50,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
     </span>
 
     <span :if={@entry.last_event_kind == :aborted}>
-      <span class={[@label_class, "text-rose-600"]}>{gettext("Abortion")}</span>
+      <span class={[@label_class, "text-rose-600"]}>{gettext("Aborted/Failed")}</span>
       <span class={@detail_class}>{@entry.last_event_date}</span>
     </span>
     """
@@ -235,6 +235,11 @@ defmodule PeggyWeb.FarmLive.Breeding.Shared do
   end
 
   def maybe_preselect_pen(ac, _, _), do: ac
+
+  def maybe_preselect_boar(ac, _scope, %{ear_tag: tag}) when is_binary(tag),
+    do: %{ac | boar_label: tag}
+
+  def maybe_preselect_boar(ac, _scope, _), do: ac
 
   # ── Small helpers ───────────────────────────────────────────────────
 

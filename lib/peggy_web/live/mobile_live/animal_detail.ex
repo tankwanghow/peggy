@@ -17,13 +17,33 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
       <div>
         <%!-- Top bar with back link + actions --%>
         <header class="sticky top-0 z-10 bg-base-100 border-b border-base-200 px-3 py-2 flex items-center gap-2">
-          <.link
-            navigate={~p"/m/#{@current_scope.farm.slug}/animals"}
+          <button
+            id="mobile-animal-detail-back"
+            phx-hook=".HistoryBack"
+            type="button"
+            data-fallback-href={~p"/m/#{@current_scope.farm.slug}/animals"}
             class="btn btn-ghost btn-square btn-lg"
             aria-label={gettext("Back")}
           >
             <.icon name="hero-chevron-left" class="size-6" />
-          </.link>
+          </button>
+          <script :type={Phoenix.LiveView.ColocatedHook} name=".HistoryBack">
+            export default {
+              mounted() {
+                this.handler = () => {
+                  if (window.history.length > 1) {
+                    window.history.back()
+                  } else if (this.el.dataset.fallbackHref) {
+                    window.location.href = this.el.dataset.fallbackHref
+                  }
+                }
+                this.el.addEventListener("click", this.handler)
+              },
+              destroyed() {
+                this.el.removeEventListener("click", this.handler)
+              }
+            }
+          </script>
           <div class="flex-1 min-w-0">
             <div class="font-mono font-bold text-lg truncate flex items-center gap-1">
               {@animal.ear_tag || "##{@animal.id}"}
@@ -1093,7 +1113,8 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   defp history_summary(%{kind: :service, data: %{service: s}}, _scope) do
     parts = [
       String.upcase(s.service_type),
-      s.boar && "boar #{s.boar.ear_tag}"
+      s.boar && "boar #{s.boar.ear_tag}",
+      s.semen && "semen #{s.semen}"
     ]
 
     parts |> Enum.filter(& &1) |> Enum.join(" · ")

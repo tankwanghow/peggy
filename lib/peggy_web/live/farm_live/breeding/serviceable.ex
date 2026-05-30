@@ -59,7 +59,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                   value="served_outside_window"
                   selected={@filters.status == "served_outside_window"}
                 >
-                  {gettext("Served (re-service candidates)")}
+                  {gettext("Served (still in heat)")}
                 </option>
               </select>
             </label>
@@ -161,6 +161,13 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                     <span class={["uppercase font-semibold", status_color(e.animal.status)]}>
                       {e.animal.status}
                     </span>
+                    <span
+                      :if={e.animal.status == "served"}
+                      class="ml-1 badge badge-sm badge-warning"
+                      title={gettext("Still in heat — record another mounting if needed")}
+                    >
+                      {gettext("in heat")}
+                    </span>
                   </td>
                   <td class="py-2 font-mono text-base-content/70">
                     {sow_pen_label(e.animal)}
@@ -181,7 +188,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                       phx-value-sow-id={e.animal.id}
                       class="btn btn-sm btn-primary"
                     >
-                      {gettext("Service")}
+                      {if e.animal.status == "served",
+                        do: gettext("+ Mount"),
+                        else: gettext("Service")}
                     </button>
                   </td>
                 </tr>
@@ -248,11 +257,21 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                 items={@ac.boar_items}
                 selected_label={@ac.boar_label}
                 class="w-full input font-mono"
-                placeholder={gettext("Search by ear tag...")}
               />
             </div>
 
-            <div class="col-span-2">
+            <div>
+              <label class="label">
+                <span class="label-text">{gettext("Semen (optional)")}</span>
+              </label>
+              <input
+                type="text"
+                name="semen"
+                value={@svc.semen}
+                class="input input-bordered w-full font-mono"
+              />
+            </div>
+            <div>
               <.autocomplete
                 id="serviceable-pen-picker"
                 label={gettext("Service pen (optional)")}
@@ -263,8 +282,8 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                 class="w-full input font-mono"
                 placeholder={gettext("Search pens...")}
               />
-              <p class="mt-1 text-xs text-base-content/60">
-                {gettext("If different from current pen, the sow will be transferred.")}
+              <p class="text-xs text-base-content/60">
+                {gettext("If different from current pen.")}
               </p>
             </div>
 
@@ -373,19 +392,27 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
       sow = Animals.get_animal!(scope, String.to_integer(id))
       today = FarmClock.today(scope)
 
+      # If the sow is already served (mid-heat), inherit service_type
+      # and boar from her open service so the operator only has to
+      # confirm today's date. The resolver will collapse this into a
+      # mounting on the existing service.
+      prior = Breeding.latest_open_service_for_sow(scope, sow.id)
+
       ac =
         Shared.default_ac(scope)
         |> Shared.maybe_preselect_pen(scope, sow)
+        |> Shared.maybe_preselect_boar(scope, prior && prior.boar)
 
       svc = %{
         sow_id: sow.id,
         sow_tag: sow.ear_tag,
         sow_status: sow.status,
-        service_type: "ai",
+        service_type: (prior && prior.service_type) || "ai",
         served_at: to_string(today),
-        boar_id: nil,
+        boar_id: prior && prior.boar_id,
         pen_id: sow.current_pen_id,
         notes: nil,
+        semen: prior && prior.semen,
         error_message: nil
       }
 
@@ -550,6 +577,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
         boar_id: if(service_type == "natural", do: boar_id, else: nil),
         pen_id: pen_id,
         notes: Shared.presence(Map.get(params, "notes")),
+        semen: Shared.presence(Map.get(params, "semen")),
         error_message: nil
     }
 
@@ -568,6 +596,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
       }
       |> maybe_put("boar_id", svc.boar_id)
       |> maybe_put("pen_id", svc.pen_id)
+      |> maybe_put("semen", svc.semen)
 
     case Breeding.record_service_with_backfill(socket.assigns.current_scope, attrs) do
       {:ok, %{sow: sow}} ->

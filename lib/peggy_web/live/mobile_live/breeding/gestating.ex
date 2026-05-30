@@ -174,7 +174,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                 <.icon name="hero-chevron-left" class="size-5" />
               </button>
               <div class={["flex-1", @sheet_mode == :menu && "text-center"]}>
-                <div class="font-mono font-bold text-lg">{@sheet_sow_tag}</div>
+                <.link
+                  :if={@sheet_service}
+                  navigate={~p"/m/#{@current_scope.farm.slug}/animals/#{@sheet_service.sow_id}"}
+                  class="font-mono font-bold text-lg text-primary underline underline-offset-2 decoration-dotted active:decoration-solid"
+                >
+                  {@sheet_sow_tag}
+                </.link>
+                <div
+                  :if={is_nil(@sheet_service)}
+                  class="font-mono font-bold text-lg"
+                >
+                  {@sheet_sow_tag}
+                </div>
                 <div :if={@sheet_service} class="text-xs text-base-content/60">
                   {gettext("Expected")} {expected_for(@current_scope, @sheet_service)} · {days_left_label(
                     days_left_for(@current_scope, @sheet_service, @today)
@@ -336,6 +348,12 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                     {gettext("Abortion")}
                   </option>
                   <option
+                    value="failed_pregnancy"
+                    selected={Phoenix.HTML.Form.input_value(f, :result) == "failed_pregnancy"}
+                  >
+                    {gettext("Failed pregnancy")}
+                  </option>
+                  <option
                     value="death"
                     selected={Phoenix.HTML.Form.input_value(f, :result) == "death"}
                   >
@@ -439,6 +457,21 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                   name="served_at"
                   value={@service_served_at}
                   class="input input-bordered input-lg w-full mt-1"
+                />
+              </label>
+
+              <label class="block">
+                <span class="text-xs uppercase text-base-content/60">
+                  {gettext("Semen (optional)")}
+                </span>
+                <input
+                  type="text"
+                  name="semen"
+                  value={@service_semen}
+                  phx-debounce="300"
+                  autocomplete="off"
+                  placeholder={gettext("Semen code")}
+                  class="input input-bordered input-lg w-full mt-1 font-mono"
                 />
               </label>
 
@@ -655,6 +688,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
        service_pen_code: "",
        service_pen_state: :empty,
        service_pen_id: nil,
+       service_semen: nil,
        service_error: nil,
        sort: "served",
        dir: "asc"
@@ -929,6 +963,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
          service_pen_code: "",
          service_pen_state: :empty,
          service_pen_id: nil,
+         service_semen: nil,
          service_error: nil
        )
        |> resolve_service_sow(sow_tag)}
@@ -986,6 +1021,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
     |> assign(
       service_type: Map.get(params, "service_type", socket.assigns.service_type),
       service_served_at: Map.get(params, "served_at", socket.assigns.service_served_at),
+      service_semen: Shared.presence(Map.get(params, "semen", socket.assigns.service_semen)),
       service_error: nil
     )
     |> resolve_service_sow(params["sow_tag"])
@@ -1024,6 +1060,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             }
             |> maybe_put("boar_id", socket.assigns.service_boar_id)
             |> maybe_put("pen_id", socket.assigns.service_pen_id)
+            |> maybe_put("semen", Shared.presence(params["semen"]))
 
           case Breeding.record_service_with_backfill(socket.assigns.current_scope, attrs) do
             {:ok, %{service: service}} ->
