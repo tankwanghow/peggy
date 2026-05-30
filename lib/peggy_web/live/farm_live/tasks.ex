@@ -2,9 +2,10 @@ defmodule PeggyWeb.FarmLive.Tasks do
   @moduledoc """
   Tasks list — assignable, completable workflow items per farm.
 
-  Phase 8 v1: manual create + bulk complete + reassign + delete.
-  No auto-generation yet (a Scheduler GenServer will add scheduled
-  tasks like "wean due" / "vax due" in a follow-up).
+  User-generated only: manual create + bulk complete + reassign + delete.
+  Breeding worklists (Gestating "due to farrow", Lactating "wean due")
+  live in the Breeding section and are intentionally not duplicated
+  here.
   """
   use PeggyWeb, :live_view
 

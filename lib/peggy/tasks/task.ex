@@ -2,7 +2,7 @@ defmodule Peggy.Tasks.Task do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @kinds ~w(ad_hoc wean farrow check review service vaccinate)
+  @kinds ~w(ad_hoc check review service vaccinate)
 
   schema "tasks" do
     field :title, :string
