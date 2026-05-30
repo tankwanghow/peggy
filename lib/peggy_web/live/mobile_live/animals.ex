@@ -24,8 +24,8 @@ defmodule PeggyWeb.MobileLive.Animals do
             <input
               type="search"
               name="q"
-              value={@filters.pen_search}
-              placeholder={gettext("Pen search (H-P)…")}
+              value={@filters.tag_search}
+              placeholder={gettext("Ear tag…")}
               phx-debounce="300"
               autocomplete="off"
               class="input input-bordered input-lg flex-1 font-mono text-base"
@@ -487,7 +487,7 @@ defmodule PeggyWeb.MobileLive.Animals do
 
   @impl true
   def handle_event("search", %{"q" => q}, socket),
-    do: {:noreply, push_patch_filters(socket, %{"pen_search" => q})}
+    do: {:noreply, push_patch_filters(socket, %{"tag_search" => q})}
 
   def handle_event("filter", params, socket) do
     new_stage = params["stage"] || ""

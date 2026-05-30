@@ -167,5 +167,110 @@ defmodule Peggy.AnimalActivityTest do
 
       assert {:error, :service_has_closed_outcome} = Breeding.delete_service(scope, service)
     end
+
+    test "undoes an abortion (service reopens, sow open → served)", %{scope: scope, sow: sow} do
+      service = service_fixture(scope, sow, served_at: ~D[2026-01-01], service_type: "ai")
+
+      {:ok, _closed} =
+        Breeding.close_service(scope, service, "abortion", %{"result_at" => ~D[2026-02-10]})
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "open"
+
+      assert {:ok, :service, reopened} = AnimalActivity.undo_latest(scope, sow)
+      assert is_nil(reopened.result)
+      assert is_nil(reopened.result_at)
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "served"
+    end
+
+    test "undoes a failed_pregnancy (service reopens, sow open → served)", %{
+      scope: scope,
+      sow: sow
+    } do
+      service = service_fixture(scope, sow, served_at: ~D[2026-01-01], service_type: "ai")
+
+      {:ok, _closed} =
+        Breeding.close_service(scope, service, "failed_pregnancy", %{
+          "result_at" => ~D[2026-02-15]
+        })
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "open"
+
+      assert {:ok, :service, reopened} = AnimalActivity.undo_latest(scope, sow)
+      assert is_nil(reopened.result)
+      assert is_nil(reopened.result_at)
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "served"
+    end
+
+    test "single undo unwinds a re_service auto-close pair atomically", %{
+      scope: scope,
+      sow: sow
+    } do
+      # Prior service that will get auto-closed as re_service.
+      prior =
+        service_fixture(scope, sow, served_at: ~D[2026-01-01], service_type: "ai")
+
+      # A new service ~30 days later — well outside the collapse window
+      # (default 7 days), so the resolver closes prior as re_service and
+      # inserts a fresh open service.
+      {:ok, _new_service} =
+        Breeding.record_service(scope, %{
+          "sow_id" => sow.id,
+          "service_type" => "ai",
+          "served_at" => "2026-01-30"
+        })
+
+      prior = Peggy.Repo.get!(Peggy.Breeding.Service, prior.id)
+      assert prior.result == "re_service"
+      assert prior.result_at == ~D[2026-01-30]
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "served"
+
+      # One click of Undo should soft-delete the new service AND reopen
+      # the prior so the sow's prior gestation continues.
+      assert {:ok, :service, _new} = AnimalActivity.undo_latest(scope, sow)
+
+      prior = Peggy.Repo.get!(Peggy.Breeding.Service, prior.id)
+      assert is_nil(prior.result)
+      assert is_nil(prior.result_at)
+
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "served"
+    end
+
+    test "undoes a mounting collapse on an open service", %{scope: scope, sow: sow} do
+      # First service.
+      first =
+        service_fixture(scope, sow, served_at: ~D[2026-01-01], service_type: "ai")
+
+      assert first.mounting_count == 1
+      assert first.last_serviced_at == ~D[2026-01-01]
+
+      # Second service 3 days later — inside the collapse window.
+      # No new row is created; `first` gets mounting_count bumped and
+      # last_serviced_at pushed forward.
+      {:ok, collapsed} =
+        Breeding.record_service(scope, %{
+          "sow_id" => sow.id,
+          "service_type" => "ai",
+          "served_at" => "2026-01-04"
+        })
+
+      assert collapsed.id == first.id
+      assert collapsed.mounting_count == 2
+      assert collapsed.last_serviced_at == ~D[2026-01-04]
+
+      # Undo should rewind the mounting using the audit-row snapshot.
+      assert {:ok, :mounting, restored} = AnimalActivity.undo_latest(scope, sow)
+      assert restored.mounting_count == 1
+      assert restored.last_serviced_at == ~D[2026-01-01]
+      assert is_nil(restored.result)
+    end
   end
 end

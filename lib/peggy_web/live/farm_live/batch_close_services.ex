@@ -135,6 +135,12 @@ defmodule PeggyWeb.FarmLive.BatchCloseServices do
                         <option value="abortion" selected={row.result == "abortion"}>
                           {gettext("Abortion")}
                         </option>
+                        <option
+                          value="failed_pregnancy"
+                          selected={row.result == "failed_pregnancy"}
+                        >
+                          {gettext("Failed pregnancy")}
+                        </option>
                         <option value="death" selected={row.result == "death"}>
                           {gettext("Death")}
                         </option>

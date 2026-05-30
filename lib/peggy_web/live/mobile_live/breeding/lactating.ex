@@ -182,7 +182,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                 <.icon name="hero-chevron-left" class="size-5" />
               </button>
               <div class={["flex-1", @sheet_mode == :menu && "text-center"]}>
-                <div class="font-mono font-bold text-lg">{@sheet_sow_tag}</div>
+                <.link
+                  :if={@sheet_farrowing}
+                  navigate={~p"/m/#{@current_scope.farm.slug}/animals/#{@sheet_farrowing.sow_id}"}
+                  class="font-mono font-bold text-lg text-primary underline underline-offset-2 decoration-dotted active:decoration-solid"
+                >
+                  {@sheet_sow_tag}
+                </.link>
+                <div
+                  :if={is_nil(@sheet_farrowing)}
+                  class="font-mono font-bold text-lg"
+                >
+                  {@sheet_sow_tag}
+                </div>
                 <div class="text-xs text-base-content/60">
                   {gettext("Surviving %{n}", n: @sheet_surviving)}
                 </div>

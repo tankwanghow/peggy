@@ -816,12 +816,16 @@ defmodule Peggy.Breeding do
 
     case prior |> Ecto.Changeset.change(changes) |> repo.update() do
       {:ok, updated} ->
+        # Record the BEFORE state too so `undo_last_mounting/2` can
+        # rewind a collapsed re-service back to the prior mounting.
         Audit.log_now!(scope, "service.mounted",
           entity_type: :service,
           entity_id: updated.id,
           changes: %{
             "mounting_count" => updated.mounting_count,
             "last_serviced_at" => to_string(updated.last_serviced_at),
+            "previous_mounting_count" => prior.mounting_count || 1,
+            "previous_last_serviced_at" => to_string(prior.last_serviced_at),
             "added_served_at" => to_string(new_served_at),
             "service_type" => attrs["service_type"]
           }
@@ -894,8 +898,10 @@ defmodule Peggy.Breeding do
     end
   end
 
-  # Sow becomes "open" after abortion — ready to be re-served
-  defp handle_sow_after_close(multi, _scope, sow_id, "abortion", _attrs) do
+  # Sow becomes "open" after abortion or a detected failed pregnancy
+  # (operator confirmed the sow didn't take) — ready to be re-served
+  defp handle_sow_after_close(multi, _scope, sow_id, result, _attrs)
+       when result in ["abortion", "failed_pregnancy"] do
     Multi.run(multi, :update_sow, fn _repo, _ ->
       sow = Repo.get!(Animal, sow_id)
       sow |> Ecto.Changeset.change(%{status: "open"}) |> Repo.update()
@@ -933,7 +939,7 @@ defmodule Peggy.Breeding do
   # ── Batch close-services (with back-fill) ────────────────────────────
 
   @gestation_backfill_offset 60
-  @valid_close_results ~w(abortion death cull)
+  @valid_close_results ~w(abortion failed_pregnancy death cull)
 
   @doc """
   Batch variant for closing gestation cycles with back-fill.
@@ -1306,6 +1312,257 @@ defmodule Peggy.Breeding do
   end
 
   defp maybe_revert_sow_to_dry(multi, _service), do: multi
+
+  @doc """
+  Unified "undo this service event" for the animal-trace Undo button.
+
+  Handles four cases atomically:
+
+    1. **Open service inserted as the auto-close partner of a prior
+       `re_service`-closed service.** Detected by looking for another
+       same-sow service with `result == "re_service"` and
+       `result_at == this.served_at` (the timestamp set by
+       `close_prior_as_re_service/4`). Soft-deletes the new one and
+       reopens the prior so the sow returns to her prior gestation
+       under the original service. Sow stays `"served"`.
+
+    2. **Open service with no auto-resolve partner.** Identical to
+       `delete_service/2` — soft-delete + sow `"served"` → `"open"`.
+
+    3. **Service closed as `abortion` / `failed_pregnancy`.** Reopens
+       (clears `result` / `result_at`); sow `"open"` → `"served"` only
+       when she's currently `"open"` and no newer open service exists
+       (otherwise the newer one already governs her status).
+
+    4. **Service closed as `re_service`.** Same as plain
+       `delete_service/2` — soft-deletes the row.
+
+  Refuses farrowing- / death- / cull-closed services
+  (`:service_has_closed_outcome`) — those have their own undo paths
+  (`delete_farrowing/2` and `undo_last_movement/2` respectively).
+  """
+  def undo_service(%Scope{} = scope, %Service{} = service) do
+    cond do
+      not is_nil(service.deleted_at) ->
+        {:error, :already_deleted}
+
+      service.result in ["farrowing", "death", "cull"] ->
+        {:error, :service_has_closed_outcome}
+
+      service.result in ["abortion", "failed_pregnancy"] ->
+        do_reopen_closed_service(scope, service)
+
+      is_nil(service.result) ->
+        case fetch_re_service_partner(scope, service) do
+          nil -> do_delete_service(scope, service)
+          partner -> do_undo_resolver_pair(scope, service, partner)
+        end
+
+      service.result == "re_service" ->
+        do_delete_service(scope, service)
+
+      true ->
+        {:error, :service_has_closed_outcome}
+    end
+  end
+
+  # Looks for the prior service that was auto-closed as `re_service`
+  # when `service` was inserted. The resolver sets the prior's
+  # `result_at` to `new.served_at`, so that exact match is the link.
+  defp fetch_re_service_partner(%Scope{farm: farm}, %Service{} = service) do
+    Repo.one(
+      from s in Service,
+        where:
+          s.farm_id == ^farm.id and
+            s.sow_id == ^service.sow_id and
+            s.id != ^service.id and
+            s.result == "re_service" and
+            s.result_at == ^service.served_at and
+            is_nil(s.deleted_at),
+        order_by: [desc: s.id],
+        limit: 1
+    )
+  end
+
+  defp do_undo_resolver_pair(scope, new_service, prior_service) do
+    now = DateTime.utc_now(:second)
+    user_id = scope.user && scope.user.id
+
+    multi =
+      Multi.new()
+      |> Multi.update(
+        :service,
+        Ecto.Changeset.change(new_service, %{deleted_at: now, deleted_by_id: user_id})
+      )
+      |> Multi.update(:reopened_prior, Service.reopen_changeset(prior_service))
+      |> Audit.log!(scope, "service.deleted",
+        entity_type: :service,
+        entity_id: new_service.id,
+        changes: %{snapshot: service_snapshot(new_service), resolver_undo: true}
+      )
+      |> Audit.log!(scope, "service.reopened",
+        entity_type: :service,
+        entity_id: prior_service.id,
+        changes: %{reason: "resolver_undo", paired_service_id: new_service.id}
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{service: s}} -> {:ok, s}
+      {:error, step, reason, _} -> {:error, {step, reason}}
+    end
+  end
+
+  defp do_reopen_closed_service(scope, service) do
+    if newer_open_service?(scope, service) do
+      {:error, :newer_open_service}
+    else
+      multi =
+        Multi.new()
+        |> Multi.update(:service, Service.reopen_changeset(service))
+        |> maybe_restore_sow_to_served(service)
+        |> Audit.log!(scope, "service.reopened",
+          entity_type: :service,
+          entity_id: service.id,
+          changes: %{
+            reason: "undo_close",
+            previous_result: service.result,
+            previous_result_at: to_string(service.result_at)
+          }
+        )
+
+      case Repo.transaction(multi) do
+        {:ok, %{service: s}} -> {:ok, s}
+        {:error, step, reason, _} -> {:error, {step, reason}}
+      end
+    end
+  end
+
+  defp newer_open_service?(%Scope{farm: farm}, %Service{} = service) do
+    Repo.exists?(
+      from s in Service,
+        where:
+          s.farm_id == ^farm.id and
+            s.sow_id == ^service.sow_id and
+            s.id != ^service.id and
+            is_nil(s.result) and
+            is_nil(s.deleted_at)
+    )
+  end
+
+  defp maybe_restore_sow_to_served(multi, %Service{sow_id: sow_id}) do
+    Multi.run(multi, :revert_sow, fn repo, _ ->
+      sow = repo.get!(Animal, sow_id)
+
+      if sow.status == "open" do
+        sow |> Ecto.Changeset.change(%{status: "served"}) |> repo.update()
+      else
+        {:ok, sow}
+      end
+    end)
+  end
+
+  @doc """
+  Rewinds the most recent mounting added to `service` by
+  `collapse_into_prior/5`. Decrements `mounting_count` and restores
+  `last_serviced_at` from the `service.mounted` audit row's snapshot.
+
+  Returns `{:error, :no_mounting_to_undo}` when the service has only
+  one mounting (or no audit-trail snapshot exists, which is the case
+  for collapses recorded before the audit row was extended to carry
+  pre-state).
+  """
+  def undo_last_mounting(%Scope{farm: farm} = scope, %Service{} = service) do
+    cond do
+      not is_nil(service.deleted_at) ->
+        {:error, :already_deleted}
+
+      not is_nil(service.result) ->
+        {:error, :service_closed}
+
+      (service.mounting_count || 1) <= 1 ->
+        {:error, :no_mounting_to_undo}
+
+      true ->
+        case latest_mounting_audit(farm.id, service.id) do
+          nil ->
+            {:error, :no_mounting_to_undo}
+
+          audit ->
+            apply_mounting_undo(scope, service, audit)
+        end
+    end
+  end
+
+  defp latest_mounting_audit(farm_id, service_id) do
+    Repo.one(
+      from a in AuditLog,
+        where:
+          a.farm_id == ^farm_id and
+            a.action == "service.mounted" and
+            a.entity_type == "service" and
+            a.entity_id == ^to_string(service_id),
+        order_by: [desc: a.inserted_at, desc: a.id],
+        limit: 1
+    )
+  end
+
+  defp apply_mounting_undo(scope, service, audit) do
+    with %{} = changes <- audit.changes,
+         {:ok, prev_count} <- fetch_int(changes, "previous_mounting_count"),
+         {:ok, prev_last_str} <- fetch_str(changes, "previous_last_serviced_at"),
+         {:ok, %Date{} = prev_last} <- Date.from_iso8601(prev_last_str) do
+      multi =
+        Multi.new()
+        |> Multi.update(
+          :service,
+          Ecto.Changeset.change(service, %{
+            mounting_count: prev_count,
+            last_serviced_at: prev_last
+          })
+        )
+        |> Audit.log!(scope, "service.mounting.undone",
+          entity_type: :service,
+          entity_id: service.id,
+          changes: %{
+            "previous_mounting_count" => service.mounting_count,
+            "previous_last_serviced_at" => to_string(service.last_serviced_at),
+            "restored_mounting_count" => prev_count,
+            "restored_last_serviced_at" => prev_last_str,
+            "from_audit_id" => audit.id
+          }
+        )
+
+      case Repo.transaction(multi) do
+        {:ok, %{service: s}} -> {:ok, s}
+        {:error, step, reason, _} -> {:error, {step, reason}}
+      end
+    else
+      _ -> {:error, :no_mounting_to_undo}
+    end
+  end
+
+  defp fetch_int(map, key) do
+    case Map.get(map, key) do
+      n when is_integer(n) ->
+        {:ok, n}
+
+      n when is_binary(n) ->
+        case Integer.parse(n) do
+          {i, ""} -> {:ok, i}
+          _ -> :error
+        end
+
+      _ ->
+        :error
+    end
+  end
+
+  defp fetch_str(map, key) do
+    case Map.get(map, key) do
+      s when is_binary(s) and s != "" -> {:ok, s}
+      _ -> :error
+    end
+  end
 
   @doc """
   Lists soft-deleted services for the farm, newest first.
@@ -1804,7 +2061,9 @@ defmodule Peggy.Breeding do
 
         abortions =
           from(s in Service,
-            where: s.farm_id == ^farm.id and is_nil(s.deleted_at) and s.result == "abortion",
+            where:
+              s.farm_id == ^farm.id and is_nil(s.deleted_at) and
+                s.result in ["abortion", "failed_pregnancy"],
             group_by: s.sow_id,
             select: %{sow_id: s.sow_id, last_at: max(s.result_at)}
           )
@@ -1916,7 +2175,7 @@ defmodule Peggy.Breeding do
         from(s in Service,
           where:
             s.farm_id == ^farm.id and s.sow_id in ^ids and
-              is_nil(s.deleted_at) and s.result == "abortion",
+              is_nil(s.deleted_at) and s.result in ["abortion", "failed_pregnancy"],
           group_by: s.sow_id,
           select: {s.sow_id, max(s.result_at)}
         )
@@ -2027,12 +2286,12 @@ defmodule Peggy.Breeding do
   the farrowing (plus the `LitterEvent` ledger for deaths and fostering).
   A weaner-stage batch `Animal` is created at weaning time.
   """
-  def record_farrowing(%Scope{} = scope, %Service{} = service, attrs) do
+  def record_farrowing(%Scope{} = scope, %Service{} = service, attrs, opts \\ []) do
     attrs = stringify_keys(attrs)
 
     with :ok <- ensure_service_open(service),
          :ok <- ensure_sow_served(service),
-         :ok <- ensure_gestation_in_range(scope, service, attrs) do
+         :ok <- ensure_gestation_in_range(scope, service, attrs, opts) do
       do_record_farrowing(scope, service, attrs)
     end
   end
@@ -2047,15 +2306,19 @@ defmodule Peggy.Breeding do
     end
   end
 
-  defp ensure_gestation_in_range(scope, %Service{served_at: served_at}, attrs) do
+  # `:gestation_tolerance` lets callers (the legacy CSV importer) widen
+  # the accepted gestation window. Defaults to the farm's configured
+  # tolerance so normal operational paths are unchanged.
+  defp ensure_gestation_in_range(scope, %Service{served_at: served_at}, attrs, opts) do
     case parse_date(attrs["farrowed_at"]) do
       nil ->
         :ok
 
       %Date{} = farrowed_at ->
+        tolerance = Keyword.get(opts, :gestation_tolerance, gestation_tolerance_days(scope))
         diff = abs(Date.diff(farrowed_at, served_at) - gestation_days(scope))
 
-        if diff <= gestation_tolerance_days(scope),
+        if diff <= tolerance,
           do: :ok,
           else: {:error, :gestation_out_of_range}
     end
@@ -2119,10 +2382,11 @@ defmodule Peggy.Breeding do
   created with `service_type: "ai"` and `inferred: true`, and created
   sows/services carry `created_via: "farrowing_backfill"`.
   """
-  def record_farrowing_with_backfill(%Scope{farm: farm} = scope, mode, attrs) do
+  def record_farrowing_with_backfill(%Scope{farm: farm} = scope, mode, attrs, opts \\ []) do
     attrs = stringify_keys(attrs)
     served_at = parse_date(attrs["served_at"])
     farrowed_at = parse_date(attrs["farrowed_at"])
+    tolerance = Keyword.get(opts, :gestation_tolerance, gestation_tolerance_days(farm))
 
     cond do
       is_nil(served_at) ->
@@ -2131,8 +2395,7 @@ defmodule Peggy.Breeding do
       is_nil(farrowed_at) ->
         {:error, :farrowed_at_required}
 
-      abs(Date.diff(farrowed_at, served_at) - gestation_days(farm)) >
-          gestation_tolerance_days(farm) ->
+      abs(Date.diff(farrowed_at, served_at) - gestation_days(farm)) > tolerance ->
         {:error, :gestation_out_of_range}
 
       true ->
@@ -2146,7 +2409,7 @@ defmodule Peggy.Breeding do
           with {:ok, sow} <- resolve_or_create_backfill_sow(scope, mode),
                {:ok, sow} <- ensure_sow_served_for_backfill(sow),
                {:ok, service} <- insert_backfill_service(scope, farm.id, sow.id, attrs) do
-            case record_farrowing(scope, service, farrowing_attrs) do
+            case record_farrowing(scope, service, farrowing_attrs, opts) do
               {:ok, farrowing} -> farrowing
               {:error, reason} -> Repo.rollback(reason)
             end
@@ -2906,7 +3169,7 @@ defmodule Peggy.Breeding do
         from(s in Service,
           where:
             s.farm_id == ^farm.id and s.sow_id in ^ids and
-              s.result == "abortion" and is_nil(s.deleted_at),
+              s.result in ["abortion", "failed_pregnancy"] and is_nil(s.deleted_at),
           group_by: s.sow_id,
           select: {s.sow_id, max(s.result_at)}
         )

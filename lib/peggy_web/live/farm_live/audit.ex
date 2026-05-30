@@ -16,7 +16,7 @@ defmodule PeggyWeb.FarmLive.Audit do
           <:subtitle>{gettext("Every change to this farm, newest first.")}</:subtitle>
         </.header>
 
-        <form phx-change="filter" class="mt-4 flex gap-3">
+        <form phx-change="filter" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
           <.input
             name="entity_type"
             value={@filter_entity || ""}
@@ -31,6 +31,19 @@ defmodule PeggyWeb.FarmLive.Audit do
             value={@filter_action || ""}
             type="text"
             label={gettext("Action contains")}
+          />
+          <.input
+            name="changes_key"
+            value={@filter_changes_key || ""}
+            type="select"
+            label={gettext("Changes key")}
+            options={[{gettext("Any key"), ""} | Enum.map(@change_keys, &{&1, &1})]}
+          />
+          <.input
+            name="changes_value"
+            value={@filter_changes_value || ""}
+            type="text"
+            label={gettext("Changes value contains")}
           />
         </form>
 
@@ -80,9 +93,17 @@ defmodule PeggyWeb.FarmLive.Audit do
   @impl true
   def mount(_params, _session, socket) do
     if Policy.can?(socket.assigns.current_scope, :view_audit) do
+      scope = socket.assigns.current_scope
+
       {:ok,
        socket
-       |> assign(filter_entity: nil, filter_action: nil)
+       |> assign(
+         filter_entity: nil,
+         filter_action: nil,
+         filter_changes_key: nil,
+         filter_changes_value: nil,
+         change_keys: Audit.list_change_keys(scope)
+       )
        |> assign(page: 1, loaded: 0, has_more: false)
        |> stream(:audit, [])
        |> load_rows()}
@@ -95,13 +116,17 @@ defmodule PeggyWeb.FarmLive.Audit do
   end
 
   @impl true
-  def handle_event("filter", %{"entity_type" => et, "action" => act}, socket) do
-    et = if et == "", do: nil, else: et
-    act = if act == "", do: nil, else: act
+  def handle_event("filter", params, socket) do
+    blank_to_nil = fn v -> if v in [nil, ""], do: nil, else: v end
 
     {:noreply,
      socket
-     |> assign(filter_entity: et, filter_action: act)
+     |> assign(
+       filter_entity: blank_to_nil.(params["entity_type"]),
+       filter_action: blank_to_nil.(params["action"]),
+       filter_changes_key: blank_to_nil.(params["changes_key"]),
+       filter_changes_value: blank_to_nil.(params["changes_value"])
+     )
      |> load_rows()}
   end
 
@@ -132,6 +157,8 @@ defmodule PeggyWeb.FarmLive.Audit do
     Audit.list(scope,
       entity_type: socket.assigns.filter_entity,
       action: socket.assigns.filter_action,
+      changes_key: socket.assigns.filter_changes_key,
+      changes_value: socket.assigns.filter_changes_value,
       limit: @per_page,
       offset: offset
     )

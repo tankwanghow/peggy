@@ -14,6 +14,7 @@ defmodule Peggy.AnimalActivity do
   alias Peggy.Accounts.Scope
   alias Peggy.Animals
   alias Peggy.Animals.{Animal, Movement}
+  alias Peggy.Audit.AuditLog
   alias Peggy.Breeding
   alias Peggy.Breeding.{Farrowing, LitterEvent, Service, Weaning}
 
@@ -21,6 +22,7 @@ defmodule Peggy.AnimalActivity do
   @type latest ::
           {:movement, Movement.t()}
           | {:service, Service.t()}
+          | {:mounting, %{service: Service.t(), audit: AuditLog.t()}}
           | {:farrowing, Farrowing.t()}
           | {:weaning, Weaning.t()}
           | {:litter_event, LitterEvent.t()}
@@ -49,6 +51,7 @@ defmodule Peggy.AnimalActivity do
       [
         latest_movement(animal),
         latest_service(animal),
+        latest_mounting(%Scope{farm: farm}, animal),
         latest_farrowing(animal),
         latest_weaning(animal),
         latest_litter_event(animal)
@@ -67,16 +70,23 @@ defmodule Peggy.AnimalActivity do
         Enum.max_by(list, fn {kind, row} ->
           {
             Date.to_gregorian_days(event_date(kind, row)),
-            DateTime.to_unix(row.inserted_at, :microsecond),
+            DateTime.to_unix(event_inserted_at(kind, row), :microsecond),
             kind_priority(kind),
-            row.id
+            event_id(kind, row)
           }
         end)
     end
   end
 
+  defp event_inserted_at(:mounting, %{audit: %{inserted_at: at}}), do: at
+  defp event_inserted_at(_kind, %{inserted_at: at}), do: at
+
+  defp event_id(:mounting, %{audit: %{id: id}}), do: id
+  defp event_id(_kind, %{id: id}), do: id
+
   defp event_date(:movement, %{moved_at: d}), do: d
   defp event_date(:service, %{served_at: d}), do: d
+  defp event_date(:mounting, %{audit: %{inserted_at: at}}), do: DateTime.to_date(at)
   defp event_date(:farrowing, %{farrowed_at: d}), do: d
   defp event_date(:weaning, %{weaned_at: d}), do: d
   defp event_date(:litter_event, %{occurred_at: d}), do: d
@@ -84,6 +94,10 @@ defmodule Peggy.AnimalActivity do
   defp kind_priority(:weaning), do: 4
   defp kind_priority(:farrowing), do: 3
   defp kind_priority(:service), do: 2
+  # A mounting collapse outranks the underlying service row at the
+  # same date so a freshly-collapsed re-service undoes the mounting,
+  # not the whole service.
+  defp kind_priority(:mounting), do: 5
   defp kind_priority(:litter_event), do: 1
   defp kind_priority(:movement), do: 0
 
@@ -91,7 +105,10 @@ defmodule Peggy.AnimalActivity do
   Undoes the latest event for `animal`. Dispatches by kind:
 
     * `:movement` → `Animals.undo_last_movement/2`
-    * `:service`  → `Breeding.delete_service/2`
+    * `:service`  → `Breeding.undo_service/2` (handles open / closed-
+      abortion / closed-failed_pregnancy / re_service-pair atomically)
+    * `:mounting` → `Breeding.undo_last_mounting/2` (rewinds a
+      collapse-into-prior mounting on an open service)
     * `:farrowing` → `Breeding.delete_farrowing/2`
     * `:weaning`  → `Breeding.delete_weaning/2`
     * `:litter_event` → `Breeding.delete_litter_event/2`
@@ -113,9 +130,15 @@ defmodule Peggy.AnimalActivity do
         end
 
       {:service, s} ->
-        case Breeding.delete_service(scope, s) do
+        case Breeding.undo_service(scope, s) do
           {:ok, s} -> {:ok, :service, s}
           {:error, reason} -> {:error, :service, reason}
+        end
+
+      {:mounting, %{service: s}} ->
+        case Breeding.undo_last_mounting(scope, s) do
+          {:ok, s} -> {:ok, :mounting, s}
+          {:error, reason} -> {:error, :mounting, reason}
         end
 
       {:farrowing, f} ->
@@ -174,6 +197,38 @@ defmodule Peggy.AnimalActivity do
         limit: 1
     )
     |> tag(:service)
+  end
+
+  # Latest `service.mounted` audit row for any open service belonging
+  # to this sow. Represents a collapse-into-prior mounting that hasn't
+  # been undone yet. Only rows that carry pre-state in `changes` are
+  # candidates — legacy audit rows can't be undone, so they shouldn't
+  # surface as the latest event.
+  defp latest_mounting(%Scope{farm: farm}, %Animal{id: id}) do
+    row =
+      Repo.one(
+        from a in AuditLog,
+          join: s in Service,
+          on:
+            s.id == fragment("CAST(? AS INTEGER)", a.entity_id) and
+              s.farm_id == ^farm.id and
+              s.sow_id == ^id and
+              is_nil(s.deleted_at) and
+              is_nil(s.result),
+          where:
+            a.farm_id == ^farm.id and
+              a.action == "service.mounted" and
+              a.entity_type == "service" and
+              fragment("? \\? ?", a.changes, "previous_mounting_count"),
+          order_by: [desc: a.inserted_at, desc: a.id],
+          limit: 1,
+          select: %{audit: a, service: s}
+      )
+
+    case row do
+      nil -> nil
+      %{} = pair -> {:mounting, pair}
+    end
   end
 
   defp latest_farrowing(%Animal{id: id}) do
