@@ -41,7 +41,9 @@ defmodule Peggy.Breeding.Farrowing do
       :farm_id
     ])
     |> validate_required([:farrowed_at, :born_alive, :service_id, :sow_id, :farm_id, :pen_id])
-    |> validate_number(:born_alive, greater_than_or_equal_to: 0, less_than_or_equal_to: 20)
+    # Hyperprolific genetics routinely exceed 20 live-born; cap at 25 to
+    # admit real large litters while still catching gross data errors.
+    |> validate_number(:born_alive, greater_than_or_equal_to: 0, less_than_or_equal_to: 25)
     |> validate_number(:stillborn, greater_than_or_equal_to: 0, less_than_or_equal_to: 20)
     |> validate_number(:mummified, greater_than_or_equal_to: 0, less_than_or_equal_to: 20)
     |> validate_number(:total_birth_weight_g, greater_than: 0)
