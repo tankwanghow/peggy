@@ -15,7 +15,7 @@ You can import up to seven CSV files in one run:
 
 | File              | Required? | What it loads                                |
 |-------------------|-----------|----------------------------------------------|
-| `locations.csv`   | optional  | Houses + pens. Skip if pens already exist.   |
+| `locations.csv`   | optional* | Houses + pens. *Must include (or the farm must already have) a `LEGACY/LEGACY` fallback pen. |
 | `sows.csv`        | yes       | The breeding herd — sows (and boars).        |
 | `services.csv`    | optional  | Mating / AI events.                          |
 | `farrowings.csv`  | optional  | Birth events with litter counts.             |
@@ -59,6 +59,30 @@ house's metadata repeated. The importer deduplicates houses by
 `house_code` automatically — you can list the same house on every row
 of its pens without creating duplicates.
 
+### Required: the `LEGACY` fallback pen
+
+Legacy records often don't say where an animal was at a given event.
+The importer needs **one catch-all pen** to hold those cases. Add this
+exact row to `locations.csv` (or create the pen manually before
+importing):
+
+```csv
+house_code,house_purpose,pen_code,capacity,status
+LEGACY,gestation,LEGACY,0,active
+```
+
+The importer routes here when it can't determine a real pen:
+
+- a farrowing with no `pen` whose sow has no known location;
+- a `movements.csv` row pointing at a house/pen that doesn't exist;
+- a sow with no movement history (parked here so she always has a pen).
+
+A real pen always wins — `LEGACY` is only ever a last resort. **If any
+of `sows.csv`, `farrowings.csv`, `weanings.csv`, or `movements.csv` is
+in the run and no `LEGACY/LEGACY` pen exists (in this file or already in
+the farm), the whole import is blocked** with a single error telling you
+to add it.
+
 ### Columns
 
 **Required:**
@@ -84,9 +108,19 @@ of its pens without creating duplicates.
 - `house_purpose` not in the allowed enum.
 - `status` not in the allowed enum.
 - Negative `capacity`.
-- Duplicate `(house_code, pen_code)` pair within the file (case-insensitive).
+- No resolvable `LEGACY/LEGACY` fallback pen while `sows`/`farrowings`/`weanings`/`movements` are in the run (see above).
 
-**Warnings**: none — pens are either valid or not.
+**Warnings** (imported, with a note):
+- Duplicate `(house_code, pen_code)` pair within the file (case-insensitive)
+  is **auto-skipped** — the first occurrence creates the pen, later rows are
+  no-ops. Pens that already exist in the farm are likewise reused, not
+  duplicated.
+
+> **Pen codes ignore leading zeros.** `pen_code` is matched case-insensitively
+> and with leading zeros stripped on numeric codes, so a movement to `AB-01`
+> resolves to pen `AB-1` (and vice-versa). You don't need to make the padding
+> in `movements.csv` match `locations.csv` by hand. `A1`-style codes are
+> matched verbatim.
 
 ### Why no auto-create from `sows.csv`?
 
@@ -109,6 +143,7 @@ FA,farrowing,02,1,active
 DA,nursery,A1,40,active
 DA,nursery,A2,40,active
 HB,grower,1,80,active
+LEGACY,gestation,LEGACY,0,active
 ```
 
 ---

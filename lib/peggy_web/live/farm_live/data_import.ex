@@ -286,15 +286,21 @@ defmodule PeggyWeb.FarmLive.DataImport do
           <div class="rounded-md border border-base-200 p-4 text-sm">
             <h3 class="font-semibold mb-2">{gettext("Per-file outcomes")}</h3>
             <ul class="space-y-1">
-              <.outcome_row label="locations.csv" file={@outcome.locations} />
-              <.outcome_row label="sows.csv" file={@outcome.sows} />
-              <.outcome_row label="services.csv" file={@outcome.services} />
-              <.outcome_row label="farrowings.csv" file={@outcome.farrowings} />
-              <.outcome_row label="weanings.csv" file={@outcome.weanings} />
-              <.outcome_row label="culls.csv" file={@outcome.culls} />
-              <.outcome_row label="movements.csv" file={@outcome.movements} />
+              <.outcome_row kind={:locations} label="locations.csv" file={@outcome.locations} />
+              <.outcome_row kind={:sows} label="sows.csv" file={@outcome.sows} />
+              <.outcome_row kind={:services} label="services.csv" file={@outcome.services} />
+              <.outcome_row kind={:farrowings} label="farrowings.csv" file={@outcome.farrowings} />
+              <.outcome_row kind={:weanings} label="weanings.csv" file={@outcome.weanings} />
+              <.outcome_row kind={:culls} label="culls.csv" file={@outcome.culls} />
+              <.outcome_row kind={:movements} label="movements.csv" file={@outcome.movements} />
             </ul>
           </div>
+
+          <.failures_modal
+            :if={@failures_kind}
+            kind={@failures_kind}
+            file={Map.fetch!(@outcome, @failures_kind)}
+          />
 
           <div class="flex gap-2 justify-end">
             <.link
@@ -366,8 +372,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
         </summary>
         <ul class="mt-1 ml-4 space-y-0.5 text-xs text-error">
           <li :for={row <- Enum.take(@file.err, 50)}>
-            <span class="font-mono">row {row[:line]}</span>
-            — {(row[:issues] || []) |> Enum.map(& &1.msg) |> Enum.join("; ")}
+            <span class="font-mono">row {row[:line]}</span> — {err_row_message(row)}
           </li>
           <li :if={length(@file.err) > 50} class="text-base-content/50">
             … {length(@file.err) - 50} {gettext("more")}
@@ -378,6 +383,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
     """
   end
 
+  attr :kind, :atom, required: true
   attr :label, :string, required: true
   attr :file, :map, required: true
 
@@ -387,11 +393,102 @@ defmodule PeggyWeb.FarmLive.DataImport do
       <span class="font-mono">{@label}</span>
       <span>
         <span class="text-success">{@file.ok} {gettext("ok")}</span>
-        <span :if={@file.failed > 0} class="text-error ml-2">
+        <button
+          :if={@file.failed > 0}
+          type="button"
+          phx-click="show_failures"
+          phx-value-kind={@kind}
+          class="text-error ml-2 underline decoration-dotted hover:decoration-solid"
+        >
           {@file.failed} {gettext("failed")}
-        </span>
+        </button>
       </span>
     </li>
+    """
+  end
+
+  attr :kind, :atom, required: true
+  attr :file, :map, required: true
+
+  defp failures_modal(assigns) do
+    ~H"""
+    <div
+      id="failures-modal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      phx-window-keydown="close_failures"
+      phx-key="escape"
+    >
+      <div class="bg-base-100 rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <header class="px-4 py-3 border-b border-base-200 flex items-center justify-between gap-3">
+          <h3 class="font-semibold">
+            <span class="font-mono">{@kind}.csv</span>
+            <span class="text-base-content/60 text-sm ml-2">
+              {length(@file.errors)} {gettext("failures")}
+            </span>
+          </h3>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              phx-click="download_failures"
+              phx-value-kind={@kind}
+              class="btn btn-sm btn-primary"
+            >
+              <.icon name="hero-arrow-down-tray-micro" class="size-4" />
+              {gettext("Download CSV")}
+            </button>
+            <button
+              type="button"
+              phx-click="close_failures"
+              class="btn btn-sm btn-ghost"
+              aria-label={gettext("Close")}
+            >
+              <.icon name="hero-x-mark-micro" class="size-4" />
+            </button>
+          </div>
+        </header>
+
+        <div class="overflow-auto flex-1 px-4 py-3">
+          <table class="table table-sm table-zebra w-full">
+            <thead class="sticky top-0 bg-base-100">
+              <tr>
+                <th class="w-24">{gettext("Row")}</th>
+                <th>{gettext("Reason")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={err <- @file.errors}>
+                <td class="font-mono align-top">{err[:line]}</td>
+                <td class="text-error">{err[:reason]}</td>
+              </tr>
+              <tr :if={@file.errors == []}>
+                <td colspan="2" class="text-center text-base-content/50 py-4">
+                  {gettext("No failures recorded.")}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="failures-download" phx-hook=".DownloadFailures" class="hidden"></div>
+      <script :type={Phoenix.LiveView.ColocatedHook} name=".DownloadFailures">
+        export default {
+          mounted() {
+            this.handleEvent("download_csv", ({ filename, content }) => {
+              const blob = new Blob([content], { type: "text/csv;charset=utf-8" })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement("a")
+              a.href = url
+              a.download = filename
+              document.body.appendChild(a)
+              a.click()
+              document.body.removeChild(a)
+              URL.revokeObjectURL(url)
+            })
+          }
+        }
+      </script>
+    </div>
     """
   end
 
@@ -411,6 +508,7 @@ defmodule PeggyWeb.FarmLive.DataImport do
           report: nil,
           outcome: nil,
           busy: nil,
+          failures_kind: nil,
           runs: Imports.list_runs(scope)
         )
         |> allow_uploads()
@@ -473,9 +571,26 @@ defmodule PeggyWeb.FarmLive.DataImport do
        step: :upload,
        report: nil,
        outcome: nil,
+       failures_kind: nil,
        runs: Imports.list_runs(socket.assigns.current_scope)
      )
      |> allow_uploads()}
+  end
+
+  def handle_event("show_failures", %{"kind" => kind}, socket) do
+    {:noreply, assign(socket, :failures_kind, String.to_existing_atom(kind))}
+  end
+
+  def handle_event("close_failures", _, socket),
+    do: {:noreply, assign(socket, :failures_kind, nil)}
+
+  def handle_event("download_failures", %{"kind" => kind}, socket) do
+    kind_atom = String.to_existing_atom(kind)
+    file = Map.fetch!(socket.assigns.outcome, kind_atom)
+    csv = failures_to_csv(file.errors)
+    filename = "#{kind}_failures_#{socket.assigns.outcome.run_id}.csv"
+
+    {:noreply, push_event(socket, "download_csv", %{filename: filename, content: csv})}
   end
 
   # ── Deferred work ──────────────────────────────────────────────────
@@ -580,6 +695,21 @@ defmodule PeggyWeb.FarmLive.DataImport do
     errs
     |> Enum.map(& &1.msg)
     |> Enum.join("; ")
+  end
+
+  # Per-row error text: row-level rows carry `:issues`; file-level rows
+  # (e.g. the missing LEGACY fallback pen) carry a flat `:msg`.
+  defp err_row_message(%{issues: issues}) when is_list(issues),
+    do: issues |> Enum.map(& &1.msg) |> Enum.join("; ")
+
+  defp err_row_message(%{msg: msg}), do: msg
+  defp err_row_message(_), do: ""
+
+  defp failures_to_csv(errors) do
+    rows =
+      Enum.map(errors, fn err -> [to_string(err[:line] || ""), to_string(err[:reason] || "")] end)
+
+    NimbleCSV.RFC4180.dump_to_iodata([["line", "reason"] | rows]) |> IO.iodata_to_binary()
   end
 
   defp error_to_string(:too_large), do: gettext("file is too large (max 5 MB)")

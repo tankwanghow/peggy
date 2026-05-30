@@ -75,7 +75,7 @@ defmodule Peggy.Imports do
 
   @valid_statuses ~w(active open served lactating dry culled)
   @valid_service_types ~w(ai natural)
-  @valid_results ~w(farrowing abortion re_service death cull)
+  @valid_results ~w(farrowing abortion failed_pregnancy re_service death cull)
   # Reasons accepted in culls.csv. Each maps to a final sow `status`
   # (per `Peggy.Animals.Animal` taxonomy) and a `Service.result` for
   # the sow's last open service:
@@ -88,6 +88,14 @@ defmodule Peggy.Imports do
   @valid_cull_reasons ~w(cull slaughtered sold transferred death)
   @valid_house_purposes ~w(breeding gestation farrowing nursery grower finisher quarantine hospital)
   @valid_pen_statuses ~w(active quarantine cleaning retired)
+
+  # Operator-supplied catch-all location for legacy rows with no known
+  # pen. The operator adds a `LEGACY,gestation,LEGACY` row to
+  # locations.csv; the importer routes pen-less farrowings, pen-less
+  # imported sows, and movements to unknown pens here. See
+  # `.claude/skills/legacy-csv-import`.
+  @fallback_house_code "LEGACY"
+  @fallback_pen_code "LEGACY"
 
   # ── Public API ─────────────────────────────────────────────────────
 
@@ -145,6 +153,13 @@ defmodule Peggy.Imports do
     movements =
       parse_file(:movements, files[:movements])
       |> validate_movements(combined_sows, combined_pens)
+
+    # The LEGACY fallback pen must exist (in locations.csv or the DB)
+    # whenever a run could orphan a location — sows, farrowings, or
+    # movements. Block upfront with one actionable error rather than
+    # letting individual rows fail cryptically at commit.
+    locations =
+      require_fallback_pen(locations, combined_pens, [sows, farrowings, weanings, movements])
 
     %{
       locations: locations,
@@ -382,11 +397,14 @@ defmodule Peggy.Imports do
       case {row["house_code"], row["pen_code"]} do
         {h, p} when is_binary(h) and is_binary(p) ->
           if MapSet.member?(seen, location_key(h, p)) do
+            # A repeated house_code+pen_code is auto-skipped, not blocked:
+            # the first occurrence imports the pen and later ones are
+            # no-ops at commit (`Repo.get_by` finds the existing pen).
             [
               %{
-                level: :err,
+                level: :warn,
                 kind: :duplicate,
-                msg: "#{h}+#{p} duplicate house_code+pen_code in this CSV"
+                msg: "#{h}+#{p} duplicate house_code+pen_code in this CSV — skipped"
               }
               | issues
             ]
@@ -401,8 +419,35 @@ defmodule Peggy.Imports do
     classify(issues)
   end
 
+  # Canonical pen-index key. Legacy exports zero-pad codes inconsistently
+  # (movements.csv "AB-01" vs locations.csv "AB-1"); leading zeros are
+  # stripped from purely-numeric segments so the two match. Matching is
+  # case-insensitive. Used everywhere pen keys are built/looked up so the
+  # index, movements, farrowing `pen`, and dedup all agree.
   defp location_key(house, pen),
-    do: String.upcase("#{String.trim(house)}-#{String.trim(pen)}")
+    do: "#{normalize_code_segment(house)}-#{normalize_code_segment(pen)}"
+
+  # A combined "HOUSE-PEN" code (the farrowings.csv `pen` column). Split
+  # on the first hyphen; a bare code with no hyphen normalises as-is.
+  defp combined_pen_key(code) do
+    case String.split(to_string(code), "-", parts: 2) do
+      [house, pen] -> location_key(house, pen)
+      [single] -> normalize_code_segment(single)
+    end
+  end
+
+  defp normalize_code_segment(s) do
+    s = s |> to_string() |> String.trim() |> String.upcase()
+
+    if s =~ ~r/^\d+$/ do
+      case String.trim_leading(s, "0") do
+        "" -> "0"
+        stripped -> stripped
+      end
+    else
+      s
+    end
+  end
 
   defp build_pen_index_from_locations(rows) do
     rows
@@ -881,7 +926,7 @@ defmodule Peggy.Imports do
 
     issues =
       if row["house_code"] && row["pen_code"] do
-        key = String.upcase("#{row["house_code"]}-#{row["pen_code"]}")
+        key = location_key(row["house_code"], row["pen_code"])
 
         if Map.has_key?(pen_index, key),
           do: issues,
@@ -917,7 +962,7 @@ defmodule Peggy.Imports do
 
   defp pen_index(scope) do
     Locations.list_all_pens(scope)
-    |> Map.new(fn p -> {String.upcase("#{p.house.code}-#{p.code}"), p.id} end)
+    |> Map.new(fn p -> {location_key(p.house.code, p.code), p.id} end)
   end
 
   defp parse_date(nil), do: :empty
@@ -1014,6 +1059,12 @@ defmodule Peggy.Imports do
     pens = pen_index(scope)
     {services, farrowings, weanings, movements} = commit_events(scope, events, via, pens)
 
+    # Any sow this run created who is still pen-less (no movement and no
+    # farrowing placed her) is parked in the LEGACY fallback pen so she
+    # has a location everywhere. Scoped to `via` — pre-existing sows are
+    # never touched.
+    place_penless_sows_in_fallback(scope, via, pens)
+
     # Culls run AFTER the event timeline so any open service the
     # timeline left behind (e.g. a sow whose last legacy event was a
     # service that nothing closed) gets closed with the cull result.
@@ -1069,27 +1120,44 @@ defmodule Peggy.Imports do
       end)
       |> Map.new()
 
-    Enum.reduce(rows, %{ok: 0, failed: 0, errors: []}, fn row, acc ->
-      house = Map.fetch!(houses_by_code, String.upcase(row["house_code"]))
+    # Per-house set of normalised pen codes already present (existing DB
+    # pens + ones created earlier in this run). Lets a padded row ("01")
+    # skip when the unpadded pen ("1") already exists, matching the
+    # validation-level dedup and avoiding double-creates.
+    seen =
+      houses_by_code
+      |> Map.new(fn {_k, house} ->
+        codes =
+          Repo.all(from(p in Pen, where: p.house_id == ^house.id, select: p.code))
+          |> Enum.map(&normalize_code_segment/1)
+          |> MapSet.new()
 
-      run_row(acc, row, fn ->
-        case Repo.get_by(Pen, house_id: house.id, code: row["pen_code"]) do
-          %Pen{} ->
-            :ok
+        {house.id, codes}
+      end)
 
-          nil ->
-            attrs = %{
-              "code" => row["pen_code"],
-              "capacity" => parse_int(row["capacity"]) || 0,
-              "status" => row["status"] || "active",
-              "house_id" => house.id,
-              "created_via" => via
-            }
+    {result, _seen} =
+      Enum.reduce(rows, {%{ok: 0, failed: 0, errors: []}, seen}, fn row, {acc, seen} ->
+        house = Map.fetch!(houses_by_code, String.upcase(row["house_code"]))
+        norm = normalize_code_segment(row["pen_code"])
+        house_codes = Map.fetch!(seen, house.id)
 
-            Locations.create_pen(scope, house, attrs)
+        if MapSet.member?(house_codes, norm) do
+          {run_row(acc, row, fn -> :ok end), seen}
+        else
+          attrs = %{
+            "code" => row["pen_code"],
+            "capacity" => parse_int(row["capacity"]) || 0,
+            "status" => row["status"] || "active",
+            "house_id" => house.id,
+            "created_via" => via
+          }
+
+          acc = run_row(acc, row, fn -> Locations.create_pen(scope, house, attrs) end)
+          {acc, Map.put(seen, house.id, MapSet.put(house_codes, norm))}
         end
       end)
-    end)
+
+    result
   end
 
   defp ensure_house!(scope, code, purpose) do
@@ -1117,6 +1185,15 @@ defmodule Peggy.Imports do
     # current_pen_id via the chain of pen_transfer movements processed
     # later. Sows with no movement history land pen-less; assign through
     # the UI.
+    #
+    # Status is always seeded "active" regardless of the sows.csv value.
+    # The CSV carries each sow's FINAL status (culled/lactating/served/
+    # dry); replaying it verbatim would let `check_sow_serviceable`
+    # reject every historical service against a culled/lactating sow.
+    # Instead the event timeline drives status forward (service→served,
+    # farrowing→lactating, weaning→dry) and culls.csv applies terminal
+    # removals afterwards, so the final status is reconstructed, not
+    # imposed up front.
     Enum.reduce(rows, %{ok: 0, failed: 0, errors: []}, fn row, acc ->
       attrs =
         %{
@@ -1125,7 +1202,7 @@ defmodule Peggy.Imports do
           "ear_tag" => row["ear_tag"],
           "breed" => row["breed"],
           "dob" => row["dob"],
-          "status" => row["status"] || "active",
+          "status" => "active",
           "rfid" => row["rfid"],
           "notes" => row["notes"],
           "legacy_parity" => parse_int(row["legacy_parity"]) || 0,
@@ -1262,7 +1339,7 @@ defmodule Peggy.Imports do
   # from anything else, so we keep the pre-closed historic path.
   defp process_event(scope, %{kind: :service, row: row}, via, _pens) do
     case row["result"] do
-      result when result in ["abortion", "death", "cull"] ->
+      result when result in ["abortion", "failed_pregnancy", "death", "cull"] ->
         commit_closed_service(scope, row, via)
 
       _ ->
@@ -1379,11 +1456,25 @@ defmodule Peggy.Imports do
     sow_tag = row["sow_ear_tag"]
     farrowed_at = parse_date_or_nil(row["farrowed_at"])
 
-    pen_id =
+    # Validate gestation with the same wide window the importer uses to
+    # match the open service (below). Legacy gestation lengths drift a
+    # few days off the 114-day ideal; without this the matched service
+    # passes the ±14d match but the farrowing fails the narrow ±3d farm
+    # validation, orphaning the service.
+    opts = [gestation_tolerance: import_gestation_tolerance(scope)]
+
+    sow = Animals.find_by_ear_tag(scope, sow_tag)
+
+    row_pen_id =
       case row["pen"] do
         nil -> nil
-        code -> Map.get(pens, String.upcase(code))
+        code -> Map.get(pens, combined_pen_key(code))
       end
+
+    # Pen resolution chain: an explicit row pen wins, then the sow's pen
+    # at farrowing time, then the LEGACY fallback as last resort. Passed
+    # explicitly so the fallback can never override a real current_pen_id.
+    pen_id = row_pen_id || (sow && sow.current_pen_id) || fallback_pen_id(pens)
 
     attrs =
       %{
@@ -1401,17 +1492,22 @@ defmodule Peggy.Imports do
       }
       |> drop_nils()
 
-    case Animals.find_by_ear_tag(scope, sow_tag) do
+    case sow do
       %Animal{id: sow_id} ->
         case find_open_service_for_farrowing(scope, sow_id, farrowed_at) do
           %Service{} = service ->
-            case Breeding.record_farrowing(scope, service, attrs) do
+            case Breeding.record_farrowing(scope, service, attrs, opts) do
               {:ok, _} -> :ok
               err -> err
             end
 
           nil ->
-            case Breeding.record_farrowing_with_backfill(scope, {:existing_sow, sow_id}, attrs) do
+            case Breeding.record_farrowing_with_backfill(
+                   scope,
+                   {:existing_sow, sow_id},
+                   attrs,
+                   opts
+                 ) do
               {:ok, _} -> :ok
               err -> err
             end
@@ -1421,7 +1517,8 @@ defmodule Peggy.Imports do
         case Breeding.record_farrowing_with_backfill(
                scope,
                {:new_sow, %{"ear_tag" => sow_tag}},
-               attrs
+               attrs,
+               opts
              ) do
           {:ok, _} -> :ok
           err -> err
@@ -1482,14 +1579,71 @@ defmodule Peggy.Imports do
   # accidentally match a service from a neighbouring cycle.
   @import_gestation_tolerance_days 14
 
+  # The gestation tolerance the importer applies — both for matching a
+  # farrowing to its open service AND for validating that farrowing —
+  # so the two never disagree. Never narrower than the farm's setting.
+  defp import_gestation_tolerance(%Scope{farm: farm}),
+    do: max(Breeding.gestation_tolerance_days(farm), @import_gestation_tolerance_days)
+
+  defp fallback_pen_key, do: location_key(@fallback_house_code, @fallback_pen_code)
+
+  # The id of the LEGACY/LEGACY fallback pen, or nil if absent. The
+  # validation gate (`require_fallback_pen/3`) blocks any import that
+  # would need it without it, so commit-time lookups expect it present.
+  defp fallback_pen_id(pens), do: Map.get(pens, fallback_pen_key())
+
+  # Blocking gate: if any supplied file has rows that could leave an
+  # animal/event without a pen, the LEGACY fallback must be resolvable
+  # (locations.csv or DB). Otherwise append one actionable error to the
+  # locations file so `summary.blocking_errors` stops the commit.
+  defp require_fallback_pen(locations, combined_pens, files) do
+    needs? = Enum.any?(files, &(&1.rows != []))
+    present? = Map.has_key?(combined_pens, fallback_pen_key())
+
+    if needs? and not present? do
+      err = %{
+        line: 0,
+        kind: :missing_fallback_pen,
+        msg:
+          "legacy import needs a fallback pen: add a " <>
+            "\"#{@fallback_house_code},gestation,#{@fallback_pen_code}\" row to locations.csv"
+      }
+
+      %{locations | err: locations.err ++ [err]}
+    else
+      locations
+    end
+  end
+
+  # Park sows created in THIS run that no movement or farrowing gave a
+  # pen into the LEGACY fallback. No-op when the fallback is absent (the
+  # validation gate already blocks runs that would need it). Scoped to
+  # `via`, so pre-existing pen-less sows are left untouched.
+  defp place_penless_sows_in_fallback(scope, via, pens) do
+    case fallback_pen_id(pens) do
+      nil ->
+        :ok
+
+      pen_id ->
+        from(a in Animal,
+          where:
+            a.farm_id == ^scope.farm.id and a.created_via == ^via and
+              a.stage == "sow" and is_nil(a.current_pen_id)
+        )
+        |> Repo.update_all(set: [current_pen_id: pen_id])
+
+        :ok
+    end
+  end
+
   # Locates an open (no result, not deleted) service for the sow whose
   # served_at is within the gestation window of farrowed_at. Returns
   # the most recent match or nil.
   defp find_open_service_for_farrowing(_scope, _sow_id, nil), do: nil
 
-  defp find_open_service_for_farrowing(%Scope{farm: farm}, sow_id, %Date{} = farrowed_at) do
+  defp find_open_service_for_farrowing(%Scope{farm: farm} = scope, sow_id, %Date{} = farrowed_at) do
     gestation = Breeding.gestation_days(farm)
-    tol = max(Breeding.gestation_tolerance_days(farm), @import_gestation_tolerance_days)
+    tol = import_gestation_tolerance(scope)
     earliest = Date.add(farrowed_at, -(gestation + tol))
     latest = Date.add(farrowed_at, -(gestation - tol))
 
@@ -1684,9 +1838,12 @@ defmodule Peggy.Imports do
   # `from_pen_id = sow.current_pen_id`.
 
   defp do_commit_movement(scope, row, pens) do
-    pen_key = String.upcase("#{row["house_code"]}-#{row["pen_code"]}")
+    pen_key = location_key(row["house_code"], row["pen_code"])
     sow_tag = row["ear_tag"]
-    to_pen_id = Map.get(pens, pen_key)
+    # A movement to a pen we don't recognise is re-homed to LEGACY rather
+    # than dropped, so the audit trail keeps the move (even if the exact
+    # destination is unknown).
+    to_pen_id = Map.get(pens, pen_key) || fallback_pen_id(pens)
     sow = sow_tag && Animals.find_by_ear_tag(scope, sow_tag)
 
     cond do

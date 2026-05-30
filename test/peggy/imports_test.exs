@@ -14,6 +14,12 @@ defmodule Peggy.ImportsTest do
     scope = scope_for(user, farm)
     house = house_fixture(scope, code: "EB")
     pen = pen_fixture(scope, house, code: "12", capacity: 50)
+
+    # The LEGACY fallback pen the importer requires for any run with
+    # sows/farrowings/weanings/movements. A real farm provisions it once.
+    legacy_house = house_fixture(scope, code: "LEGACY", purpose: "gestation")
+    pen_fixture(scope, legacy_house, code: "LEGACY", capacity: 0)
+
     %{scope: scope, house: house, pen: pen}
   end
 
@@ -355,7 +361,9 @@ defmodule Peggy.ImportsTest do
       assert Enum.any?(issues, &(&1.kind == :bad_value))
     end
 
-    test "duplicate pen+house in same CSV is an error", %{scope: scope} do
+    test "duplicate pen+house in same CSV is auto-skipped (warning, not blocking)", %{
+      scope: scope
+    } do
       locations_path =
         write_csv("""
         house_code,house_purpose,pen_code
@@ -366,8 +374,10 @@ defmodule Peggy.ImportsTest do
       result = Imports.parse_and_validate(scope, %{locations: locations_path})
 
       assert length(result.locations.ok) == 1
-      assert [%{issues: issues}] = result.locations.err
+      assert [%{issues: issues}] = result.locations.warn
       assert Enum.any?(issues, &(&1.kind == :duplicate))
+      assert result.locations.err == []
+      assert result.summary.blocking_errors == 0
     end
 
     test "negative capacity is an error", %{scope: scope} do
@@ -383,7 +393,9 @@ defmodule Peggy.ImportsTest do
       assert Enum.any?(issues, &(&1.kind == :bad_int))
     end
 
-    test "duplicate detection is case-insensitive on the combined key", %{scope: scope} do
+    test "duplicate detection is case-insensitive on the combined key (skipped, not blocking)", %{
+      scope: scope
+    } do
       locations_path =
         write_csv("""
         house_code,house_purpose,pen_code
@@ -393,8 +405,10 @@ defmodule Peggy.ImportsTest do
 
       result = Imports.parse_and_validate(scope, %{locations: locations_path})
 
-      assert [%{issues: issues}] = result.locations.err
+      assert length(result.locations.ok) == 1
+      assert [%{issues: issues}] = result.locations.warn
       assert Enum.any?(issues, &(&1.kind == :duplicate))
+      assert result.locations.err == []
     end
 
     test "bad pen status is an error", %{scope: scope} do
@@ -496,11 +510,39 @@ defmodule Peggy.ImportsTest do
       assert outcome.sows.failed == 0
       assert outcome.run_id =~ ~r/^\d+-[a-f0-9]+$/
 
-      # Verify rows landed and got tagged. Sows arrive pen-less; pens
-      # come from movements.csv when supplied.
+      # Verify rows landed and got tagged. With no movements.csv to place
+      # them, pen-less sows are parked in the LEGACY fallback pen.
       assert sow1 = Peggy.Animals.find_by_ear_tag(scope, "SOW001")
       assert sow1.created_via == "csv_import:#{outcome.run_id}"
-      assert is_nil(sow1.current_pen_id)
+
+      legacy_pen_id =
+        Peggy.Repo.one(
+          Ecto.Query.from(p in Peggy.Locations.Pen, where: p.code == "LEGACY", select: p.id)
+        )
+
+      assert sow1.current_pen_id == legacy_pen_id
+    end
+
+    test "duplicate location rows commit to a single pen (auto-skip)", %{scope: scope} do
+      locations_path =
+        write_csv("""
+        house_code,house_purpose,pen_code,capacity
+        FA,farrowing,07,12
+        FA,farrowing,07,12
+        """)
+
+      report = Imports.parse_and_validate(scope, %{locations: locations_path})
+      assert {:ok, _outcome} = Imports.commit(scope, report)
+
+      pens =
+        Peggy.Repo.all(
+          Ecto.Query.from(p in Peggy.Locations.Pen,
+            join: h in assoc(p, :house),
+            where: h.code == "FA" and p.code == "07"
+          )
+        )
+
+      assert length(pens) == 1
     end
 
     test "commits locations.csv before movements.csv so pen lookups succeed", %{scope: scope} do
@@ -972,6 +1014,122 @@ defmodule Peggy.ImportsTest do
 
       assert service.result_at == ~D[2026-01-01]
     end
+
+    test "real-world gestation (110d, outside default ±3 tol) still commits the farrowing + weaning",
+         %{scope: scope} do
+      # Legacy data routinely has gestation lengths a few days off the
+      # 114-day ideal. served 2026-01-01 → farrowed 2026-04-21 is 110
+      # days: |110 − 114| = 4, outside the default ±3 farm tolerance but
+      # inside the importer's ±14 match window. The importer matches the
+      # service, so the farrowing must validate with the same tolerance.
+      sows_path = write_csv("ear_tag\nGEST1\n")
+
+      services_path =
+        write_csv("""
+        sow_ear_tag,served_at,service_type
+        GEST1,2026-01-01,ai
+        """)
+
+      farrowings_path =
+        write_csv("""
+        sow_ear_tag,farrowed_at,born_alive,pen
+        GEST1,2026-04-21,11,EB-12
+        """)
+
+      weanings_path =
+        write_csv("""
+        sow_ear_tag,weaned_at,weaned_count
+        GEST1,2026-05-15,10
+        """)
+
+      report =
+        Imports.parse_and_validate(scope, %{
+          sows: sows_path,
+          services: services_path,
+          farrowings: farrowings_path,
+          weanings: weanings_path
+        })
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+
+      assert outcome.farrowings.ok == 1,
+             "farrowing should commit, got: #{inspect(outcome.farrowings)}"
+
+      assert outcome.weanings.ok == 1, "weaning should commit, got: #{inspect(outcome.weanings)}"
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "GEST1")
+
+      services =
+        Peggy.Repo.all(Ecto.Query.from(s in Peggy.Breeding.Service, where: s.sow_id == ^sow.id))
+
+      farrowings =
+        Peggy.Repo.all(Ecto.Query.from(f in Peggy.Breeding.Farrowing, where: f.sow_id == ^sow.id))
+
+      # One service (closed by the farrowing, no orphaned backfill), one farrowing.
+      assert length(services) == 1
+      assert length(farrowings) == 1
+      assert hd(services).result == "farrowing"
+      assert hd(farrowings).service_id == hd(services).id
+    end
+
+    test "sow with terminal status \"culled\" in sows.csv still replays her historical services",
+         %{scope: scope} do
+      # sows.csv carries the sow's FINAL status. Importing it verbatim
+      # would make check_sow_serviceable reject every historical service.
+      # The importer must replay events against a serviceable baseline.
+      sows_path =
+        write_csv("""
+        ear_tag,status
+        CULLED1,culled
+        """)
+
+      services_path =
+        write_csv("""
+        sow_ear_tag,served_at,service_type
+        CULLED1,2026-01-01,ai
+        """)
+
+      report = Imports.parse_and_validate(scope, %{sows: sows_path, services: services_path})
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.sows.ok == 1
+
+      assert outcome.services.ok == 1,
+             "historical service should commit, got: #{inspect(outcome.services)}"
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "CULLED1")
+
+      services =
+        Peggy.Repo.all(Ecto.Query.from(s in Peggy.Breeding.Service, where: s.sow_id == ^sow.id))
+
+      assert length(services) == 1
+    end
+
+    test "lactating sow in sows.csv replays services; final status derives from timeline", %{
+      scope: scope
+    } do
+      sows_path =
+        write_csv("""
+        ear_tag,status
+        LACT1,lactating
+        """)
+
+      services_path =
+        write_csv("""
+        sow_ear_tag,served_at,service_type
+        LACT1,2026-01-01,ai
+        """)
+
+      report = Imports.parse_and_validate(scope, %{sows: sows_path, services: services_path})
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.services.ok == 1
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "LACT1")
+      # The open service drives her to "served"; she is no longer stuck
+      # in the imported "lactating" status that would have blocked replay.
+      assert sow.status == "served"
+    end
   end
 
   describe "culls.csv" do
@@ -1232,6 +1390,217 @@ defmodule Peggy.ImportsTest do
       result = Imports.parse_and_validate(scope, %{sows: sows_path})
 
       assert [%{kind: :empty}] = result.sows.err
+    end
+  end
+
+  describe "LEGACY fallback pen" do
+    @legacy_locations "house_code,house_purpose,pen_code,capacity,status\nLEGACY,gestation,LEGACY,0,active\n"
+
+    defp legacy_pen_id do
+      Peggy.Repo.one(
+        Ecto.Query.from(p in Peggy.Locations.Pen, where: p.code == "LEGACY", select: p.id)
+      )
+    end
+
+    test "farrowing with no pen and a pen-less sow lands in LEGACY", %{scope: scope} do
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv(@legacy_locations),
+          sows: write_csv("ear_tag\nNOPEN1\n"),
+          services: write_csv("sow_ear_tag,served_at,service_type\nNOPEN1,2026-01-01,ai\n"),
+          farrowings: write_csv("sow_ear_tag,farrowed_at,born_alive\nNOPEN1,2026-04-25,11\n")
+        })
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+
+      assert outcome.farrowings.ok == 1,
+             "expected farrowing to commit, got #{inspect(outcome.farrowings)}"
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "NOPEN1")
+
+      farrowing =
+        Peggy.Repo.one(Ecto.Query.from(f in Peggy.Breeding.Farrowing, where: f.sow_id == ^sow.id))
+
+      assert farrowing.pen_id == legacy_pen_id()
+    end
+
+    test "a real current_pen_id wins over LEGACY for the farrowing", %{scope: scope, pen: pen} do
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv(@legacy_locations),
+          sows: write_csv("ear_tag\nHASPEN1\n"),
+          movements:
+            write_csv("ear_tag,moved_at,house_code,pen_code\nHASPEN1,2025-12-01,EB,12\n"),
+          services: write_csv("sow_ear_tag,served_at,service_type\nHASPEN1,2026-01-01,ai\n"),
+          farrowings: write_csv("sow_ear_tag,farrowed_at,born_alive\nHASPEN1,2026-04-25,11\n")
+        })
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.farrowings.ok == 1
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "HASPEN1")
+
+      farrowing =
+        Peggy.Repo.one(Ecto.Query.from(f in Peggy.Breeding.Farrowing, where: f.sow_id == ^sow.id))
+
+      assert farrowing.pen_id == pen.id
+      refute farrowing.pen_id == legacy_pen_id()
+    end
+
+    test "a movement to an unknown pen is re-homed to LEGACY", %{scope: scope} do
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv(@legacy_locations),
+          sows: write_csv("ear_tag\nMOVER1\n"),
+          movements: write_csv("ear_tag,moved_at,house_code,pen_code\nMOVER1,2026-01-01,QQ,99\n")
+        })
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+
+      assert outcome.movements.ok == 1,
+             "expected movement to commit, got #{inspect(outcome.movements)}"
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "MOVER1")
+      assert sow.current_pen_id == legacy_pen_id()
+    end
+
+    test "a pen-less sow created this run is reconciled to LEGACY; pre-existing pen-less sow is left alone",
+         %{scope: scope} do
+      pre = animal_fixture(scope, ear_tag: "PREEXIST1", stage: "sow")
+      assert is_nil(pre.current_pen_id)
+
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv(@legacy_locations),
+          sows: write_csv("ear_tag\nFRESH1\n")
+        })
+
+      assert {:ok, _outcome} = Imports.commit(scope, report)
+
+      fresh = Peggy.Animals.find_by_ear_tag(scope, "FRESH1")
+      assert fresh.current_pen_id == legacy_pen_id()
+
+      # Pre-existing sow was not created by this run → untouched.
+      assert Peggy.Repo.reload!(pre).current_pen_id == nil
+    end
+
+    test "import is blocked when LEGACY pen is absent and event/sow/movement files are present" do
+      # Fresh farm WITHOUT a LEGACY pen (the shared setup provisions one).
+      user = user_fixture()
+      farm = farm_fixture(user)
+      scope = scope_for(user, farm)
+
+      report =
+        Imports.parse_and_validate(scope, %{
+          sows: write_csv("ear_tag\nORPHAN1\n")
+        })
+
+      assert report.summary.blocking_errors >= 1
+      assert Enum.any?(report.locations.err, &(&1[:kind] == :missing_fallback_pen))
+      assert {:error, :blocking_errors} = Imports.commit(scope, report)
+    end
+
+    test "missing LEGACY pen can be supplied via locations.csv in the same run" do
+      user = user_fixture()
+      farm = farm_fixture(user)
+      scope = scope_for(user, farm)
+
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv(@legacy_locations),
+          sows: write_csv("ear_tag\nORPHAN2\n")
+        })
+
+      refute Enum.any?(report.locations.err, &(&1[:kind] == :missing_fallback_pen))
+      assert {:ok, _outcome} = Imports.commit(scope, report)
+    end
+
+    test "no LEGACY pen required when the run cannot orphan a location (services only)" do
+      user = user_fixture()
+      farm = farm_fixture(user)
+      scope = scope_for(user, farm)
+
+      report =
+        Imports.parse_and_validate(scope, %{
+          services: write_csv("sow_ear_tag,served_at,service_type\nSVC1,2026-01-01,ai\n")
+        })
+
+      refute Enum.any?(report.locations.err, &(&1[:kind] == :missing_fallback_pen))
+    end
+  end
+
+  describe "zero-padded pen codes" do
+    defp pen_id_for(house_code, pen_code) do
+      Peggy.Repo.one(
+        Ecto.Query.from(p in Peggy.Locations.Pen,
+          join: h in assoc(p, :house),
+          where: h.code == ^house_code and p.code == ^pen_code,
+          select: p.id
+        )
+      )
+    end
+
+    test "a zero-padded movement pen_code matches the unpadded location pen", %{scope: scope} do
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv("house_code,house_purpose,pen_code\nAB,gestation,1\n"),
+          sows: write_csv("ear_tag\nZP1\n"),
+          movements: write_csv("ear_tag,moved_at,house_code,pen_code\nZP1,2026-01-01,AB,01\n")
+        })
+
+      # "AB-01" resolves to "AB-1" — no unknown-pen warning.
+      refute Enum.any?(report.movements.warn, fn r ->
+               Enum.any?(r[:issues] || [], &(&1.kind == :unknown_pen))
+             end)
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.movements.ok == 1
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "ZP1")
+      assert sow.current_pen_id == pen_id_for("AB", "1")
+    end
+
+    test "a zero-padded farrowing pen (combined HOUSE-PEN) matches the unpadded location", %{
+      scope: scope
+    } do
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations: write_csv("house_code,house_purpose,pen_code\nCB,farrowing,5\n"),
+          sows: write_csv("ear_tag\nZP2\n"),
+          services: write_csv("sow_ear_tag,served_at,service_type\nZP2,2026-01-01,ai\n"),
+          farrowings:
+            write_csv("sow_ear_tag,farrowed_at,born_alive,pen\nZP2,2026-04-25,10,CB-05\n")
+        })
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.farrowings.ok == 1
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "ZP2")
+
+      farrowing =
+        Peggy.Repo.one(Ecto.Query.from(f in Peggy.Breeding.Farrowing, where: f.sow_id == ^sow.id))
+
+      assert farrowing.pen_id == pen_id_for("CB", "5")
+    end
+
+    test "padded and unpadded location rows for the same pen collapse to one pen", %{scope: scope} do
+      report =
+        Imports.parse_and_validate(scope, %{
+          locations:
+            write_csv("house_code,house_purpose,pen_code\nAB,gestation,1\nAB,gestation,01\n")
+        })
+
+      assert {:ok, _outcome} = Imports.commit(scope, report)
+
+      pens =
+        Peggy.Repo.all(
+          Ecto.Query.from(p in Peggy.Locations.Pen,
+            join: h in assoc(p, :house),
+            where: h.code == "AB"
+          )
+        )
+
+      assert length(pens) == 1
     end
   end
 
