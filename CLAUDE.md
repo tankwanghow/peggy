@@ -2,6 +2,21 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Skill Authoring Convention
+
+When, during a session, you discover **reusable domain knowledge** that isn't yet captured
+in a `.claude/skills/*.md` file — a non-obvious pattern, gotcha, workflow, schema/API contract,
+or convention that future sessions would benefit from — proactively **draft a new skill** (or
+extend the closest existing one) and **ask the user to confirm** before finalizing. Do not
+auto-create silently and do not skip the confirmation.
+
+- Skills live in `.claude/skills/` (project) or `~/.claude/skills/` (broadly reusable). Each is
+  one markdown file with frontmatter (`name`, `description`); the `description` is the trigger
+  text, so make it specific about *when* the skill applies.
+- Prefer **extending an existing skill** over creating a near-duplicate.
+- Use the `superpowers:writing-skills` skill for structure/verification when authoring.
+- Keep skills in sync with the code they describe; flag drift when you notice it.
+
 ## Project
 
 Peggy — a multi-tenant swine (pig) farm management Phoenix 1.8 / LiveView 1.1 SaaS app. See `REQUIREMENTS.md` for the full product scope. Project is in early scaffolding (no `lib/peggy/` contexts yet beyond the default Phoenix generator output).
