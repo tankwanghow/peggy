@@ -9,7 +9,12 @@
       "Bash(cp lib/peggy/imports.ex /tmp/imports.ex.full)",
       "Bash(git checkout *)",
       "Bash(cp /tmp/imports.ex.full lib/peggy/imports.ex)",
-      "Bash(rm /tmp/imports.ex.full)"
+      "Bash(rm /tmp/imports.ex.full)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(MIX_ENV=dev mix run /tmp/audit_cleanup.exs)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   },
   "hooks": {
