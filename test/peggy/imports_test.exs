@@ -111,6 +111,37 @@ defmodule Peggy.ImportsTest do
       assert Enum.any?(issues, &(&1.kind == :bad_status))
     end
 
+    test "legacy disposition status (culled) is tolerated as a warning, not an error",
+         %{scope: scope} do
+      sows_path =
+        write_csv("""
+        ear_tag,status
+        SOW001,culled
+        """)
+
+      result = Imports.parse_and_validate(scope, %{sows: sows_path})
+
+      assert result.sows.err == []
+      assert [%{issues: issues}] = result.sows.warn
+      assert Enum.any?(issues, &(&1.kind == :legacy_disposition_status))
+      assert result.summary.sows_importable == 1
+      assert result.summary.blocking_errors == 0
+    end
+
+    test "a tolerated disposition status is still seeded active on commit", %{scope: scope} do
+      sows_path =
+        write_csv("""
+        ear_tag,status
+        SOW001,culled
+        """)
+
+      report = Imports.parse_and_validate(scope, %{sows: sows_path})
+      assert {:ok, _summary} = Imports.commit(scope, report)
+
+      sow = Peggy.Animals.find_by_ear_tag(scope, "SOW001")
+      assert sow.status == "active"
+    end
+
     test "unknown pen on movements.csv is a warning, not an error", %{scope: scope} do
       sows_path = write_csv("ear_tag\nSOW001\n")
 
@@ -1072,21 +1103,36 @@ defmodule Peggy.ImportsTest do
       assert hd(farrowings).service_id == hd(services).id
     end
 
-    test "rejects a legacy sows.csv status of \"culled\" (renamed to marked_cull)",
+    test "a legacy sows.csv status of \"culled\" is seeded active; culls.csv drives the departure",
          %{scope: scope} do
-      # `culled` became `marked_cull`, which is set only by the live action.
-      # sows.csv no longer accepts it — terminal dispositions belong in
-      # culls.csv, not the sow's seed status.
+      # `culled` is a disposition, not a reproductive status. The importer
+      # tolerates it (warning), seeds the sow "active", and reconstructs the
+      # actual departure from culls.csv — never from the seed status.
       sows_path =
         write_csv("""
         ear_tag,status
         CULLED1,culled
         """)
 
-      result = Imports.parse_and_validate(scope, %{sows: sows_path})
+      culls_path =
+        write_csv("""
+        ear_tag,culled_at,reason
+        CULLED1,2026-02-01,sold
+        """)
 
-      assert [%{issues: issues}] = result.sows.err
-      assert Enum.any?(issues, &(&1.kind == :bad_status))
+      report = Imports.parse_and_validate(scope, %{sows: sows_path, culls: culls_path})
+
+      # Tolerated as a warning, not a blocking error.
+      assert report.sows.err == []
+      assert [%{issues: issues}] = report.sows.warn
+      assert Enum.any?(issues, &(&1.kind == :legacy_disposition_status))
+
+      assert {:ok, outcome} = Imports.commit(scope, report)
+      assert outcome.culls.ok == 1
+
+      # Final status comes from culls.csv, not the "culled" seed value.
+      sow = sow_by_tag_any_status(scope, "CULLED1")
+      assert sow.status == "sold"
     end
 
     test "lactating sow in sows.csv replays services; final status derives from timeline", %{

@@ -74,6 +74,13 @@ defmodule Peggy.Imports do
   }
 
   @valid_statuses ~w(active open served lactating dry)
+  # Legacy exports often carry a terminal DISPOSITION in the status column
+  # (the sow has left the herd). These are not reproductive statuses — the
+  # importer seeds every sow "active" and reconstructs departures from
+  # culls.csv. We therefore tolerate these values (normalised to "active"
+  # at commit) but emit a warning, since the status column alone never
+  # culls a sow: a matching culls.csv row is what records the departure.
+  @legacy_disposition_statuses ~w(culled cull sold slaughtered transferred death dead deceased)
   @valid_service_types ~w(ai natural)
   # services.csv carries only reproductive outcomes. Dispositions
   # (death / cull / sale / …) live in culls.csv and are applied as
@@ -503,9 +510,26 @@ defmodule Peggy.Imports do
 
     issues =
       case row["status"] do
-        nil -> issues
-        s when s in @valid_statuses -> issues
-        s -> [%{level: :err, kind: :bad_status, msg: "status \"#{s}\" not allowed"} | issues]
+        nil ->
+          issues
+
+        s when s in @valid_statuses ->
+          issues
+
+        s when s in @legacy_disposition_statuses ->
+          [
+            %{
+              level: :warn,
+              kind: :legacy_disposition_status,
+              msg:
+                "status \"#{s}\" is a disposition, not a reproductive status — " <>
+                  "seeding sow \"active\"; record the departure in culls.csv"
+            }
+            | issues
+          ]
+
+        s ->
+          [%{level: :err, kind: :bad_status, msg: "status \"#{s}\" not allowed"} | issues]
       end
 
     issues =

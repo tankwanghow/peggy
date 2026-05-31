@@ -28,9 +28,18 @@ status forward (service→served, farrowing→lactating, weaning→dry) and
 `culls.csv` (processed *after* the timeline) applies the departures. The
 final status is **reconstructed, not imposed**.
 
-`sows.csv` no longer accepts a `culled` status — it was renamed to the
-orthogonal boolean flag `animals.marked_cull`, which is set **only by the
-live action, never by import**. Disposition belongs in `culls.csv`.
+A `culled` status (or any disposition word) in `sows.csv` is **not** a
+reproductive status — `animals.marked_cull` is the orthogonal on-farm flag,
+set **only by the live action, never by import**. Disposition belongs in
+`culls.csv`. Rather than reject these values, `check_sow_row` **tolerates
+them with a warning** (`kind: :legacy_disposition_status`) and `commit_sows`
+seeds the sow `"active"` like any other; the actual departure is reconstructed
+from the matching `culls.csv` row. The tolerated set lives in
+`@legacy_disposition_statuses` (`culled cull sold slaughtered transferred
+death dead deceased`). Anything outside both that set and `@valid_statuses`
+is still a hard `:bad_status` error (the column-alignment / typo guard). The
+warning is a no-op if no `culls.csv` row exists — the status column alone
+**never** culls a sow.
 
 ### 2. Match tolerance MUST equal validation tolerance
 
