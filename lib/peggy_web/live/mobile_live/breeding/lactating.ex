@@ -225,14 +225,14 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
               >
                 <.icon name="hero-truck" class="size-7 text-info" />
-                <span class="text-xs">{gettext("Move")}</span>
+                <span class="text-xs">{gettext("Sow Move")}</span>
               </button>
               <button
                 phx-click="action_death"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-error/10"
               >
                 <.icon name="hero-minus-circle" class="size-7 text-error" />
-                <span class="text-xs">{gettext("Death")}</span>
+                <span class="text-xs">{gettext("Litter Death")}</span>
               </button>
             </div>
 
