@@ -2,12 +2,12 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   @moduledoc """
   Mobile animal detail. Identity card, recent history, and bottom-
   sheet forms for **edit**, **record movement**, and **promote stage**
-  (batches only). Undo-last-movement and mark-reviewed still live on
-  the desktop detail.
+  (batches only). The latest history event can be **undone** inline,
+  mirroring the desktop detail.
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
+  alias Peggy.{AnimalActivity, Animals, Breeding, FarmClock, Locations, Policy}
   alias Peggy.Animals.{Animal, Movement}
 
   @impl true
@@ -243,9 +243,21 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
                 </span>
                 <span class="font-mono text-xs text-base-content/60">{row.date}</span>
               </div>
+              <div class="flex items-baseline justify-between gap-1">
               <p class="mt-1 text-sm leading-snug">
                 {history_summary(row, @current_scope)}
               </p>
+              <button
+                :if={@can_move and history_undoable?(row, @latest_event)}
+                type="button"
+                phx-click="undo_last_event"
+                class="btn btn-sm btn-ghost text-error"
+                data-confirm={undo_confirm_text(@latest_event)}
+              >
+                <.icon name="hero-arrow-uturn-left" class="size-4" />
+                {gettext("Undo")}
+              </button>
+              </div>
             </li>
             <li
               :if={length(@history) > 20}
@@ -628,6 +640,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
        placements: placements,
        offspring: offspring,
        history: history,
+       latest_event: latest_event_for(scope, animal),
        parity: parity,
        today: FarmClock.today(scope),
        can_manage: Policy.can?(scope, :manage_animals),
@@ -797,6 +810,31 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
     end
   end
 
+  # Undo latest event
+
+  def handle_event("undo_last_event", _, socket) do
+    if socket.assigns.can_move do
+      scope = socket.assigns.current_scope
+      animal = socket.assigns.animal
+
+      case AnimalActivity.undo_latest(scope, animal) do
+        {:ok, kind, _} ->
+          {:noreply,
+           socket
+           |> reload_detail()
+           |> put_flash(:info, undo_success_flash(kind))}
+
+        {:error, :no_events} ->
+          {:noreply, put_flash(socket, :error, gettext("Nothing to undo."))}
+
+        {:error, kind, reason} ->
+          {:noreply, put_flash(socket, :error, undo_error_flash(kind, reason))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
   # Mark reviewed
 
   def handle_event("mark_reviewed", _, socket) do
@@ -888,8 +926,16 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
       animal: animal,
       placements: placements,
       history: history,
+      latest_event: latest_event_for(scope, animal),
       parity: sow_parity(scope, animal)
     )
+  end
+
+  defp latest_event_for(scope, %Animal{} = animal) do
+    case AnimalActivity.latest_event(scope, animal) do
+      nil -> nil
+      {kind, row} -> {kind, row.id}
+    end
   end
 
   defp reset_edit(socket) do
@@ -1156,6 +1202,77 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   defp humanize_litter_kind("foster_in"), do: gettext("Foster in")
   defp humanize_litter_kind("foster_out"), do: gettext("Foster out")
   defp humanize_litter_kind(other), do: other
+
+  # ── Undo helpers ───────────────────────────────────────────────────
+  # Only the row matching `latest_event` (computed via AnimalActivity)
+  # gets an Undo button — mirrors the desktop detail.
+
+  defp history_undoable?(%{kind: :movement, data: %{id: id}}, {:movement, id}), do: true
+
+  defp history_undoable?(%{kind: kind, data: %{service: %{id: id}}}, {:service, id})
+       when kind in [:service, :service_closed],
+       do: true
+
+  defp history_undoable?(
+         %{kind: :farrowing, data: %{service: %{farrowing: %{id: id}}}},
+         {:farrowing, id}
+       ),
+       do: true
+
+  defp history_undoable?(%{kind: :weaning, data: %{weaning: %{id: id}}}, {:weaning, id}),
+    do: true
+
+  defp history_undoable?(%{kind: :litter_event, data: %{id: id}}, {:litter_event, id}),
+    do: true
+
+  defp history_undoable?(_, _), do: false
+
+  defp undo_confirm_text({:movement, _}),
+    do: gettext("Undo this movement? This will reverse all related state changes.")
+
+  defp undo_confirm_text({:service, _}),
+    do: gettext("Undo this service? The sow will return to her prior status.")
+
+  defp undo_confirm_text({:farrowing, _}),
+    do: gettext("Undo this farrowing? The sow returns to served and the service reopens.")
+
+  defp undo_confirm_text({:weaning, _}),
+    do:
+      gettext(
+        "Undo this weaning? The sow returns to lactating and the weaner-batch quantity is decremented."
+      )
+
+  defp undo_confirm_text({:litter_event, _}),
+    do: gettext("Undo this litter event?")
+
+  defp undo_confirm_text(_), do: gettext("Undo this event?")
+
+  defp undo_success_flash(:movement), do: gettext("Movement undone.")
+  defp undo_success_flash(:service), do: gettext("Service undone.")
+  defp undo_success_flash(:mounting), do: gettext("Mounting undone.")
+  defp undo_success_flash(:farrowing), do: gettext("Farrowing undone.")
+  defp undo_success_flash(:weaning), do: gettext("Weaning undone.")
+  defp undo_success_flash(:litter_event), do: gettext("Litter event undone.")
+
+  defp undo_error_flash(:service, :service_has_closed_outcome),
+    do: gettext("Can't undo: this service already has a recorded outcome (farrowing/abortion).")
+
+  defp undo_error_flash(:farrowing, :farrowing_has_weaning),
+    do: gettext("Can't undo: weaning is already recorded — undo the weaning first.")
+
+  defp undo_error_flash(:farrowing, :farrowing_has_activity),
+    do:
+      gettext(
+        "Can't undo: piglet activity (deaths/fostering) is recorded against this farrowing."
+      )
+
+  defp undo_error_flash(:weaning, :weaning_has_activity),
+    do: gettext("Can't undo: post-weaning activity is recorded against this batch.")
+
+  defp undo_error_flash(:litter_event, :weaning_closed),
+    do: gettext("Can't undo: the litter has already been weaned.")
+
+  defp undo_error_flash(_kind, _reason), do: gettext("Could not undo.")
 
   defp pen_code(%{code: code, house: %{code: hcode}}), do: "#{hcode}-#{code}"
   defp pen_code(%{code: code}), do: code
