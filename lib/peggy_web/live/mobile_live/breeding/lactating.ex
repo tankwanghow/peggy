@@ -88,6 +88,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
             <div class="flex items-baseline justify-between gap-3">
               <span class="font-mono font-bold text-xl">
                 {e.farrowing.sow.ear_tag}
+                <.cull_flag animal={e.farrowing.sow} />
                 <Shared.recently_updated_badge at={e.farrowing.updated_at} />
               </span>
               <span class="whitespace-nowrap">

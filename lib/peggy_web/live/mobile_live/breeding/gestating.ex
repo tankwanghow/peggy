@@ -89,6 +89,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             <div class="flex items-baseline justify-between">
               <span class="font-mono font-bold text-xl">
                 {e.service.sow.ear_tag}
+                <.cull_flag animal={e.service.sow} />
                 <Shared.recently_updated_badge at={e.service.updated_at} />
               </span>
               <span><.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />

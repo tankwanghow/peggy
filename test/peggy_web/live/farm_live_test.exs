@@ -380,4 +380,32 @@ defmodule PeggyWeb.FarmLiveTest do
       assert html =~ "CLEANTAG"
     end
   end
+
+  describe "/farms/:slug/animals cull flag" do
+    import Peggy.LocationsFixtures
+    import Peggy.AnimalsFixtures
+
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+      house = house_fixture(scope, code: "H1")
+      pen = pen_fixture(scope, house, code: "P1", capacity: 50)
+
+      flagged = animal_fixture(scope, ear_tag: "CULLME", stage: "sow", current_pen_id: pen.id)
+      {:ok, _} = Peggy.Animals.mark_for_cull(scope, flagged)
+
+      _clean = animal_fixture(scope, ear_tag: "KEEPME", stage: "sow", current_pen_id: pen.id)
+
+      %{conn: log_in_user(conn, owner), farm: farm}
+    end
+
+    test "shows the cull indicator in the animals list when a sow is flagged",
+         %{conn: conn, farm: farm} do
+      {:ok, _lv, html} = live(conn, ~p"/farms/#{farm.slug}/animals")
+      assert html =~ "CULLME"
+      assert html =~ "KEEPME"
+      assert html =~ "Flagged for culling"
+    end
+  end
 end

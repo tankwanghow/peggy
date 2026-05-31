@@ -89,6 +89,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Weaned do
                 >
                   <td class="py-2 font-mono font-semibold">
                     {w.farrowing && w.farrowing.sow && w.farrowing.sow.ear_tag}
+                    <.cull_flag animal={w.farrowing && w.farrowing.sow} />
                   </td>
                   <td class="py-2">{w.weaned_at}</td>
                   <td class="py-2 text-right">{w.weaned_count}</td>

@@ -15,123 +15,128 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
     ~H"""
     <Layouts.mobile_app flash={@flash} current_scope={@current_scope} active={:animals}>
       <div>
-        <%!-- Top bar with back link + actions --%>
-        <header class="sticky top-0 z-10 bg-base-100 border-b border-base-200 px-3 py-2 flex items-center gap-2">
-          <button
-            id="mobile-animal-detail-back"
-            phx-hook=".HistoryBack"
-            type="button"
-            data-fallback-href={~p"/m/#{@current_scope.farm.slug}/animals"}
-            class="btn btn-ghost btn-square btn-lg"
-            aria-label={gettext("Back")}
-          >
-            <.icon name="hero-chevron-left" class="size-6" />
-          </button>
-          <script :type={Phoenix.LiveView.ColocatedHook} name=".HistoryBack">
-            export default {
-              mounted() {
-                this.handler = () => {
-                  if (window.history.length > 1) {
-                    window.history.back()
-                  } else if (this.el.dataset.fallbackHref) {
-                    window.location.href = this.el.dataset.fallbackHref
+        <%!-- Sticky identity + actions bar (compact 2-row) --%>
+        <header class="sticky top-0 z-10 bg-base-100 border-b border-base-200 px-3 py-2 space-y-1">
+          <div class="flex items-center gap-2">
+            <button
+              id="mobile-animal-detail-back"
+              phx-hook=".HistoryBack"
+              type="button"
+              data-fallback-href={~p"/m/#{@current_scope.farm.slug}/animals"}
+              class="btn btn-ghost btn-square btn-lg shrink-0"
+              aria-label={gettext("Back")}
+            >
+              <.icon name="hero-chevron-left" class="size-6" />
+            </button>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".HistoryBack">
+              export default {
+                mounted() {
+                  this.handler = () => {
+                    if (window.history.length > 1) {
+                      window.history.back()
+                    } else if (this.el.dataset.fallbackHref) {
+                      window.location.href = this.el.dataset.fallbackHref
+                    }
                   }
+                  this.el.addEventListener("click", this.handler)
+                },
+                destroyed() {
+                  this.el.removeEventListener("click", this.handler)
                 }
-                this.el.addEventListener("click", this.handler)
-              },
-              destroyed() {
-                this.el.removeEventListener("click", this.handler)
               }
-            }
-          </script>
-          <div class="flex-1 min-w-0">
-            <div class="font-mono font-bold text-lg truncate flex items-center gap-1">
+            </script>
+            <span class="text-2xl font-mono font-bold truncate min-w-0">
               {@animal.ear_tag || "##{@animal.id}"}
-              <span :if={@animal.needs_review} title={gettext("Needs review")}>
-                <.icon name="hero-exclamation-triangle-micro" class="size-4 text-warning" />
-              </span>
-            </div>
+            </span>
+            <.cull_flag animal={@animal} />
+            <.status_badge status={@animal.status} class="badge-sm shrink-0" />
+            <span :if={@animal.needs_review} title={gettext("Needs review")} class="shrink-0">
+              <.icon name="hero-exclamation-triangle-micro" class="size-4 text-warning" />
+            </span>
           </div>
-          <.status_badge status={@animal.status} class="badge-sm" />
-          <span
-            :if={@animal.marked_cull}
-            class="badge badge-warning badge-sm"
-            title={gettext("Flagged for culling")}
-          >
-            <.icon name="hero-flag-micro" class="size-3" />
-          </span>
-          <button
-            :if={@can_move and Animal.present_status?(@animal.status)}
-            type="button"
-            phx-click="move_open"
-            class="btn btn-ghost btn-square btn-lg"
-            aria-label={gettext("Record movement")}
-          >
-            <.icon name="hero-truck" class="size-6 text-info" />
-          </button>
-          <button
-            :if={
-              @can_manage and @animal.tracking_type == "individual" and
-                Animal.present_status?(@animal.status) and not @animal.marked_cull
-            }
-            type="button"
-            phx-click="mark_for_cull"
-            data-confirm={
-              gettext("Flag this animal for culling? Its status and records are unaffected.")
-            }
-            class="btn btn-ghost btn-square btn-lg"
-            aria-label={gettext("Mark for cull")}
-          >
-            <.icon name="hero-flag" class="size-6 text-warning" />
-          </button>
-          <button
-            :if={@can_manage and @animal.tracking_type == "individual" and @animal.marked_cull}
-            type="button"
-            phx-click="unmark_cull"
-            class="btn btn-ghost btn-square btn-lg"
-            aria-label={gettext("Unmark cull")}
-          >
-            <.icon name="hero-flag-solid" class="size-6 text-warning" />
-          </button>
-          <button
-            :if={
-              @can_manage and @animal.tracking_type == "batch" and
-                Animal.present_status?(@animal.status) and promote_targets(@animal) != []
-            }
-            type="button"
-            phx-click="promote_open"
-            class="btn btn-ghost btn-square btn-lg"
-            aria-label={gettext("Promote stage")}
-          >
-            <.icon name="hero-academic-cap" class="size-6 text-success" />
-          </button>
-          <button
-            :if={@can_manage and Animal.present_status?(@animal.status)}
-            type="button"
-            phx-click="edit_open"
-            class="btn btn-ghost btn-square btn-lg"
-            aria-label={gettext("Edit")}
-          >
-            <.icon name="hero-pencil-square" class="size-6 text-primary" />
-          </button>
-        </header>
 
-        <%!-- Identity card --%>
-        <section class="px-3 py-3 space-y-3">
-          <div class="rounded-xl border border-base-300 bg-base-100 p-4">
-            <div class="text-2xl font-mono font-bold">
-              {@animal.ear_tag || "##{@animal.id}"}
-            </div>
-            <div class="mt-1 text-sm text-base-content/70">
-              {String.capitalize(@animal.stage)}
+          <%!-- Compact details (left) + actions (right) --%>
+          <div class="flex items-center gap-1">
+            <div class="pl-1 text-sm text-base-content/70 flex flex-wrap items-center gap-x-1 min-w-0">
+              <span>{String.capitalize(@animal.stage)}</span>
               <span :if={@animal.tracking_type == "batch"}>· ×{@animal.quantity}</span>
               <span :if={@animal.breed}>· {@animal.breed}</span>
+              <span :if={pen_label(@animal)}>
+                · <span class="font-mono">{pen_label(@animal)}</span>
+              </span>
+              <span :if={@animal.stage == "sow"}>
+                · {gettext("Parity")}
+                <span class="font-semibold text-info">{@parity}</span>
+                <span :if={(@animal.legacy_parity || 0) > 0} class="text-xs text-base-content/50">
+                  ({@animal.legacy_parity} {gettext("legacy")})
+                </span>
+              </span>
             </div>
+            <div class="flex-1"></div>
+            <button
+              :if={@can_move and Animal.present_status?(@animal.status)}
+              type="button"
+              phx-click="move_open"
+              class="btn btn-ghost btn-square btn-lg shrink-0"
+              aria-label={gettext("Record movement")}
+            >
+              <.icon name="hero-truck" class="size-6 text-info" />
+            </button>
+            <button
+              :if={
+                @can_manage and @animal.tracking_type == "individual" and
+                  Animal.present_status?(@animal.status) and not @animal.marked_cull
+              }
+              type="button"
+              phx-click="mark_for_cull"
+              data-confirm={
+                gettext("Flag this animal for culling? Its status and records are unaffected.")
+              }
+              class="btn btn-ghost btn-square btn-lg shrink-0"
+              aria-label={gettext("Mark for cull")}
+            >
+              <.icon name="hero-flag" class="size-6 text-warning" />
+            </button>
+            <button
+              :if={@can_manage and @animal.tracking_type == "individual" and @animal.marked_cull}
+              type="button"
+              phx-click="unmark_cull"
+              class="btn btn-ghost btn-square btn-lg shrink-0"
+              aria-label={gettext("Unmark cull")}
+            >
+              <.icon name="hero-flag-solid" class="size-6 text-warning" />
+            </button>
+            <button
+              :if={
+                @can_manage and @animal.tracking_type == "batch" and
+                  Animal.present_status?(@animal.status) and promote_targets(@animal) != []
+              }
+              type="button"
+              phx-click="promote_open"
+              class="btn btn-ghost btn-square btn-lg shrink-0"
+              aria-label={gettext("Promote stage")}
+            >
+              <.icon name="hero-academic-cap" class="size-6 text-success" />
+            </button>
+            <button
+              :if={@can_manage and Animal.present_status?(@animal.status)}
+              type="button"
+              phx-click="edit_open"
+              class="btn btn-ghost btn-square btn-lg shrink-0"
+              aria-label={gettext("Edit")}
+            >
+              <.icon name="hero-pencil-square" class="size-6 text-primary" />
+            </button>
+          </div>
+        </header>
 
-            <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-              <dt class="text-base-content/50">{gettext("Pen")}</dt>
-              <dd class="font-mono">{pen_label(@animal) || "—"}</dd>
-
+        <section class="px-3 py-3 space-y-3">
+          <%!-- Secondary details (scroll under the sticky bar) --%>
+          <div
+            :if={@animal.dob || @animal.rfid || @animal.sire || @animal.dam}
+            class="rounded-xl border border-base-300 bg-base-100 p-4"
+          >
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
               <dt :if={@animal.dob} class="text-base-content/50">{gettext("DOB")}</dt>
               <dd :if={@animal.dob} class="font-mono">
                 {@animal.dob} <span class="text-base-content/50">({age_days(@animal, @today)}d)</span>
@@ -139,19 +144,6 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
 
               <dt :if={@animal.rfid} class="text-base-content/50">{gettext("RFID")}</dt>
               <dd :if={@animal.rfid} class="font-mono break-all">{@animal.rfid}</dd>
-
-              <dt :if={@animal.stage == "sow"} class="text-base-content/50">
-                {gettext("Parity")}
-              </dt>
-              <dd :if={@animal.stage == "sow"} class="font-mono font-semibold text-info">
-                {@parity}
-                <span
-                  :if={(@animal.legacy_parity || 0) > 0}
-                  class="text-xs text-base-content/50 ml-1"
-                >
-                  ({@animal.legacy_parity} {gettext("legacy")})
-                </span>
-              </dd>
 
               <dt :if={@animal.sire} class="text-base-content/50">{gettext("Sire")}</dt>
               <dd :if={@animal.sire}>

@@ -164,6 +164,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                     >
                       {entry.farrowing.sow.ear_tag}
                     </.link>
+                    <.cull_flag animal={entry.farrowing.sow} />
                     <Shared.recently_updated_badge at={entry.farrowing.updated_at} />
                   </td>
                   <td class="py-2">{entry.farrowing.farrowed_at}</td>

@@ -152,6 +152,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
                     >
                       {e.animal.ear_tag}
                     </.link>
+                    <.cull_flag animal={e.animal} />
                     <span :if={e.parity == 0} class="ml-1 badge badge-sm badge-info">
                       {gettext("Gilt")}
                     </span>

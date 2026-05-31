@@ -560,6 +560,31 @@ defmodule PeggyWeb.CoreComponents do
     """
   end
 
+  @doc """
+  A compact, icon-only indicator shown next to an animal's ear-tag when it
+  is flagged for culling (`marked_cull`). Renders nothing when the animal is
+  not flagged, so it can be appended after any ear-tag render site:
+
+      {@sow.ear_tag}<.cull_flag animal={@sow} />
+
+  The detail pages keep the fuller `🚩 Cull` text badge; this is the
+  list-row treatment.
+  """
+  attr :animal, :map, required: true
+  attr :class, :any, default: nil
+
+  def cull_flag(assigns) do
+    ~H"""
+    <span
+      :if={@animal && @animal.marked_cull}
+      class={["inline-flex align-middle -ml-1", @class]}
+      title={gettext("Flagged for culling")}
+    >
+      <.icon name="hero-flag-micro" class="size-3 text-error" />
+    </span>
+    """
+  end
+
   defp status_badge_class("active"), do: "badge-success"
   defp status_badge_class("served"), do: "badge-info"
   defp status_badge_class("open"), do: "badge-warning"

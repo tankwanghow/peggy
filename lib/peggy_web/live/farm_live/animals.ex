@@ -157,6 +157,7 @@ defmodule PeggyWeb.FarmLive.Animals do
                     <span :if={a.needs_review} title={gettext("Needs review")}>
                       <.icon name="hero-exclamation-triangle-micro" class="size-4 text-warning" />
                     </span>
+                    <.cull_flag animal={a} />
                   </span>
                 </td>
                 <td class="py-2">

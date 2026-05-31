@@ -180,6 +180,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
                     >
                       {entry.service.sow.ear_tag}
                     </.link>
+                    <.cull_flag animal={entry.service.sow} />
                     <Shared.recently_updated_badge at={entry.service.updated_at} />
                   </td>
                   <td class="py-2 font-mono text-base-content/70">

@@ -86,6 +86,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
             <div class="flex items-baseline justify-between">
               <span class="font-mono font-bold text-xl">
                 {e.animal.ear_tag}
+                <.cull_flag animal={e.animal} />
               </span>
               <span>
                 <.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />

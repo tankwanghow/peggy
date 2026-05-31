@@ -78,6 +78,7 @@ defmodule PeggyWeb.MobileLive.Animals do
                 <span :if={a.needs_review} title={gettext("Needs review")}>
                   <.icon name="hero-exclamation-triangle-micro" class="size-5 text-warning" />
                 </span>
+                <.cull_flag animal={a} />
               </span>
               <.status_badge status={a.status} class="badge-sm" />
             </div>
