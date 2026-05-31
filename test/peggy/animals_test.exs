@@ -5,6 +5,7 @@ defmodule Peggy.AnimalsTest do
   import Peggy.FarmsFixtures
   import Peggy.LocationsFixtures
   import Peggy.AnimalsFixtures
+  import Peggy.BreedingFixtures
 
   alias Peggy.{Animals, Audit}
 
@@ -1082,7 +1083,7 @@ defmodule Peggy.AnimalsTest do
       refute Peggy.Repo.get_by(Animals.Animal, ear_tag: "ROLL-1")
     end
 
-    test "accepts open/dry/culled statuses directly on new animals", %{scope: scope} do
+    test "accepts open/dry statuses directly on new animals", %{scope: scope} do
       {:ok, animals} =
         Animals.import_herd(scope, [
           %{
@@ -1096,16 +1097,10 @@ defmodule Peggy.AnimalsTest do
             ear_tag: "IMP-DRY",
             stage: "sow",
             status: "dry"
-          },
-          %{
-            tracking_type: "individual",
-            ear_tag: "IMP-CULL",
-            stage: "sow",
-            status: "culled"
           }
         ])
 
-      assert Enum.map(animals, & &1.status) == ["open", "dry", "culled"]
+      assert Enum.map(animals, & &1.status) == ["open", "dry"]
     end
   end
 
@@ -1200,13 +1195,17 @@ defmodule Peggy.AnimalsTest do
           served_at: ~D[2026-01-15]
         })
 
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "served"
+
+      # A death movement departs the sow AND closes her open service.
       {:ok, _} =
-        Peggy.Breeding.close_service(scope, service, "death", %{result_at: ~D[2026-03-01]})
+        Animals.record_movement(scope, sow, %{"reason" => "death", "moved_at" => ~D[2026-03-01]})
 
       sow = Animals.get_animal!(scope, sow.id)
       assert sow.status == "deceased"
 
-      # Service is closed
+      # Service is closed by the movement
       closed = Peggy.Breeding.get_service!(scope, service.id)
       assert closed.result == "death"
 
@@ -1729,6 +1728,151 @@ defmodule Peggy.AnimalsTest do
       assert id == batch.id
       assert [{ind_id, :batch_only}] = result.errors
       assert ind_id == ind.id
+    end
+  end
+
+  describe "mark_for_cull/2 and unmark_cull/2 (boolean flag)" do
+    test "toggling the flag leaves status, pen and records untouched", %{scope: scope, pen: pen} do
+      sow = animal_fixture(scope, ear_tag: "MC1", stage: "sow", current_pen_id: pen.id)
+      service = service_fixture(scope, sow, %{service_type: "ai"})
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "served"
+
+      assert {:ok, flagged} = Animals.mark_for_cull(scope, sow)
+      assert flagged.marked_cull
+      assert flagged.marked_cull_at
+      # Status, pen and the open service are all unaffected by the flag.
+      assert flagged.status == "served"
+      assert flagged.current_pen_id == pen.id
+      assert is_nil(Peggy.Repo.get!(Peggy.Breeding.Service, service.id).result)
+
+      assert {:ok, cleared} = Animals.unmark_cull(scope, flagged)
+      refute cleared.marked_cull
+      assert is_nil(cleared.marked_cull_at)
+      assert cleared.status == "served"
+    end
+
+    test "marking is a no-op when already flagged", %{scope: scope} do
+      sow = animal_fixture(scope, ear_tag: "MC2", stage: "sow")
+      {:ok, flagged} = Animals.mark_for_cull(scope, sow)
+      assert {:ok, same} = Animals.mark_for_cull(scope, flagged)
+      assert same.marked_cull
+    end
+
+    test "a lactating sow with a litter can still be flagged (orthogonal to the guard)", %{
+      scope: scope,
+      pen: pen
+    } do
+      sow = animal_fixture(scope, ear_tag: "MC3", stage: "sow", current_pen_id: pen.id)
+      _farrowing = farrowing_fixture(scope, sow, born_alive: 6, service_type: "ai")
+      sow = Animals.get_animal!(scope, sow.id)
+
+      assert {:ok, flagged} = Animals.mark_for_cull(scope, sow)
+      assert flagged.marked_cull
+      assert flagged.status == "lactating"
+    end
+
+    test "rejects batch animals", %{scope: scope} do
+      batch = batch_fixture(scope, ear_tag: "MCB")
+      assert {:error, :individual_only} = Animals.mark_for_cull(scope, batch)
+    end
+
+    test "rejects flagging an animal that has already departed", %{scope: scope, pen: pen} do
+      sow = animal_fixture(scope, ear_tag: "MC4", stage: "sow", current_pen_id: pen.id)
+
+      {:ok, _} =
+        Animals.record_movement(scope, sow, %{"reason" => "sale", "moved_at" => ~D[2026-06-01]})
+
+      departed = Animals.get_animal!(scope, sow.id)
+      assert {:error, :not_present} = Animals.mark_for_cull(scope, departed)
+    end
+  end
+
+  describe "departure movements close & reopen the open service" do
+    test "sale closes the open service as 'removed' and undo reopens it", %{
+      scope: scope,
+      pen: pen
+    } do
+      sow = animal_fixture(scope, ear_tag: "DEP1", stage: "sow", current_pen_id: pen.id)
+      service = service_fixture(scope, sow, %{service_type: "ai"})
+      sow = Animals.get_animal!(scope, sow.id)
+
+      assert {:ok, _m} =
+               Animals.record_movement(scope, sow, %{
+                 "reason" => "sale",
+                 "moved_at" => ~D[2026-06-01]
+               })
+
+      sold = Animals.get_animal!(scope, sow.id)
+      assert sold.status == "sold"
+      assert is_nil(sold.current_pen_id)
+      assert Peggy.Repo.get!(Peggy.Breeding.Service, service.id).result == "removed"
+
+      assert {:ok, _} = Animals.undo_last_movement(scope, sold)
+      restored = Animals.get_animal!(scope, sow.id)
+      assert restored.status == "served"
+      assert restored.current_pen_id == pen.id
+      assert is_nil(Peggy.Repo.get!(Peggy.Breeding.Service, service.id).result)
+    end
+
+    test "death closes the open service as 'death'", %{scope: scope, pen: pen} do
+      sow = animal_fixture(scope, ear_tag: "DEP2", stage: "sow", current_pen_id: pen.id)
+      service = service_fixture(scope, sow, %{service_type: "ai"})
+      sow = Animals.get_animal!(scope, sow.id)
+
+      assert {:ok, _m} =
+               Animals.record_movement(scope, sow, %{
+                 "reason" => "death",
+                 "moved_at" => ~D[2026-06-01]
+               })
+
+      assert Animals.get_animal!(scope, sow.id).status == "deceased"
+      assert Peggy.Repo.get!(Peggy.Breeding.Service, service.id).result == "death"
+    end
+  end
+
+  describe "lactating-litter departure guard" do
+    test "blocks departure while the litter has surviving piglets", %{scope: scope, pen: pen} do
+      sow = animal_fixture(scope, ear_tag: "LACT1", stage: "sow", current_pen_id: pen.id)
+      _farrowing = farrowing_fixture(scope, sow, born_alive: 8, service_type: "ai")
+      sow = Animals.get_animal!(scope, sow.id)
+      assert sow.status == "lactating"
+
+      assert {:error, :litter_not_empty} =
+               Animals.record_movement(scope, sow, %{
+                 "reason" => "sale",
+                 "moved_at" => ~D[2026-06-01]
+               })
+
+      assert {:error, :litter_not_empty} =
+               Animals.record_movement(scope, sow, %{
+                 "reason" => "death",
+                 "moved_at" => ~D[2026-06-01]
+               })
+    end
+
+    test "allows departure once the litter is fostered/died down to zero", %{
+      scope: scope,
+      pen: pen
+    } do
+      sow = animal_fixture(scope, ear_tag: "LACT2", stage: "sow", current_pen_id: pen.id)
+      farrowing = farrowing_fixture(scope, sow, born_alive: 2, service_type: "ai")
+
+      {:ok, _} =
+        Peggy.Breeding.record_pre_wean_death(scope, farrowing, %{
+          "quantity" => 2,
+          "occurred_at" => ~D[2026-06-01]
+        })
+
+      sow = Animals.get_animal!(scope, sow.id)
+
+      assert {:ok, _m} =
+               Animals.record_movement(scope, sow, %{
+                 "reason" => "sale",
+                 "moved_at" => ~D[2026-06-02]
+               })
+
+      assert Animals.get_animal!(scope, sow.id).status == "sold"
     end
   end
 

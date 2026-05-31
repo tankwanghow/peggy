@@ -5,8 +5,8 @@ defmodule Peggy.Animals.Animal do
 
   @tracking_types ~w(individual batch)
   @stages ~w(weaner grower finisher sow boar)
-  @statuses ~w(active served open lactating dry culled sold slaughtered deceased transferred reversed)
-  @present_statuses ~w(active served open lactating dry culled)
+  @statuses ~w(active served open lactating dry sold slaughtered deceased transferred reversed)
+  @present_statuses ~w(active served open lactating dry)
   @departed_statuses ~w(sold slaughtered deceased transferred reversed)
   @serviceable_statuses ~w(active open dry)
   @breeding_active_statuses ~w(served lactating)
@@ -17,7 +17,6 @@ defmodule Peggy.Animals.Animal do
     "open" => "Pregnancy check negative or returned to heat; ready to re-serve.",
     "lactating" => "Sow has farrowed and is currently nursing piglets.",
     "dry" => "Piglets weaned; sow resting before next heat.",
-    "culled" => "Marked for culling; final disposition pending.",
     "sold" => "Departed via sale.",
     "slaughtered" => "Departed via slaughter.",
     "deceased" => "Died on farm.",
@@ -28,13 +27,14 @@ defmodule Peggy.Animals.Animal do
   # Allowed status transitions. See PLAN.md → "Animal status model".
   # Departed statuses are terminal (no outgoing transitions).
   # Same-status transitions are always allowed (no-op saves).
+  # "Marked for cull" is NOT a status — it's the orthogonal `marked_cull`
+  # boolean flag, which never changes the lifecycle status below.
   @transitions %{
-    "active" => ~w(served culled sold slaughtered deceased transferred reversed),
-    "served" => ~w(lactating open culled sold slaughtered deceased transferred),
-    "open" => ~w(served culled sold slaughtered deceased transferred),
-    "lactating" => ~w(dry culled sold slaughtered deceased transferred),
-    "dry" => ~w(served culled sold slaughtered deceased transferred),
-    "culled" => ~w(sold slaughtered deceased transferred),
+    "active" => ~w(served sold slaughtered deceased transferred reversed),
+    "served" => ~w(lactating open sold slaughtered deceased transferred),
+    "open" => ~w(served sold slaughtered deceased transferred),
+    "lactating" => ~w(dry sold slaughtered deceased transferred),
+    "dry" => ~w(served sold slaughtered deceased transferred),
     "sold" => [],
     "slaughtered" => [],
     "deceased" => [],
@@ -52,6 +52,9 @@ defmodule Peggy.Animals.Animal do
     field :quantity, :integer, default: 1
     field :status, :string, default: "active"
     field :status_changed_at, :utc_datetime
+    # Orthogonal "flagged for culling" intent — does not affect `status`.
+    field :marked_cull, :boolean, default: false
+    field :marked_cull_at, :utc_datetime
     field :legacy_parity, :integer, default: 0
     field :notes, :string
     field :inferred, :boolean, default: false
@@ -87,15 +90,30 @@ defmodule Peggy.Animals.Animal do
   Pass `nil` (or unknown) to get every status.
   """
   def statuses_for_stage("sow"),
-    do: ~w(active served open lactating dry culled) ++ @departed_statuses
+    do: ~w(active served open lactating dry) ++ @departed_statuses
 
   def statuses_for_stage("boar"),
-    do: ~w(active culled) ++ @departed_statuses
+    do: ~w(active) ++ @departed_statuses
 
   def statuses_for_stage(stage) when stage in ~w(weaner grower finisher),
     do: ~w(active) ++ @departed_statuses
 
   def statuses_for_stage(_), do: @statuses
+
+  # Display labels that differ from a plain capitalisation of the stored
+  # status value. Currently none differ, but the seam stays so future
+  # multi-word statuses get a clean label without touching call sites.
+  @status_labels %{}
+
+  @doc """
+  Human-readable label for a status, for display in badges, filters and
+  tables. Defaults to a capitalised form of the stored value; only
+  statuses in `@status_labels` differ.
+  """
+  def status_label(status) when is_binary(status),
+    do: Map.get(@status_labels, status, String.capitalize(status))
+
+  def status_label(_), do: ""
 
   @doc "Short human-readable description of a status, used for UI tooltips."
   def status_description(status), do: Map.get(@status_descriptions, status, "")
@@ -158,7 +176,7 @@ defmodule Peggy.Animals.Animal do
   @doc """
   Narrows to animals eligible for sale / slaughter.
 
-  Currently excludes departed statuses and `culled` (awaiting final
+  Currently excludes departed statuses and `marked_cull` (awaiting final
   disposition). Once `under_treatment` lands in Phase 5, exclude it
   here too so withdrawal-blocked animals drop out of sale autocomplete.
   """
@@ -193,6 +211,8 @@ defmodule Peggy.Animals.Animal do
       :quantity,
       :status,
       :status_changed_at,
+      :marked_cull,
+      :marked_cull_at,
       :legacy_parity,
       :notes,
       :inferred,

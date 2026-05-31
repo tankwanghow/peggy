@@ -550,11 +550,12 @@ defmodule PeggyWeb.CoreComponents do
     assigns =
       assigns
       |> assign(:tone, Peggy.Animals.Animal.status_description(assigns.status))
+      |> assign(:label, Peggy.Animals.Animal.status_label(assigns.status))
       |> assign(:colour_class, status_badge_class(assigns.status))
 
     ~H"""
     <span class={["badge", @colour_class, @class]} title={@tone}>
-      {@status}
+      {@label}
     </span>
     """
   end
@@ -564,7 +565,6 @@ defmodule PeggyWeb.CoreComponents do
   defp status_badge_class("open"), do: "badge-warning"
   defp status_badge_class("lactating"), do: "badge-accent"
   defp status_badge_class("dry"), do: "badge-ghost"
-  defp status_badge_class("culled"), do: "badge-warning"
   defp status_badge_class("sold"), do: "badge-neutral"
   defp status_badge_class("slaughtered"), do: "badge-warning"
   defp status_badge_class("deceased"), do: "badge-error"

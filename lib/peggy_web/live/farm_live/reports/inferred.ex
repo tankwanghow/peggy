@@ -69,7 +69,9 @@ defmodule PeggyWeb.FarmLive.Reports.Inferred do
                     </.link>
                   </td>
                   <td>
-                    <span class="badge badge-sm">{sow.status}</span>
+                    <span class="badge badge-sm">
+                      {Peggy.Animals.Animal.status_label(sow.status)}
+                    </span>
                   </td>
                   <td>{sow.breed || "—"}</td>
                   <td>{format_date(sow.dob)}</td>

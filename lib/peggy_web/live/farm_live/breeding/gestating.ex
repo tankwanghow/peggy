@@ -676,9 +676,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Gestating do
               label={gettext("Result")}
               options={[
                 {gettext("Abortion"), "abortion"},
-                {gettext("Failed pregnancy"), "failed_pregnancy"},
-                {gettext("Death"), "death"},
-                {gettext("Cull"), "cull"}
+                {gettext("Failed pregnancy"), "failed_pregnancy"}
               ]}
             />
             <.input

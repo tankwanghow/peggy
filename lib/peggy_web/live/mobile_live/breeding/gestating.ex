@@ -353,15 +353,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                   >
                     {gettext("Failed pregnancy")}
                   </option>
-                  <option
-                    value="death"
-                    selected={Phoenix.HTML.Form.input_value(f, :result) == "death"}
-                  >
-                    {gettext("Death")}
-                  </option>
-                  <option value="cull" selected={Phoenix.HTML.Form.input_value(f, :result) == "cull"}>
-                    {gettext("Cull")}
-                  </option>
                 </select>
               </label>
 

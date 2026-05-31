@@ -18,17 +18,19 @@ rejections happen at **commit time** and surface in the per-file `errors` list.
 
 ### 1. Seed sows at a serviceable baseline — never their final CSV status
 
-`sows.csv` carries each sow's **final** status (`culled`/`lactating`/`served`/
-`dry`). `check_sow_serviceable` (`breeding.ex`) only allows
-`active/open/dry/served`, so replaying a historical service against a sow
-written as `culled` or `lactating` fails with
-`cannot service a sow with status "..."`.
+`sows.csv` carries each sow's **final** status (`lactating`/`served`/`dry`).
+`check_sow_serviceable` (`breeding.ex`) only allows `active/open/dry/served`,
+so replaying a historical service against a sow written as `lactating` fails
+with `cannot service a sow with status "..."`.
 
 **Rule:** `commit_sows` seeds every sow `"active"`. The event timeline drives
 status forward (service→served, farrowing→lactating, weaning→dry) and
-`culls.csv` (processed *after* the timeline) applies terminal removals. The
-final status is **reconstructed, not imposed**. `culled` in `sows.csv` is
-redundant with `culls.csv` anyway.
+`culls.csv` (processed *after* the timeline) applies the departures. The
+final status is **reconstructed, not imposed**.
+
+`sows.csv` no longer accepts a `culled` status — it was renamed to the
+orthogonal boolean flag `animals.marked_cull`, which is set **only by the
+live action, never by import**. Disposition belongs in `culls.csv`.
 
 ### 2. Match tolerance MUST equal validation tolerance
 
@@ -115,8 +117,12 @@ bugs. `farrowing.ex` / `weaning.ex` changesets; `litter_caps_test.exs`.
 
 Per sow, events are sorted by date then `kind_rank` (movement < service <
 farrowing < weaning) so same-day events apply in the right sequence. Culls run
-last so any service the timeline left open is closed with the cull result.
-Don't reorder without re-checking these guards.
+last: each `culls.csv` row records **one departure movement** (`sold`/blank/
+generic → `sale`, plus `slaughtered`/`transferred`/`death`), and the movement
+closes any still-open gestation service as a side-effect (`death` → service
+result `death`, else `removed`). A sow the timeline left `lactating` with
+surviving piglets is **auto-weaned** at the cull date first (so the departure
+guard passes). Don't reorder without re-checking these guards.
 
 ## Common mistakes
 

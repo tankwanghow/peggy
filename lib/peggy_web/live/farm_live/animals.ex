@@ -834,7 +834,7 @@ defmodule PeggyWeb.FarmLive.Animals do
     individual_statuses =
       stage
       |> Animal.statuses_for_stage()
-      |> Enum.map(&{String.capitalize(&1), &1})
+      |> Enum.map(&{Animal.status_label(&1), &1})
 
     base ++ sow_groupings ++ tail ++ individual_statuses
   end

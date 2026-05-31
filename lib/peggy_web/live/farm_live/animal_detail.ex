@@ -45,6 +45,13 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
         <.header>
           <span class="font-mono">{@animal.ear_tag || "##{@animal.id}"}</span>
           <.status_badge status={@animal.status} class="ml-2" />
+          <span
+            :if={@animal.marked_cull}
+            class="badge badge-warning badge-sm ml-1"
+            title={gettext("Flagged for culling")}
+          >
+            <.icon name="hero-flag-micro" class="size-3" /> {gettext("Cull")}
+          </span>
           <span class="ml-2 text-base-content/60 text-base font-normal">
             {String.capitalize(@animal.stage)} · {String.capitalize(@animal.tracking_type)}
             <%= if @animal.tracking_type == "batch" do %>
@@ -116,6 +123,27 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
               class="btn btn-sm"
             >
               {gettext("Promote stage")}
+            </.button>
+            <.button
+              :if={
+                @can_manage && @animal.tracking_type == "individual" &&
+                  Peggy.Animals.Animal.present_status?(@animal.status) &&
+                  !@animal.marked_cull
+              }
+              phx-click="mark_for_cull"
+              data-confirm={
+                gettext("Flag this animal for culling? Its status and records are unaffected.")
+              }
+              class="btn btn-sm btn-warning"
+            >
+              <.icon name="hero-flag-micro" class="size-4" /> {gettext("Mark for cull")}
+            </.button>
+            <.button
+              :if={@can_manage && @animal.tracking_type == "individual" && @animal.marked_cull}
+              phx-click="unmark_cull"
+              class="btn btn-sm btn-ghost"
+            >
+              {gettext("Unmark cull")}
             </.button>
             <.button
               :if={@can_manage && Peggy.Animals.Animal.present_status?(@animal.status)}
@@ -200,7 +228,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
                 {o.ear_tag || "##{o.id}"}
               </.link>
               <span class="text-base-content/60">
-                {String.capitalize(o.stage)} · {String.capitalize(o.status)}
+                {String.capitalize(o.stage)} · {Animal.status_label(o.status)}
               </span>
             </li>
           </ul>
@@ -748,6 +776,9 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
          |> push_event("ac:reset", %{id: "move-from-pen-picker"})
          |> put_flash(:info, gettext("Movement recorded."))}
 
+      {:error, :litter_not_empty} ->
+        {:noreply, put_flash(socket, :error, litter_not_empty_msg())}
+
       {:error, cs} ->
         cs = Map.put(cs, :action, :insert)
 
@@ -813,6 +844,14 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     else
       {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
     end
+  end
+
+  def handle_event("mark_for_cull", _, socket) do
+    cull_toggle(socket, &Animals.mark_for_cull/2, gettext("Flagged for culling."))
+  end
+
+  def handle_event("unmark_cull", _, socket) do
+    cull_toggle(socket, &Animals.unmark_cull/2, gettext("Cull flag removed."))
   end
 
   def handle_event("promote_submit", %{"new_stage" => new_stage}, socket) do
@@ -910,6 +949,34 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
     end
   end
 
+  # Toggles the orthogonal marked_cull flag and reassigns the animal so
+  # the chip and action buttons re-render. Status/records are untouched.
+  defp cull_toggle(socket, fun, success_msg) do
+    if socket.assigns.can_manage do
+      scope = socket.assigns.current_scope
+
+      case fun.(scope, socket.assigns.animal) do
+        {:ok, _} ->
+          {:noreply,
+           socket
+           |> assign(animal: Animals.get_animal!(scope, socket.assigns.animal.id))
+           |> put_flash(:info, success_msg)}
+
+        {:error, :individual_only} ->
+          {:noreply,
+           put_flash(socket, :error, gettext("Only individual animals can be flagged for cull."))}
+
+        {:error, :not_present} ->
+          {:noreply, put_flash(socket, :error, gettext("This animal has already left the farm."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not update the cull flag."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
+
   ## Autocomplete state helpers
 
   defp maybe_reset_picker(socket, true, id), do: push_event(socket, "ac:reset", %{id: id})
@@ -992,6 +1059,12 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
   defp humanize_reason(r), do: r |> String.replace("_", " ") |> String.capitalize()
 
+  defp litter_not_empty_msg do
+    gettext(
+      "This sow still has nursing piglets — wean them or record foster-out/deaths before she can leave the farm."
+    )
+  end
+
   # Stages a batch can be promoted to, excluding its current stage.
   defp promote_targets(%Animal{tracking_type: "batch", stage: current}) do
     Animal.stages_for("batch")
@@ -1018,7 +1091,7 @@ defmodule PeggyWeb.FarmLive.AnimalDetail do
 
   defp history_date(%{date: d}), do: d
 
-  defp history_event_label(%{kind: :movement, data: m}), do: String.replace(m.reason, "_", " ")
+  defp history_event_label(%{kind: :movement, data: m}), do: humanize_reason(m.reason)
   defp history_event_label(%{kind: :service}), do: gettext("Service")
   defp history_event_label(%{kind: :farrowing}), do: gettext("Farrowing")
   defp history_event_label(%{kind: :service_closed}), do: gettext("Service closed")

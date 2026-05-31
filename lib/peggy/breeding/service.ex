@@ -3,7 +3,11 @@ defmodule Peggy.Breeding.Service do
   import Ecto.Changeset
 
   @service_types ~w(ai natural)
-  @results ~w(farrowing abortion failed_pregnancy re_service death cull)
+  # `death` / `removed` are stamped when a departure or cull *movement*
+  # closes an open gestation service (death movement → "death", any other
+  # departure/cull → "removed"). They are never chosen in the Close
+  # Service form, which only records reproductive outcomes.
+  @results ~w(farrowing abortion failed_pregnancy re_service death removed)
 
   schema "breeding_services" do
     field :service_type, :string

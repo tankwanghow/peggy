@@ -1072,37 +1072,21 @@ defmodule Peggy.ImportsTest do
       assert hd(farrowings).service_id == hd(services).id
     end
 
-    test "sow with terminal status \"culled\" in sows.csv still replays her historical services",
+    test "rejects a legacy sows.csv status of \"culled\" (renamed to marked_cull)",
          %{scope: scope} do
-      # sows.csv carries the sow's FINAL status. Importing it verbatim
-      # would make check_sow_serviceable reject every historical service.
-      # The importer must replay events against a serviceable baseline.
+      # `culled` became `marked_cull`, which is set only by the live action.
+      # sows.csv no longer accepts it — terminal dispositions belong in
+      # culls.csv, not the sow's seed status.
       sows_path =
         write_csv("""
         ear_tag,status
         CULLED1,culled
         """)
 
-      services_path =
-        write_csv("""
-        sow_ear_tag,served_at,service_type
-        CULLED1,2026-01-01,ai
-        """)
+      result = Imports.parse_and_validate(scope, %{sows: sows_path})
 
-      report = Imports.parse_and_validate(scope, %{sows: sows_path, services: services_path})
-
-      assert {:ok, outcome} = Imports.commit(scope, report)
-      assert outcome.sows.ok == 1
-
-      assert outcome.services.ok == 1,
-             "historical service should commit, got: #{inspect(outcome.services)}"
-
-      sow = Peggy.Animals.find_by_ear_tag(scope, "CULLED1")
-
-      services =
-        Peggy.Repo.all(Ecto.Query.from(s in Peggy.Breeding.Service, where: s.sow_id == ^sow.id))
-
-      assert length(services) == 1
+      assert [%{issues: issues}] = result.sows.err
+      assert Enum.any?(issues, &(&1.kind == :bad_status))
     end
 
     test "lactating sow in sows.csv replays services; final status derives from timeline", %{
@@ -1175,7 +1159,7 @@ defmodule Peggy.ImportsTest do
       assert Enum.any?(issues, &(&1.kind == :duplicate))
     end
 
-    test "commit closes the open service as cull and marks sow culled", %{scope: scope} do
+    test "commit departs the sow (sale) and closes her open service as 'removed'", %{scope: scope} do
       sows_path =
         write_csv("""
         ear_tag
@@ -1204,13 +1188,15 @@ defmodule Peggy.ImportsTest do
       assert {:ok, outcome} = Imports.commit(scope, report)
       assert outcome.culls.ok == 1
 
-      sow = Peggy.Animals.find_by_ear_tag(scope, "OUT1")
-      assert sow.status == "culled"
+      # A bare "cull" reason departs the sow as a sale (marked_cull is the
+      # on-farm live flag, never produced by import).
+      sow = sow_by_tag_any_status(scope, "OUT1")
+      assert sow.status == "sold"
 
       [service] =
         Peggy.Repo.all(Ecto.Query.from(s in Peggy.Breeding.Service, where: s.sow_id == ^sow.id))
 
-      assert service.result == "cull"
+      assert service.result == "removed"
       assert service.result_at == ~D[2026-02-15]
     end
 
@@ -1317,7 +1303,7 @@ defmodule Peggy.ImportsTest do
       end
     end
 
-    test "reason=cull (default) does NOT create a movement",
+    test "reason=cull (default) departs the sow as a sale",
          %{scope: scope} do
       sows_path =
         write_csv("""
@@ -1335,14 +1321,15 @@ defmodule Peggy.ImportsTest do
       assert {:ok, _} = Imports.commit(scope, report)
 
       sow = sow_by_tag_any_status(scope, "MARK1")
-      assert sow.status == "culled"
+      assert sow.status == "sold"
 
-      movements =
+      [movement] =
         Peggy.Repo.all(
           Ecto.Query.from(m in Peggy.Animals.Movement, where: m.animal_id == ^sow.id)
         )
 
-      assert movements == []
+      assert movement.reason == "sale"
+      assert movement.moved_at == ~D[2026-02-01]
     end
 
     test "cull for unknown sow is recorded as failed with sow_not_found", %{scope: scope} do

@@ -141,12 +141,6 @@ defmodule PeggyWeb.FarmLive.BatchCloseServices do
                         >
                           {gettext("Failed pregnancy")}
                         </option>
-                        <option value="death" selected={row.result == "death"}>
-                          {gettext("Death")}
-                        </option>
-                        <option value="cull" selected={row.result == "cull"}>
-                          {gettext("Cull")}
-                        </option>
                       </select>
                     </td>
                     <td class="py-1 px-0.5">

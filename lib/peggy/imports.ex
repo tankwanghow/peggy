@@ -56,9 +56,9 @@ defmodule Peggy.Imports do
       optional: ~w(avg_wean_weight_g batch_tag notes)
     },
     # Final-state CSV. Covers any sow no longer in the herd: cull,
-    # natural death, sold-as-breeder, etc. Closes the sow's last open
-    # service (with a service-side `result` derived from `reason`) and
-    # marks her status="culled". Processed AFTER the event timeline.
+    # natural death, sold-as-breeder, etc. Departs the sow via a movement
+    # (sale/slaughter/farm_transfer/death) which closes her last open
+    # service as a side-effect. Processed AFTER the event timeline.
     culls: %{
       required: ~w(ear_tag culled_at),
       optional: ~w(reason notes)
@@ -73,18 +73,22 @@ defmodule Peggy.Imports do
     }
   }
 
-  @valid_statuses ~w(active open served lactating dry culled)
+  @valid_statuses ~w(active open served lactating dry)
   @valid_service_types ~w(ai natural)
-  @valid_results ~w(farrowing abortion failed_pregnancy re_service death cull)
-  # Reasons accepted in culls.csv. Each maps to a final sow `status`
-  # (per `Peggy.Animals.Animal` taxonomy) and a `Service.result` for
-  # the sow's last open service:
-  #   cull        → status "culled",      service result "cull"
-  #   slaughtered → status "slaughtered", service result "cull"
-  #   sold        → status "sold",        service result "cull"
-  #   transferred → status "transferred", service result "cull"
-  #   death       → status "deceased",    service result "death"
-  # Blank reason defaults to "cull".
+  # services.csv carries only reproductive outcomes. Dispositions
+  # (death / cull / sale / …) live in culls.csv and are applied as
+  # movements, never as a service result.
+  @valid_results ~w(farrowing abortion failed_pregnancy re_service)
+  # Reasons accepted in culls.csv — the disposition file. Each row departs
+  # the sow via a movement, which closes any open service as a side-effect
+  # (death → service result "death", everything else → "removed"):
+  #   sold        → sale movement          → status "sold"
+  #   slaughtered → slaughter movement     → status "slaughtered"
+  #   transferred → farm_transfer movement → status "transferred"
+  #   death       → death movement         → status "deceased"
+  #   cull / blank / generic → sale movement → status "sold"
+  # The on-farm `marked_cull` flag is only ever set by the live action,
+  # never by import.
   @valid_cull_reasons ~w(cull slaughtered sold transferred death)
   @valid_house_purposes ~w(breeding gestation farrowing nursery grower finisher quarantine hospital)
   @valid_pen_statuses ~w(active quarantine cleaning retired)
@@ -1187,9 +1191,9 @@ defmodule Peggy.Imports do
     # the UI.
     #
     # Status is always seeded "active" regardless of the sows.csv value.
-    # The CSV carries each sow's FINAL status (culled/lactating/served/
-    # dry); replaying it verbatim would let `check_sow_serviceable`
-    # reject every historical service against a culled/lactating sow.
+    # The CSV carries each sow's FINAL status (lactating/served/dry/…);
+    # replaying it verbatim would let `check_sow_serviceable` reject
+    # every historical service against a departed/lactating sow.
     # Instead the event timeline drives status forward (service→served,
     # farrowing→lactating, weaning→dry) and culls.csv applies terminal
     # removals afterwards, so the final status is reconstructed, not
@@ -1335,11 +1339,13 @@ defmodule Peggy.Imports do
   # auto-resolver in `record_service` closes a prior service as
   # `re_service` when the next service for the same sow is inserted).
   # We drop those values and route the row as an open service so it can
-  # participate in the chain. `abortion / death / cull` aren't inferable
-  # from anything else, so we keep the pre-closed historic path.
+  # participate in the chain. `abortion / failed_pregnancy` aren't
+  # inferable from anything else, so we keep the pre-closed historic path.
+  # Death and cull are dispositions — they live in culls.csv (applied as
+  # movements), never as a service result here.
   defp process_event(scope, %{kind: :service, row: row}, via, _pens) do
     case row["result"] do
-      result when result in ["abortion", "failed_pregnancy", "death", "cull"] ->
+      result when result in ["abortion", "failed_pregnancy"] ->
         commit_closed_service(scope, row, via)
 
       _ ->
@@ -1679,7 +1685,7 @@ defmodule Peggy.Imports do
   defp do_commit_cull(scope, row, via) do
     ear_tag = row["ear_tag"]
     culled_at = row["culled_at"]
-    reason = row["reason"] || "cull"
+    reason = row["reason"]
 
     case Animals.find_by_ear_tag(scope, ear_tag) do
       nil ->
@@ -1687,23 +1693,22 @@ defmodule Peggy.Imports do
         # just record it as a row-level error so the count is accurate.
         {:error, :sow_not_found}
 
-      %Animal{status: prev_status} = sow ->
+      %Animal{} = sow ->
         Repo.transaction(fn ->
-          with {:ok, _service} <- close_open_service_for_cull(scope, sow, reason, culled_at),
-               {:ok, updated} <- depart_sow(scope, sow, reason, culled_at, via) do
-            Audit.log_now!(scope, "animal.removed",
-              entity_type: :animal,
-              entity_id: updated.id,
-              changes: %{
-                "ear_tag" => updated.ear_tag,
-                "reason" => reason,
-                "culled_at" => culled_at,
-                "previous_status" => prev_status,
-                "new_status" => updated.status
-              }
-            )
+          moved_at = culled_at || Date.to_iso8601(Peggy.FarmClock.today(scope))
 
-            updated
+          # A still-lactating sow can't depart with nursing piglets, so
+          # auto-wean her open litter at the cull date first. The
+          # departure movement then flips her status AND closes any open
+          # gestation service (death → "death", else "removed").
+          with {:ok, sow} <- autowean_open_litter(scope, sow, moved_at, via),
+               {:ok, _movement} <-
+                 Animals.record_movement(scope, sow, %{
+                   "reason" => cull_movement_reason(reason),
+                   "moved_at" => moved_at,
+                   "notes" => "legacy import: #{reason || "cull"}"
+                 }) do
+            Repo.reload!(sow)
           else
             {:error, err} -> Repo.rollback(err)
           end
@@ -1711,120 +1716,48 @@ defmodule Peggy.Imports do
     end
   end
 
-  # Departure path:
-  #   - reasons that map to a movement-system departure reason (sold,
-  #     slaughtered, transferred, death) → record a movement so the sow
-  #     has a proper audit row showing she left the farm. Status flips
-  #     automatically as part of the movement.
-  #   - reason "cull" → no movement (she's marked for cull, hasn't yet
-  #     departed; final disposition will produce the actual movement).
-  #     Just flip status → "culled" so she drops out of working lists.
-  defp depart_sow(scope, %Animal{} = sow, reason, culled_at, _via) do
-    case cull_movement_reason(reason) do
-      nil ->
-        mark_sow_departed(sow, reason)
-
-      movement_reason ->
-        attrs = %{
-          "reason" => movement_reason,
-          "moved_at" => culled_at || Date.to_iso8601(Peggy.FarmClock.today(scope)),
-          "notes" => "legacy import: #{reason}"
-        }
-
-        case Animals.record_movement(scope, sow, attrs) do
-          {:ok, _movement} ->
-            # Reload to reflect the status/current_pen_id update from
-            # the movement. record_movement returns the movement, not
-            # the updated animal.
-            {:ok, Repo.reload!(sow)}
-
-          {:error, %Ecto.Changeset{} = cs} ->
-            {:error, {:departure_movement, cs}}
-
-          {:error, reason} ->
-            {:error, {:departure_movement, reason}}
-        end
-    end
-  end
-
+  # `culls.csv` is the disposition file: every row departs the sow via a
+  # movement (which closes any open service as a side-effect). Known
+  # reasons map to their movement; a blank or generic reason ("cull",
+  # "old age", …) defaults to a sale. `marked_cull` — the on-farm intent
+  # flag — is never produced by import, only by the live action.
   defp cull_movement_reason("sold"), do: "sale"
   defp cull_movement_reason("slaughtered"), do: "slaughter"
   defp cull_movement_reason("transferred"), do: "farm_transfer"
   defp cull_movement_reason("death"), do: "death"
-  defp cull_movement_reason(_), do: nil
+  defp cull_movement_reason(_), do: "sale"
 
-  # Closes the sow's most recent open service (if any) with a result
-  # derived from the cull reason. No-op when the sow has no open
-  # service — `{:ok, nil}` lets the with-chain continue.
-  defp close_open_service_for_cull(
-         %Scope{farm: farm} = scope,
-         %Animal{id: sow_id},
-         reason,
-         culled_at
-       ) do
-    open =
-      Repo.one(
-        from(s in Service,
-          where:
-            s.farm_id == ^farm.id and
-              s.sow_id == ^sow_id and
-              is_nil(s.result) and
-              is_nil(s.deleted_at),
-          order_by: [desc: s.served_at, desc: s.id],
-          limit: 1
-        )
-      )
-
-    case open do
+  # When the timeline leaves a sow lactating with surviving piglets at
+  # cull time, wean the open litter (count = survivors) at the cull date
+  # so she can depart — pooled into a per-sow legacy weaner batch. No-op
+  # for non-lactating sows or empty litters.
+  defp autowean_open_litter(scope, %Animal{status: "lactating"} = sow, weaned_at, via) do
+    case Breeding.latest_open_farrowing_for_sow(scope, sow.id) do
       nil ->
-        {:ok, nil}
+        {:ok, sow}
 
-      %Service{served_at: served_at} = service ->
-        result_at =
-          case parse_date(culled_at) do
-            {:ok, %Date{} = d} ->
-              if Date.compare(d, served_at) == :lt, do: served_at, else: culled_at
+      farrowing ->
+        case Breeding.surviving_piglet_count(farrowing) do
+          n when n > 0 ->
+            attrs = %{
+              "weaned_at" => weaned_at,
+              "weaned_count" => n,
+              "batch_tag" => "LEGACY-WEAN-#{sow.ear_tag}",
+              "created_via" => via
+            }
 
-            _ ->
-              served_at
-          end
+            case Breeding.record_weaning(scope, farrowing, attrs) do
+              {:ok, _weaning, _batch} -> {:ok, Repo.reload!(sow)}
+              {:error, reason} -> {:error, {:autowean, reason}}
+            end
 
-        attrs = %{"result" => cull_service_result(reason), "result_at" => result_at}
-
-        case service |> Service.close_changeset(attrs) |> Repo.update() do
-          {:ok, closed} ->
-            Audit.log_now!(scope, "service.closed",
-              entity_type: :service,
-              entity_id: closed.id,
-              changes: %{"result" => closed.result, "result_at" => to_string(closed.result_at)}
-            )
-
-            {:ok, closed}
-
-          {:error, cs} ->
-            {:error, {:service_close, cs}}
+          _ ->
+            {:ok, sow}
         end
     end
   end
 
-  defp mark_sow_departed(%Animal{} = sow, reason) do
-    new_status = cull_sow_status(reason)
-
-    if sow.status == new_status do
-      {:ok, sow}
-    else
-      sow |> Ecto.Changeset.change(%{status: new_status}) |> Repo.update()
-    end
-  end
-
-  defp cull_service_result("death"), do: "death"
-  defp cull_service_result(_), do: "cull"
-
-  defp cull_sow_status("death"), do: "deceased"
-  defp cull_sow_status("sold"), do: "sold"
-  defp cull_sow_status("slaughtered"), do: "slaughtered"
-  defp cull_sow_status("transferred"), do: "transferred"
-  defp cull_sow_status(_), do: "culled"
+  defp autowean_open_litter(_scope, sow, _weaned_at, _via), do: {:ok, sow}
 
   # ── Movement event commit ─────────────────────────────────────────
   #

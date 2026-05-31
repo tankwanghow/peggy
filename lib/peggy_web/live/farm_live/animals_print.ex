@@ -62,7 +62,7 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
               {String.capitalize(a.stage)}{stage_suffix(a, @parity_map, @avg_wean_age, @today)}
             </td>
             <td class="p-2 border-1">{pen_label(a)}</td>
-            <td class="p-2 border-1 text-center">{String.capitalize(a.status)}</td>
+            <td class="p-2 border-1 text-center">{Animal.status_label(a.status)}</td>
             <td :if={@show_days} class="p-2 border-1 text-center">
               {days_in_status(a, @today)}
             </td>

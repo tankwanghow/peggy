@@ -57,7 +57,7 @@ defmodule Peggy.Reports do
   def herd_snapshot(%Scope{farm: %{id: farm_id}}) do
     stage_rows =
       from(a in "animals",
-        where: a.farm_id == ^farm_id and a.status in ~w(active served open lactating dry culled),
+        where: a.farm_id == ^farm_id and a.status in ~w(active served open lactating dry),
         group_by: a.stage,
         select: {a.stage, sum(a.quantity)}
       )
@@ -101,7 +101,7 @@ defmodule Peggy.Reports do
         left_join: a in "animals",
         on:
           a.current_pen_id == p.id and
-            a.status in ~w(active served open lactating dry culled),
+            a.status in ~w(active served open lactating dry),
         where: p.farm_id == ^farm_id and p.status == "active",
         group_by: [p.id, p.capacity],
         select: {p.capacity, sum(coalesce(a.quantity, 0))}
@@ -143,7 +143,7 @@ defmodule Peggy.Reports do
     farrow_cutoff_7d = Date.add(today, 7 - gestation)
     farrow_cutoff_overdue = Date.add(today, -gestation)
 
-    excluded_sow_statuses = ["culled" | Peggy.Animals.Animal.departed_statuses()]
+    excluded_sow_statuses = Peggy.Animals.Animal.departed_statuses()
 
     due_to_farrow =
       from(s in "breeding_services",
@@ -215,7 +215,7 @@ defmodule Peggy.Reports do
       from(a in "animals",
         where:
           a.farm_id == ^farm_id and a.needs_review == true and
-            a.status in ~w(active served open lactating dry culled),
+            a.status in ~w(active served open lactating dry),
         select: count(a.id)
       )
       |> Repo.one()

@@ -14,8 +14,10 @@ defmodule Peggy.Breeding do
   * `re_service` — sow returned to heat (auto-set when a new service
     is recorded for the same sow)
   * `abortion` — pregnancy terminated early
-  * `death` — sow died during gestation
-  * `cull` — sow culled during gestation
+  * `death` — sow died mid-gestation (set when a `death` movement closes
+    the open service)
+  * `removed` — sow left the herd mid-gestation (set when a sale /
+    slaughter / farm_transfer movement closes the service)
 
   When `result IS NULL`, the sow is considered currently gestating.
   Expected farrowing date is computed as `served_at + 114 days`.
@@ -658,7 +660,7 @@ defmodule Peggy.Breeding do
 
   # Reject services for sows that aren't biologically eligible:
   # only `active`, `open`, `dry`, or `served` (re-service via auto-close)
-  # are allowed. `lactating`, `culled`, and departed statuses error out
+  # are allowed. `lactating` and departed statuses error out
   # with a changeset error rather than silently moving the sow to "served".
   @serviceable_for_new_service ~w(active open dry served)
 
@@ -858,24 +860,14 @@ defmodule Peggy.Breeding do
   end
 
   @doc """
-  Closes an open service with a result (abortion, death, cull).
+  Closes an open service with a **reproductive** result (`abortion` or
+  `failed_pregnancy`) — the sow returns to `open`, ready to re-serve.
 
-  Use `record_farrowing/3` instead when the result is a farrowing.
-
-  For death/cull, a departure movement is recorded and the sow's status
-  is set via the movement system (deceased/sold). For abortion, the sow
-  returns to `active`.
+  Use `record_farrowing/3` for a farrowing. Departures and culls are no
+  longer closed here: record the corresponding **movement**
+  (sale/slaughter/death/farm_transfer) instead, which closes
+  any open service as a side-effect (see `Animals.record_movement/3`).
   """
-  @sow_departure_statuses %{
-    "death" => "deceased",
-    "cull" => "sold"
-  }
-
-  @sow_departure_reasons %{
-    "death" => "death",
-    "cull" => "sale"
-  }
-
   def close_service(%Scope{} = scope, %Service{} = service, result, attrs \\ %{}) do
     if service.result do
       {:error, :already_closed}
@@ -908,45 +900,19 @@ defmodule Peggy.Breeding do
     end)
   end
 
-  # Sow departs via death or cull — record departure movement
-  defp handle_sow_after_close(multi, scope, sow_id, result, attrs)
-       when result in ["death", "cull"] do
-    Multi.run(multi, :depart_sow, fn _repo, _ ->
-      sow = Repo.get!(Animal, sow_id)
-      reason = Map.fetch!(@sow_departure_reasons, result)
-      moved_at = attrs["result_at"] || to_string(FarmClock.today(scope))
-
-      with {:ok, _movement} <-
-             Repo.insert(
-               Movement.changeset(%Movement{}, %{
-                 "farm_id" => scope.farm.id,
-                 "animal_id" => sow.id,
-                 "from_pen_id" => sow.current_pen_id,
-                 "reason" => reason,
-                 "quantity" => 1,
-                 "moved_at" => moved_at,
-                 "previous_status" => sow.status
-               })
-             ) do
-        status = Map.fetch!(@sow_departure_statuses, result)
-        sow |> Ecto.Changeset.change(%{status: status, current_pen_id: nil}) |> Repo.update()
-      end
-    end)
-  end
-
   defp handle_sow_after_close(multi, _scope, _sow_id, _result, _attrs), do: multi
 
   # ── Batch close-services (with back-fill) ────────────────────────────
 
   @gestation_backfill_offset 60
-  @valid_close_results ~w(abortion failed_pregnancy death cull)
+  @valid_close_results ~w(abortion failed_pregnancy)
 
   @doc """
   Batch variant for closing gestation cycles with back-fill.
 
   Each entry is a map with:
 
-    * `:result` — `"abortion"` | `"death"` | `"cull"`
+    * `:result` — `"abortion"` | `"failed_pregnancy"`
     * `:result_at` — date the result occurred (required)
     * `:sow_id` — for known sows, OR
     * `:sow_ear_tag` + optional `:backfill_sow` map for inferred sows
@@ -1337,7 +1303,7 @@ defmodule Peggy.Breeding do
     4. **Service closed as `re_service`.** Same as plain
        `delete_service/2` — soft-deletes the row.
 
-  Refuses farrowing- / death- / cull-closed services
+  Refuses farrowing- / death- / removed-closed services
   (`:service_has_closed_outcome`) — those have their own undo paths
   (`delete_farrowing/2` and `undo_last_movement/2` respectively).
   """
@@ -1346,7 +1312,7 @@ defmodule Peggy.Breeding do
       not is_nil(service.deleted_at) ->
         {:error, :already_deleted}
 
-      service.result in ["farrowing", "death", "cull"] ->
+      service.result in ["farrowing", "death", "removed"] ->
         {:error, :service_has_closed_outcome}
 
       service.result in ["abortion", "failed_pregnancy"] ->
@@ -1650,7 +1616,7 @@ defmodule Peggy.Breeding do
     sort = Keyword.get(opts, :sort, "served")
     dir = Keyword.get(opts, :dir, "asc")
 
-    excluded_sow_statuses = ["culled" | Animal.departed_statuses()]
+    excluded_sow_statuses = Animal.departed_statuses()
 
     q =
       from(s in Service,

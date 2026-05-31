@@ -625,48 +625,45 @@ defmodule Peggy.BreedingTest do
       assert closed.result_notes == "Early termination"
     end
 
-    test "closes with death, records departure movement, marks sow deceased", %{
+    # Departures and culls are no longer closed via the service form —
+    # they're driven by a movement, which closes any open service as a
+    # side-effect (death → "death", everything else → "removed").
+    test "a death movement departs the sow and closes her open service", %{
       scope: scope,
       sow: sow,
       boar: boar
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
+      sow = Peggy.Animals.get_animal!(scope, sow.id)
 
-      {:ok, closed} =
-        Breeding.close_service(scope, service, "death", %{result_at: ~D[2026-03-15]})
-
-      assert closed.result == "death"
+      {:ok, _} =
+        Peggy.Animals.record_movement(scope, sow, %{
+          "reason" => "death",
+          "moved_at" => ~D[2026-03-15]
+        })
 
       updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
       assert updated_sow.status == "deceased"
       assert is_nil(updated_sow.current_pen_id)
-
-      # Departure movement recorded
-      movements = Peggy.Animals.list_movements(scope, updated_sow)
-      assert length(movements) == 1
-      assert hd(movements).reason == "death"
-      assert hd(movements).moved_at == ~D[2026-03-15]
+      assert Breeding.get_service!(scope, service.id).result == "death"
     end
 
-    test "closes with cull, records departure movement, marks sow sold", %{
+    test "a sale movement departs the sow and closes her service as 'removed'", %{
       scope: scope,
       sow: sow,
       boar: boar
     } do
       service = service_fixture(scope, sow, boar_id: boar.id)
+      sow = Peggy.Animals.get_animal!(scope, sow.id)
 
-      {:ok, closed} =
-        Breeding.close_service(scope, service, "cull", %{result_at: ~D[2026-03-15]})
+      {:ok, _} =
+        Peggy.Animals.record_movement(scope, sow, %{
+          "reason" => "sale",
+          "moved_at" => ~D[2026-03-15]
+        })
 
-      assert closed.result == "cull"
-
-      updated_sow = Peggy.Animals.get_animal!(scope, sow.id)
-      assert updated_sow.status == "sold"
-
-      # Departure movement recorded with reason "sale"
-      movements = Peggy.Animals.list_movements(scope, updated_sow)
-      assert length(movements) == 1
-      assert hd(movements).reason == "sale"
+      assert Peggy.Animals.get_animal!(scope, sow.id).status == "sold"
+      assert Breeding.get_service!(scope, service.id).result == "removed"
     end
 
     test "abortion moves sow to open", %{scope: scope, sow: sow, boar: boar} do
@@ -690,7 +687,7 @@ defmodule Peggy.BreedingTest do
         Breeding.close_service(scope, service, "abortion", %{result_at: ~D[2026-03-01]})
 
       assert {:error, :already_closed} =
-               Breeding.close_service(scope, closed, "cull", %{result_at: ~D[2026-03-02]})
+               Breeding.close_service(scope, closed, "abortion", %{result_at: ~D[2026-03-02]})
     end
 
     test "writes audit log on close", %{scope: scope, sow: sow, boar: boar} do
@@ -3441,10 +3438,15 @@ defmodule Peggy.BreedingTest do
       assert Breeding.count_serviceable(scope) == 2
     end
 
-    test "excludes culled sows", %{scope: scope, dry_sow: dry_sow} do
-      set_status!(dry_sow, "culled")
+    test "a marked-cull flag does NOT change serviceability (orthogonal to status)", %{
+      scope: scope,
+      dry_sow: dry_sow
+    } do
+      {:ok, _} = Peggy.Animals.mark_for_cull(scope, dry_sow)
 
-      assert Breeding.count_serviceable(scope) == 2
+      # Flagging is orthogonal to status — she stays `dry` and serviceable.
+      assert Breeding.count_serviceable(scope) == 3
+      assert Enum.any?(Breeding.list_serviceable(scope), &(&1.animal.id == dry_sow.id))
     end
 
     test "excludes boars and batch animals", %{scope: scope} do

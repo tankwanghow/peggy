@@ -109,7 +109,7 @@ defmodule PeggyWeb.FarmLive.HerdImport do
                         value={st}
                         selected={row.status == st}
                       >
-                        {String.capitalize(st)}
+                        {Animal.status_label(st)}
                       </option>
                     </select>
                   </td>
@@ -351,7 +351,7 @@ defmodule PeggyWeb.FarmLive.HerdImport do
   # (`sold` / `deceased` / `slaughtered` / `transferred`) are
   # intentionally excluded — there's no reason to import an animal
   # that has already left.
-  defp importable_statuses, do: ~w(active served open lactating dry culled)
+  defp importable_statuses, do: ~w(active served open lactating dry)
 
   defp pen_items(scope) do
     scope

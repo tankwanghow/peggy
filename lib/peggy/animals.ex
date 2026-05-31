@@ -562,6 +562,49 @@ defmodule Peggy.Animals do
     end
   end
 
+  @doc """
+  Flags / un-flags an individual animal for culling.
+
+  `marked_cull` is an *intent* flag orthogonal to lifecycle status — it
+  does not change `status`, move the animal, or touch her breeding
+  records. A flagged sow keeps gestating/lactating and can still farrow
+  or wean; she only leaves the farm when an actual departure movement is
+  recorded. No-op if the flag is already in the requested state.
+
+  Returns `{:ok, animal}`, `{:error, :individual_only}`,
+  `{:error, :not_present}`, or `{:error, changeset}`.
+  """
+  def mark_for_cull(%Scope{} = scope, %Animal{} = animal),
+    do: set_cull_flag(scope, animal, true)
+
+  def unmark_cull(%Scope{} = scope, %Animal{} = animal),
+    do: set_cull_flag(scope, animal, false)
+
+  defp set_cull_flag(%Scope{farm: farm} = scope, %Animal{farm_id: fid} = animal, flag)
+       when fid == farm.id do
+    cond do
+      animal.tracking_type != "individual" ->
+        {:error, :individual_only}
+
+      flag and not Animal.present_status?(animal.status) ->
+        {:error, :not_present}
+
+      animal.marked_cull == flag ->
+        {:ok, animal}
+
+      true ->
+        at = if flag, do: DateTime.truncate(DateTime.utc_now(), :second), else: nil
+        cs = Ecto.Changeset.change(animal, %{marked_cull: flag, marked_cull_at: at})
+        action = if flag, do: "animal.marked_cull", else: "animal.unmarked_cull"
+
+        Multi.new()
+        |> Multi.update(:animal, cs)
+        |> audit_after(scope, action, :animal, fn _ -> %{marked_cull: flag} end)
+        |> Repo.transaction()
+        |> unwrap(:animal)
+    end
+  end
+
   ## Herd import (onboarding)
 
   @doc """
@@ -573,7 +616,7 @@ defmodule Peggy.Animals do
 
   Status handling:
 
-  * `"active"`, `"open"`, `"dry"`, `"culled"` — animal only.
+  * `"active"`, `"open"`, `"dry"` — animal only.
   * `"served"` — also requires `:last_served_at`; inserts an open
     `Peggy.Breeding.Service` so the sow has a real pregnancy to
     farrow / recheck.
@@ -775,6 +818,16 @@ defmodule Peggy.Animals do
     "slaughter" => "slaughtered",
     "death" => "deceased",
     "farm_transfer" => "transferred"
+  }
+
+  # Result stamped on an open gestation service auto-closed by a departure
+  # movement. Only `death` reads as a death; everything else is the
+  # neutral `removed` (the movement itself carries the precise reason).
+  @service_close_results %{
+    "sale" => "removed",
+    "slaughter" => "removed",
+    "death" => "death",
+    "farm_transfer" => "removed"
   }
 
   def record_movement(%Scope{farm: farm} = scope, %Animal{farm_id: fid} = animal, attrs)
@@ -1168,35 +1221,102 @@ defmodule Peggy.Animals do
     reason = Map.get(attrs, "reason")
     to_pen_id = Map.get(attrs, "to_pen_id")
 
-    # Auto-capture from_pen_id from the animal's current pen so undo can
-    # restore it even when the caller omits the field.
-    attrs =
-      if is_nil(Map.get(attrs, "from_pen_id")) and not is_nil(animal.current_pen_id),
-        do: Map.put(attrs, "from_pen_id", animal.current_pen_id),
-        else: attrs
+    if reason in @departure_reasons and lactating_litter_remaining?(scope, animal) do
+      # A lactating sow can't leave with nursing piglets — wean or
+      # foster-out/death the litter to zero first.
+      {:error, :litter_not_empty}
+    else
+      # Auto-capture from_pen_id from the animal's current pen so undo can
+      # restore it even when the caller omits the field.
+      attrs =
+        if is_nil(Map.get(attrs, "from_pen_id")) and not is_nil(animal.current_pen_id),
+          do: Map.put(attrs, "from_pen_id", animal.current_pen_id),
+          else: attrs
 
-    # Store previous status on departure movements so they can be undone cleanly.
-    attrs =
-      if reason in @departure_reasons,
-        do: Map.put(attrs, "previous_status", animal.status),
-        else: attrs
+      # Store previous status on departure movements so they can be undone cleanly.
+      attrs =
+        if reason in @departure_reasons,
+          do: Map.put(attrs, "previous_status", animal.status),
+          else: attrs
 
-    cs = Movement.changeset(%Movement{}, attrs)
+      cs = Movement.changeset(%Movement{}, attrs)
 
-    animal_updates =
-      if reason in @departure_reasons do
-        %{current_pen_id: nil, status: Map.fetch!(@departure_statuses, reason)}
-      else
-        %{current_pen_id: to_pen_id}
-      end
+      animal_updates =
+        if reason in @departure_reasons do
+          %{current_pen_id: nil, status: Map.fetch!(@departure_statuses, reason)}
+        else
+          %{current_pen_id: to_pen_id}
+        end
 
-    Multi.new()
-    |> Multi.insert(:movement, cs)
-    |> Multi.update(:animal, Animal.changeset(animal, animal_updates))
-    |> audit_movement(scope, animal)
-    |> Repo.transaction()
-    |> unwrap(:movement)
+      Multi.new()
+      |> Multi.insert(:movement, cs)
+      |> Multi.update(:animal, Animal.changeset(animal, animal_updates))
+      |> maybe_close_open_service(scope, animal, reason)
+      |> audit_movement(scope, animal)
+      |> Repo.transaction()
+      |> unwrap(:movement)
+    end
   end
+
+  # A lactating sow may not depart while she still has nursing piglets.
+  # Only meaningful for lactating individual sows; everyone else is
+  # unblocked.
+  defp lactating_litter_remaining?(scope, %Animal{
+         tracking_type: "individual",
+         status: "lactating",
+         id: id
+       }) do
+    case Peggy.Breeding.latest_open_farrowing_for_sow(scope, id) do
+      nil -> false
+      farrowing -> Peggy.Breeding.surviving_piglet_count(farrowing) > 0
+    end
+  end
+
+  defp lactating_litter_remaining?(_scope, _animal), do: false
+
+  # When a departure movement is recorded against a sow with an open
+  # gestation service, close that service so it isn't left dangling. The
+  # undo path reopens it (see reverse_individual).
+  defp maybe_close_open_service(
+         multi,
+         %Scope{farm: farm},
+         %Animal{tracking_type: "individual", id: sow_id},
+         reason
+       )
+       when reason in @departure_reasons do
+    Multi.run(multi, :close_service, fn repo, %{movement: movement} ->
+      case open_service_for_sow(repo, farm.id, sow_id) do
+        nil ->
+          {:ok, nil}
+
+        service ->
+          # Never date the closure before the sow was served.
+          result_at = latest_date(movement.moved_at, service.served_at)
+
+          service
+          |> Peggy.Breeding.Service.close_changeset(%{
+            "result" => Map.fetch!(@service_close_results, reason),
+            "result_at" => result_at
+          })
+          |> repo.update()
+      end
+    end)
+  end
+
+  defp maybe_close_open_service(multi, _scope, _animal, _reason), do: multi
+
+  defp open_service_for_sow(repo, farm_id, sow_id) do
+    repo.one(
+      from s in Peggy.Breeding.Service,
+        where:
+          s.farm_id == ^farm_id and s.sow_id == ^sow_id and
+            is_nil(s.result) and is_nil(s.deleted_at),
+        order_by: [desc: s.served_at, desc: s.id],
+        limit: 1
+    )
+  end
+
+  defp latest_date(a, b), do: if(Date.compare(a, b) == :lt, do: b, else: a)
 
   defp record_batch_movement(scope, %Animal{} = animal, attrs) do
     do_record_batch_movement_dispatch(scope, animal, attrs)
@@ -1883,17 +2003,17 @@ defmodule Peggy.Animals do
 
   defp reverse_individual(multi, _scope, _animal, _movement), do: multi
 
-  # When undoing a departure (death/sale) for an individual animal, check if
-  # it was linked to a service closed with death/cull and reopen it.
+  # When undoing a departure movement, reopen the gestation service that
+  # movement auto-closed (result "death" or "removed").
   defp maybe_reopen_linked_service(multi, scope, animal, %{reason: reason})
-       when reason in ["death", "sale"] do
+       when reason in @departure_reasons do
     Multi.run(multi, :reopen_service, fn repo, _ ->
       case repo.one(
              from s in Peggy.Breeding.Service,
                where:
                  s.farm_id == ^scope.farm.id and
                    s.sow_id == ^animal.id and
-                   s.result in ["death", "cull"] and
+                   s.result in ["death", "removed"] and
                    is_nil(s.deleted_at),
                order_by: [desc: s.id],
                limit: 1

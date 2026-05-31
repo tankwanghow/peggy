@@ -53,6 +53,13 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
             </div>
           </div>
           <.status_badge status={@animal.status} class="badge-sm" />
+          <span
+            :if={@animal.marked_cull}
+            class="badge badge-warning badge-sm"
+            title={gettext("Flagged for culling")}
+          >
+            <.icon name="hero-flag-micro" class="size-3" />
+          </span>
           <button
             :if={@can_move and Animal.present_status?(@animal.status)}
             type="button"
@@ -61,6 +68,30 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
             aria-label={gettext("Record movement")}
           >
             <.icon name="hero-truck" class="size-6 text-info" />
+          </button>
+          <button
+            :if={
+              @can_manage and @animal.tracking_type == "individual" and
+                Animal.present_status?(@animal.status) and not @animal.marked_cull
+            }
+            type="button"
+            phx-click="mark_for_cull"
+            data-confirm={
+              gettext("Flag this animal for culling? Its status and records are unaffected.")
+            }
+            class="btn btn-ghost btn-square btn-lg"
+            aria-label={gettext("Mark for cull")}
+          >
+            <.icon name="hero-flag" class="size-6 text-warning" />
+          </button>
+          <button
+            :if={@can_manage and @animal.tracking_type == "individual" and @animal.marked_cull}
+            type="button"
+            phx-click="unmark_cull"
+            class="btn btn-ghost btn-square btn-lg"
+            aria-label={gettext("Unmark cull")}
+          >
+            <.icon name="hero-flag-solid" class="size-6 text-warning" />
           </button>
           <button
             :if={
@@ -244,19 +275,19 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
                 <span class="font-mono text-xs text-base-content/60">{row.date}</span>
               </div>
               <div class="flex items-baseline justify-between gap-1">
-              <p class="mt-1 text-sm leading-snug">
-                {history_summary(row, @current_scope)}
-              </p>
-              <button
-                :if={@can_move and history_undoable?(row, @latest_event)}
-                type="button"
-                phx-click="undo_last_event"
-                class="btn btn-sm btn-ghost text-error"
-                data-confirm={undo_confirm_text(@latest_event)}
-              >
-                <.icon name="hero-arrow-uturn-left" class="size-4" />
-                {gettext("Undo")}
-              </button>
+                <p class="mt-1 text-sm leading-snug">
+                  {history_summary(row, @current_scope)}
+                </p>
+                <button
+                  :if={@can_move and history_undoable?(row, @latest_event)}
+                  type="button"
+                  phx-click="undo_last_event"
+                  class="btn btn-sm btn-ghost text-error"
+                  data-confirm={undo_confirm_text(@latest_event)}
+                >
+                  <.icon name="hero-arrow-uturn-left" class="size-4" />
+                  {gettext("Undo")}
+                </button>
               </div>
             </li>
             <li
@@ -854,6 +885,16 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
     end
   end
 
+  # Cull flag (orthogonal to status)
+
+  def handle_event("mark_for_cull", _, socket) do
+    cull_toggle(socket, &Animals.mark_for_cull/2, gettext("Flagged for culling."))
+  end
+
+  def handle_event("unmark_cull", _, socket) do
+    cull_toggle(socket, &Animals.unmark_cull/2, gettext("Cull flag removed."))
+  end
+
   # Promote stage
 
   def handle_event("promote_open", _, socket) do
@@ -913,6 +954,27 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   end
 
   defp promote_targets(_), do: []
+
+  defp cull_toggle(socket, fun, success_msg) do
+    if socket.assigns.can_manage do
+      case fun.(socket.assigns.current_scope, socket.assigns.animal) do
+        {:ok, _} ->
+          {:noreply, socket |> reload_detail() |> put_flash(:info, success_msg)}
+
+        {:error, :individual_only} ->
+          {:noreply,
+           put_flash(socket, :error, gettext("Only individual animals can be flagged for cull."))}
+
+        {:error, :not_present} ->
+          {:noreply, put_flash(socket, :error, gettext("This animal has already left the farm."))}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not update the cull flag."))}
+      end
+    else
+      {:noreply, put_flash(socket, :error, gettext("Not authorized."))}
+    end
+  end
 
   defp reload_detail(socket) do
     scope = socket.assigns.current_scope
@@ -1018,6 +1080,10 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
   end
 
   defp humanize_reason(r), do: r |> String.replace("_", " ") |> String.capitalize()
+
+  defp humanize_move_error(:litter_not_empty),
+    do:
+      gettext("This sow still has nursing piglets — wean them or record foster-out/deaths first.")
 
   defp humanize_move_error(reason) when is_atom(reason),
     do: reason |> Atom.to_string() |> String.replace("_", " ")
@@ -1147,7 +1213,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
 
   defp history_summary(%{kind: :movement, data: m}, _scope) do
     parts = [
-      m.reason && String.capitalize(m.reason),
+      m.reason && humanize_reason(m.reason),
       m.from_pen && "from #{pen_code(m.from_pen)}",
       m.to_pen && "to #{pen_code(m.to_pen)}",
       m.quantity > 1 && "×#{m.quantity}"

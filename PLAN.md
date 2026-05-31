@@ -22,14 +22,20 @@ Status is a single source of truth on `animals.animals.status`. It changes **onl
 | `lactating` | sow | Sow has farrowed and is currently nursing piglets. |
 | `dry` | sow | Piglets weaned; sow resting before next heat. |
 | `under_treatment` | all | Receiving medication; withdrawal period active. Blocks sale/slaughter. |
-| `culled` | all | Marked for culling (decision made) but not yet sold/slaughtered. Final disposition pending. |
 | `sold` | all | Departed via sale. Terminal. |
 | `slaughtered` | all | Departed via slaughter. Terminal. |
 | `deceased` | all | Died on farm. Terminal. |
 | `transferred` | all | Moved to another farm/entity. Terminal. |
 
+**"Marked for cull" is NOT a status.** It is the orthogonal boolean flag
+`animals.marked_cull` (with `marked_cull_at`), toggled by
+`Animals.mark_for_cull/2` / `unmark_cull/2`. A flagged animal keeps her real
+status and reproductive cycle — she can still farrow/wean and stays in
+serviceable/breeding lists; she only leaves when an actual departure
+movement is recorded. The flag never changes `status`.
+
 **Groupings (centralized in `Animal`):**
-- `present_statuses` — `active · served · open · lactating · dry · under_treatment · culled`
+- `present_statuses` — `active · served · open · lactating · dry · under_treatment`
 - `departed_statuses` — `sold · slaughtered · deceased · transferred`
 - `breeding_active_statuses` — `served · lactating` (counted in active breeding inventory)
 - `serviceable_statuses` — `active · open · dry` (eligible for new service)
@@ -43,7 +49,14 @@ active ──service──▶ served ──farrowing──▶ lactating ──we
                        └──abortion──▶ open
 ```
 Any present status → `under_treatment` ↔ previous status (on treatment start / withdrawal clear).
-Any present status → `culled` → `sold`/`slaughtered`/`deceased` (terminal).
+Any present status → a departed status, recorded **only** via a departure
+movement (`sale`/`slaughter`/`death`/`farm_transfer`). A departure movement
+also closes the sow's open gestation service as a side-effect (`death` →
+service result `death`, otherwise `removed`); undoing the movement restores
+the prior status and reopens the service. A `lactating` sow with surviving
+piglets cannot depart — wean or foster-out/death the litter to zero first.
+Close Service itself records only reproductive outcomes (`abortion`,
+`failed_pregnancy`); departures/culls are never a service result.
 
 **Validation rules** (enforced in `Animal.changeset` + context functions):
 - `served · open · lactating · dry` are valid only when `stage in [:sow, :gilt]`.
@@ -137,7 +150,7 @@ Can build a farm map; every create/update/delete shows up in the audit log with 
 ## Phase 3 — Animal registry (4–5 days)
 
 ### Schemas
-- `animals.animals` — farm_id, tag (ear tag), rfid, sex (`:male`|`:female`), birth_date, stage (`:piglet`|`:weaner`|`:grower`|`:finisher`|`:gilt`|`:sow`|`:boar`), status (see **Animal status model** above — full set: `active · served · open · lactating · dry · under_treatment · culled · sold · slaughtered · deceased · transferred`), previous_status (nullable, restored when `under_treatment` clears), sire_id, dam_id, current_pen_id, entered_at, exited_at, exit_reason
+- `animals.animals` — farm_id, tag (ear tag), rfid, sex (`:male`|`:female`), birth_date, stage (`:piglet`|`:weaner`|`:grower`|`:finisher`|`:gilt`|`:sow`|`:boar`), status (see **Animal status model** above — full set: `active · served · open · lactating · dry · under_treatment · sold · slaughtered · deceased · transferred`), marked_cull (boolean) + marked_cull_at (orthogonal cull flag), previous_status (nullable, restored when `under_treatment` clears), sire_id, dam_id, current_pen_id, entered_at, exited_at, exit_reason
 - `animals.batches` — farm_id, code, current_pen_id, head_count, stage, opened_at, closed_at
 - `animals.movements` — farm_id, animal_id **or** batch_id + head_count, from_pen_id, to_pen_id, reason (`:placement`|`:pen_transfer`|`:sale`|`:slaughter`|`:death`|`:farm_transfer`|`:foster_on`|`:foster_off`|`:adjustment_gain`|`:adjustment_loss`) — `foster_on`/`foster_off` are piglet-batch-only (piglet joining/leaving a dam's litter); each is a single-entry event, previous_status (captured for departure reasons so `undo_last_movement/2` can restore status cleanly), moved_at, notes, actor_user_id
 - Unique index on `(farm_id, tag)` where tag not null; same for rfid
