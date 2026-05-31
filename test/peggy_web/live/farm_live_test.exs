@@ -45,8 +45,10 @@ defmodule PeggyWeb.FarmLiveTest do
       farm = farm_fixture(alice, name: "Alice Acres")
 
       {:ok, _lv, html} = conn |> log_in_user(alice) |> live(~p"/farms/#{farm.slug}")
-      assert html =~ "Alice Acres"
-      assert html =~ "owner"
+      # The dashboard has no page header; it's scoped to this farm (slug in
+      # the layout) and renders the herd-snapshot body for a member.
+      assert html =~ farm.slug
+      assert html =~ "Herd snapshot"
     end
   end
 
