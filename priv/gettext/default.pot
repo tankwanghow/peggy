@@ -47,8 +47,8 @@ msgstr ""
 msgid "Animal registry"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:646
-#: lib/peggy_web/components/layouts.ex:658
+#: lib/peggy_web/components/layouts.ex:654
+#: lib/peggy_web/components/layouts.ex:666
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
@@ -181,7 +181,7 @@ msgstr ""
 msgid "Join %{farm}"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:84
+#: lib/peggy_web/components/layouts.ex:85
 #: lib/peggy_web/live/invitation_live/show.ex:34
 #, elixir-autogen, elixir-format
 msgid "Log in"
@@ -197,8 +197,8 @@ msgstr ""
 msgid "Log in to accept"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:78
-#: lib/peggy_web/components/layouts.ex:327
+#: lib/peggy_web/components/layouts.ex:79
+#: lib/peggy_web/components/layouts.ex:335
 #, elixir-autogen, elixir-format
 msgid "Log out"
 msgstr ""
@@ -232,7 +232,7 @@ msgstr ""
 msgid "Metric"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:69
+#: lib/peggy_web/components/layouts.ex:70
 #, elixir-autogen, elixir-format
 msgid "My farms"
 msgstr ""
@@ -472,13 +472,13 @@ msgstr ""
 msgid "Set as default"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:73
-#: lib/peggy_web/components/layouts.ex:599
+#: lib/peggy_web/components/layouts.ex:74
+#: lib/peggy_web/components/layouts.ex:607
 #, elixir-autogen, elixir-format
 msgid "Settings"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:89
+#: lib/peggy_web/components/layouts.ex:90
 #, elixir-autogen, elixir-format
 msgid "Sign up"
 msgstr ""
@@ -489,7 +489,7 @@ msgstr ""
 msgid "Slug"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:653
+#: lib/peggy_web/components/layouts.ex:661
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
@@ -542,7 +542,7 @@ msgstr ""
 msgid "Veterinarian"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:641
+#: lib/peggy_web/components/layouts.ex:649
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""
@@ -725,7 +725,7 @@ msgstr ""
 msgid "Abortion"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:317
+#: lib/peggy_web/components/layouts.ex:325
 #, elixir-autogen, elixir-format
 msgid "Account settings"
 msgstr ""
@@ -832,7 +832,7 @@ msgstr ""
 msgid "All %{n} loaded"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:427
+#: lib/peggy_web/components/layouts.ex:435
 #, elixir-autogen, elixir-format
 msgid "All age, gestation, and lactation calculations use this date instead of today."
 msgstr ""
@@ -883,8 +883,8 @@ msgstr ""
 msgid "Animal updated."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:213
-#: lib/peggy_web/components/layouts.ex:467
+#: lib/peggy_web/components/layouts.ex:214
+#: lib/peggy_web/components/layouts.ex:475
 #: lib/peggy_web/live/farm_live/animals.ex:19
 #: lib/peggy_web/live/farm_live/animals_print.ex:18
 #: lib/peggy_web/live/farm_live/animals_print.ex:22
@@ -1083,7 +1083,7 @@ msgstr ""
 msgid "Batch"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:563
+#: lib/peggy_web/components/layouts.ex:571
 #, elixir-autogen, elixir-format
 msgid "Batch Farrowing"
 msgstr ""
@@ -1098,12 +1098,12 @@ msgstr ""
 msgid "Batch Register"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:486
+#: lib/peggy_web/components/layouts.ex:494
 #, elixir-autogen, elixir-format
 msgid "Batch Register Sire/Dam"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:558
+#: lib/peggy_web/components/layouts.ex:566
 #, elixir-autogen, elixir-format
 msgid "Batch Service"
 msgstr ""
@@ -1119,7 +1119,7 @@ msgstr ""
 msgid "Batch Transfer"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:568
+#: lib/peggy_web/components/layouts.ex:576
 #, elixir-autogen, elixir-format
 msgid "Batch Weaning"
 msgstr ""
@@ -1258,8 +1258,8 @@ msgstr ""
 msgid "Breed (optional)"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:226
-#: lib/peggy_web/components/layouts.ex:506
+#: lib/peggy_web/components/layouts.ex:227
+#: lib/peggy_web/components/layouts.ex:514
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:27
 #: lib/peggy_web/live/farm_live/batch_farrowing.ex:25
 #: lib/peggy_web/live/farm_live/batch_service.ex:25
@@ -1295,7 +1295,7 @@ msgstr ""
 msgid "Bucket"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:491
+#: lib/peggy_web/components/layouts.ex:499
 #: lib/peggy_web/live/farm_live/bulk_move.ex:33
 #, elixir-autogen, elixir-format
 msgid "Bulk Move Sire/Dam"
@@ -1434,7 +1434,7 @@ msgstr ""
 msgid "Capacity each"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:434
+#: lib/peggy_web/components/layouts.ex:442
 #, elixir-autogen, elixir-format
 msgid "Change"
 msgstr ""
@@ -1472,7 +1472,7 @@ msgid "Clear all"
 msgstr ""
 
 #: lib/peggy_web/components/core_components.ex:107
-#: lib/peggy_web/components/layouts.ex:336
+#: lib/peggy_web/components/layouts.ex:344
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:215
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:405
 #: lib/peggy_web/live/farm_live/data_import.ex:443
@@ -1493,7 +1493,7 @@ msgstr ""
 msgid "Close Service"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:573
+#: lib/peggy_web/components/layouts.ex:581
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:32
 #, elixir-autogen, elixir-format
 msgid "Close Services"
@@ -1794,7 +1794,7 @@ msgstr ""
 msgid "Danger zone"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:450
+#: lib/peggy_web/components/layouts.ex:458
 #: lib/peggy_web/live/mobile_live/dashboard.ex:174
 #, elixir-autogen, elixir-format
 msgid "Dashboard"
@@ -1968,7 +1968,7 @@ msgstr ""
 msgid "Delete weaning"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:578
+#: lib/peggy_web/components/layouts.ex:586
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:17
 #, elixir-autogen, elixir-format
 msgid "Deleted"
@@ -2492,7 +2492,7 @@ msgstr ""
 msgid "Generated"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:520
+#: lib/peggy_web/components/layouts.ex:528
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:21
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:69
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:68
@@ -2572,7 +2572,7 @@ msgstr ""
 msgid "History"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:200
+#: lib/peggy_web/components/layouts.ex:201
 #, elixir-autogen, elixir-format
 msgid "Home"
 msgstr ""
@@ -2706,7 +2706,7 @@ msgstr ""
 msgid "Kind"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:525
+#: lib/peggy_web/components/layouts.ex:533
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:20
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:75
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:74
@@ -2816,8 +2816,8 @@ msgstr ""
 msgid "Loading more..."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:290
-#: lib/peggy_web/components/layouts.ex:455
+#: lib/peggy_web/components/layouts.ex:298
+#: lib/peggy_web/components/layouts.ex:463
 #: lib/peggy_web/live/farm_live/data_import.ex:172
 #: lib/peggy_web/live/farm_live/locations.ex:15
 #: lib/peggy_web/live/mobile_live/locations.ex:19
@@ -2938,12 +2938,12 @@ msgstr ""
 msgid "Mnt"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:65
+#: lib/peggy_web/components/layouts.ex:66
 #, elixir-autogen, elixir-format
 msgid "Mobile"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:62
+#: lib/peggy_web/components/layouts.ex:63
 #, elixir-autogen, elixir-format
 msgid "Mobile view"
 msgstr ""
@@ -2958,7 +2958,7 @@ msgstr ""
 msgid "Monthly breeding KPIs across the date range, with an accumulated column."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:236
+#: lib/peggy_web/components/layouts.ex:237
 #, elixir-autogen, elixir-format
 msgid "More"
 msgstr ""
@@ -3402,7 +3402,7 @@ msgstr ""
 msgid "Open"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:299
+#: lib/peggy_web/components/layouts.ex:307
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:306
 #, elixir-autogen, elixir-format
 msgid "Open desktop view"
@@ -3667,7 +3667,7 @@ msgstr ""
 msgid "Present (any)"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:476
+#: lib/peggy_web/components/layouts.ex:484
 #, elixir-autogen, elixir-format
 msgid "Presents Animal"
 msgstr ""
@@ -3887,7 +3887,7 @@ msgstr ""
 msgid "Record Death"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:545
+#: lib/peggy_web/components/layouts.ex:553
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:467
 #, elixir-autogen, elixir-format
 msgid "Record Farrowing"
@@ -3904,14 +3904,14 @@ msgstr ""
 msgid "Record Pre-Wean Death"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:538
+#: lib/peggy_web/components/layouts.ex:546
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:245
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:212
 #, elixir-autogen, elixir-format
 msgid "Record Service"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:550
+#: lib/peggy_web/components/layouts.ex:558
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:413
 #, elixir-autogen, elixir-format
 msgid "Record Weaning"
@@ -3979,7 +3979,7 @@ msgstr ""
 msgid "Reference date"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:481
+#: lib/peggy_web/components/layouts.ex:489
 #: lib/peggy_web/live/farm_live/animals.ex:383
 #: lib/peggy_web/live/farm_live/animals.ex:452
 #: lib/peggy_web/live/mobile_live/animals.ex:59
@@ -4031,7 +4031,7 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:587
+#: lib/peggy_web/components/layouts.ex:595
 #: lib/peggy_web/live/farm_live/reports.ex:325
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:24
 #, elixir-autogen, elixir-format
@@ -4458,7 +4458,7 @@ msgstr ""
 msgid "Service undone."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:515
+#: lib/peggy_web/components/layouts.ex:523
 #: lib/peggy_web/live/farm_live/animals.ex:823
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:21
 #: lib/peggy_web/live/mobile_live/animals.ex:910
@@ -4488,7 +4488,7 @@ msgstr ""
 msgid "Services awaiting farrowing"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:426
+#: lib/peggy_web/components/layouts.ex:434
 #, elixir-autogen, elixir-format
 msgid "Simulated date: %{date}."
 msgstr ""
@@ -4739,7 +4739,7 @@ msgstr ""
 msgid "Surviving:"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:308
+#: lib/peggy_web/components/layouts.ex:316
 #, elixir-autogen, elixir-format
 msgid "Switch farm"
 msgstr ""
@@ -4812,8 +4812,8 @@ msgstr ""
 msgid "Task reopened."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:281
-#: lib/peggy_web/components/layouts.ex:593
+#: lib/peggy_web/components/layouts.ex:289
+#: lib/peggy_web/components/layouts.ex:601
 #: lib/peggy_web/live/farm_live/tasks.ex:21
 #: lib/peggy_web/live/farm_live/tasks.ex:235
 #: lib/peggy_web/live/mobile_live/tasks.ex:19
@@ -4822,7 +4822,7 @@ msgstr ""
 msgid "Tasks"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:271
+#: lib/peggy_web/components/layouts.ex:272
 #, elixir-autogen, elixir-format
 msgid "Theme"
 msgstr ""
@@ -5181,7 +5181,7 @@ msgstr ""
 msgid "Wean-to-service (days)"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:530
+#: lib/peggy_web/components/layouts.ex:538
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:49
 #: lib/peggy_web/live/farm_live/breeding/shared.ex:43
 #: lib/peggy_web/live/farm_live/breeding/weaned.ex:19
@@ -5860,4 +5860,10 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1582
 #, elixir-autogen, elixir-format
 msgid "✗ Sow is %{status} — cannot record service"
+msgstr ""
+
+#: lib/peggy_web/components/layouts.ex:279
+#: lib/peggy_web/components/layouts.ex:679
+#, elixir-autogen, elixir-format
+msgid "Language"
 msgstr ""
