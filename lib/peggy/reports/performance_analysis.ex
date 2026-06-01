@@ -428,5 +428,66 @@ defmodule Peggy.Reports.PerformanceAnalysis do
     )
   end
 
-  defp weaning_section(_ctx, _periods), do: %{key: :weaning, title: "Weaning performance", rows: []}
+  # ── Weaning metric functions ──────────────────────────────────────
+
+  def m_sum(rows, field), do: rows |> Enum.map(&Map.get(&1, field)) |> Enum.reject(&is_nil/1) |> Enum.sum()
+
+  def m_per_female([]), do: nil
+  def m_per_female(ws) do
+    sows = ws |> Enum.map(& &1.sow_id) |> Enum.uniq() |> length()
+    if sows == 0, do: nil, else: m_sum(ws, :weaned_count) / sows
+  end
+
+  def m_pct_bred_7d(ws), do: pct(Enum.count(ws, & &1.bred_within_7d?), length(ws))
+
+  def m_avg_wean_weight(ws) do
+    recorded = Enum.filter(ws, &(&1.avg_wean_weight_g != nil))
+    w = recorded |> Enum.map(&(&1.avg_wean_weight_g * &1.weaned_count)) |> Enum.sum()
+    c = recorded |> Enum.map(& &1.weaned_count) |> Enum.sum()
+    if c == 0, do: nil, else: w / c
+  end
+
+  def m_net_fostered(events) do
+    sum = fn k -> events |> Enum.filter(&(&1.kind == k)) |> Enum.map(& &1.quantity) |> Enum.sum() end
+    sum.("foster_in") - sum.("foster_out")
+  end
+
+  def m_recorded_deaths(events),
+    do: events |> Enum.filter(&(&1.kind == "death")) |> Enum.map(& &1.quantity) |> Enum.sum()
+
+  # ── Weaning section ───────────────────────────────────────────────
+
+  defp weaning_section(ctx, periods) do
+    w = ctx.weanings
+    r = fn key, label, fmt, fun -> metric_row(key, label, fmt, w, :weaned_at, ctx, periods, fun) end
+    ev = fn key, label, fmt, fun -> metric_row(key, label, fmt, ctx.litter_events, :occurred_at, ctx, periods, fun) end
+
+    ann_value = fn source, value_fun ->
+      values =
+        Enum.map(periods, fn p ->
+          v = value_fun.(in_range(source, :weaned_at, p.from, p.to))
+          m_per_female_year(v, Date.diff(p.to, p.from) + 1, ctx.denom)
+        end)
+      acum = m_per_female_year(value_fun.(source), ctx.range_days, ctx.denom)
+      %{values: values, acum: acum}
+    end
+
+    weaned_year = ann_value.(w, &m_sum(&1, :weaned_count))
+
+    rows = [
+      r.(:litters_weaned, "Litters weaned", :int, &m_count/1),
+      r.(:pigs_weaned, "Pigs weaned in period", :int, &m_sum(&1, :weaned_count)),
+      r.(:per_litter, "Pigs weaned per litter", :dec1, &m_avg(&1, :weaned_count)),
+      r.(:per_female, "Pigs weaned per female", :dec1, &m_per_female/1),
+      r.(:lactation, "Avg lactation length / weaning age", :dec1, &m_avg(&1, :lactation_days)),
+      r.(:bred_7d, "Percent of weaned bred by 7 days", :pct, &m_pct_bred_7d/1),
+      ev.(:net_fostered, "Net fostered", :int, &m_net_fostered/1),
+      ev.(:recorded_deaths, "Recorded preweaned deaths", :int, &m_recorded_deaths/1),
+      r.(:wean_weight, "Avg weight / weaned pig (g)", :dec1, &m_avg_wean_weight/1),
+      r.(:pre_wean_period, "Preweaning mortality rate (period)", :pct, &m_pre_wean_mortality/1),
+      Map.merge(%{key: :weaned_per_female_year, label: "Weaned / female / year", format: :dec1}, weaned_year)
+    ]
+
+    %{key: :weaning, title: "Weaning performance", rows: rows}
+  end
 end

@@ -69,6 +69,32 @@ defmodule Peggy.Reports.PerformanceAnalysisTest do
     end
   end
 
+  describe "weaning metrics (pure)" do
+    alias Peggy.Reports.PerformanceAnalysis, as: PA
+
+    test "weaning aggregates" do
+      ws = [
+        %{weaned_count: 11, avg_wean_weight_g: 6500, born_alive: 12, lactation_days: 24, bred_within_7d?: true, sow_id: 1},
+        %{weaned_count: 9, avg_wean_weight_g: nil, born_alive: 10, lactation_days: 26, bred_within_7d?: false, sow_id: 1}
+      ]
+      assert PA.m_count(ws) == 2
+      assert PA.m_sum(ws, :weaned_count) == 20
+      assert_in_delta PA.m_avg(ws, :weaned_count), 10.0, 0.01
+      assert_in_delta PA.m_per_female(ws), 20.0, 0.01   # 20 / 1 distinct sow
+      assert_in_delta PA.m_avg(ws, :lactation_days), 25.0, 0.01
+      assert_in_delta PA.m_pct_bred_7d(ws), 50.0, 0.1
+      assert PA.m_avg_wean_weight(ws) == 6500.0          # only recorded row
+    end
+
+    test "net fostered and recorded deaths from litter events" do
+      events = [
+        %{kind: "foster_in", quantity: 5}, %{kind: "foster_out", quantity: 8}, %{kind: "death", quantity: 3}
+      ]
+      assert PA.m_net_fostered(events) == -3
+      assert PA.m_recorded_deaths(events) == 3
+    end
+  end
+
   describe "service metrics (pure)" do
     alias Peggy.Reports.PerformanceAnalysis, as: PA
 
