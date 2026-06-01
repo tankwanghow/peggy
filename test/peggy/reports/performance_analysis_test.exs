@@ -19,4 +19,26 @@ defmodule Peggy.Reports.PerformanceAnalysisTest do
              ]
     end
   end
+
+  describe "build/2 dataset" do
+    setup do
+      user = Peggy.AccountsFixtures.user_fixture()
+      farm = Peggy.FarmsFixtures.farm_fixture(user)
+      scope = Peggy.LocationsFixtures.scope_for(user, farm)
+      house = Peggy.LocationsFixtures.house_fixture(scope, code: "H1")
+      pen = Peggy.LocationsFixtures.pen_fixture(scope, house, code: "P1", capacity: 50)
+      sow = Peggy.AnimalsFixtures.animal_fixture(scope, ear_tag: "S1", stage: "sow", current_pen_id: pen.id)
+      %{scope: scope, sow: sow}
+    end
+
+    test "build/2 returns periods and three sections", %{scope: scope, sow: sow} do
+      Peggy.BreedingFixtures.service_fixture(scope, sow, served_at: ~D[2025-03-10], service_type: "ai")
+      result = build_year(scope)
+      assert length(result.periods) == 12
+      assert Enum.map(result.sections, & &1.key) == [:service, :farrowing, :weaning]
+    end
+  end
+
+  defp build_year(scope),
+    do: Peggy.Reports.PerformanceAnalysis.build(scope, %{from: ~D[2025-01-01], to: ~D[2025-12-31]})
 end
