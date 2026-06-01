@@ -12,7 +12,13 @@
       "Bash(rm /tmp/imports.ex.full)",
       "Bash(echo \"exit: $?\")",
       "Bash(MIX_ENV=dev mix run /tmp/audit_cleanup.exs)",
-      "Edit(/.claude/skills/colocated-hook-build-desync/**)"
+      "Edit(/.claude/skills/colocated-hook-build-desync/**)",
+      "Bash(elixir --eval \"IO.inspect\\(Date.beginning_of_month\\(~D[2025-01-15]\\)\\); IO.inspect\\(Date.end_of_month\\(~D[2025-01-15]\\)\\); IO.inspect\\(Calendar.strftime\\(~D[2025-01-01], \\\\\"%d-%m-%y\\\\\"\\)\\)\")",
+      "Bash(elixir -e \"IO.inspect Enum.max_by\\([%{d: ~D[2024-01-01]}, %{d: ~D[2024-03-01]}], & &1.d, Date, fn -> nil end\\)\")",
+      "Bash(elixir -e \"IO.inspect Enum.min_by\\([], & &1, Date, fn -> nil end\\)\")",
+      "Bash(elixir -e \"IO.inspect Enum.max_by\\([], & &1, Date, fn -> nil end\\)\")",
+      "Bash(iex --no-halt)",
+      "Bash(iex --no-halt -e ' *)"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -80,7 +80,7 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp fetch_farrowings(farm_id, from, to) do
     from(f in "breeding_farrowings",
-      left_join: s in "breeding_services", on: s.id == f.service_id,
+      left_join: s in "breeding_services", on: s.id == f.service_id and is_nil(s.deleted_at),
       where: f.farm_id == ^farm_id and is_nil(f.deleted_at) and
                f.farrowed_at >= ^from and f.farrowed_at <= ^to,
       select: %{sow_id: f.sow_id, farrowed_at: f.farrowed_at, born_alive: f.born_alive,
@@ -101,7 +101,7 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp fetch_weanings(farm_id, from, to) do
     from(w in "breeding_weanings",
-      join: f in "breeding_farrowings", on: f.id == w.farrowing_id,
+      join: f in "breeding_farrowings", on: f.id == w.farrowing_id and is_nil(f.deleted_at),
       where: w.farm_id == ^farm_id and is_nil(w.deleted_at) and
                w.weaned_at >= ^from and w.weaned_at <= ^to,
       select: %{sow_id: f.sow_id, weaned_at: w.weaned_at, weaned_count: w.weaned_count,
@@ -166,17 +166,17 @@ defmodule Peggy.Reports.PerformanceAnalysis do
         service_type: s.service_type, mounting_count: s.mounting_count || 1,
         classification: classification,
         after_weaning?: after_weaning?,
-        wean_to_service_days: after_weaning? && Date.diff(s.served_at, last_wean.weaned_at),
+        wean_to_service_days: if(after_weaning?, do: Date.diff(s.served_at, last_wean.weaned_at), else: nil),
         after_entry?: after_entry?,
         entry_to_service_days:
-          after_entry? && (entries[s.sow_id] && Date.diff(s.served_at, entries[s.sow_id]))
+          if(after_entry? and entries[s.sow_id], do: Date.diff(s.served_at, entries[s.sow_id]), else: nil)
       }
     end)
   end
 
   defp fetch_weanings_all(sow_ids) do
     from(w in "breeding_weanings",
-      join: f in "breeding_farrowings", on: f.id == w.farrowing_id,
+      join: f in "breeding_farrowings", on: f.id == w.farrowing_id and is_nil(f.deleted_at),
       where: f.sow_id in ^sow_ids and is_nil(w.deleted_at),
       select: %{sow_id: f.sow_id, weaned_at: w.weaned_at}
     )
@@ -220,8 +220,8 @@ defmodule Peggy.Reports.PerformanceAnalysis do
     services_by_sow = fetch_services_all(sow_ids) |> Enum.group_by(& &1.sow_id)
 
     Enum.map(weanings, fn w ->
-      next_svc = next_by_date(Map.get(services_by_sow, w.sow_id, []), w.weaned_at, & &1.served_at)
-      bred_7d? = next_svc && Date.diff(next_svc.served_at, w.weaned_at) in 0..7
+      svcs = Map.get(services_by_sow, w.sow_id, [])
+      bred_7d? = Enum.any?(svcs, fn s -> Date.diff(s.served_at, w.weaned_at) in 0..7 end)
 
       %{
         sow_id: w.sow_id, weaned_at: w.weaned_at, weaned_count: w.weaned_count,
@@ -237,13 +237,6 @@ defmodule Peggy.Reports.PerformanceAnalysis do
     rows
     |> Enum.filter(fn r -> Date.compare(getter.(r), date) == :lt end)
     |> Enum.max_by(getter, Date, fn -> nil end)
-  end
-
-  # earliest row strictly after `date`
-  defp next_by_date(rows, date, getter) do
-    rows
-    |> Enum.filter(fn r -> Date.compare(getter.(r), date) == :gt end)
-    |> Enum.min_by(getter, Date, fn -> nil end)
   end
 
   defp active_sow_denominator(services, farrowings) do
