@@ -229,6 +229,61 @@ window.addEventListener("phx:flash-row", (e) => {
   setTimeout(() => el.classList.remove("flash-row"), 4000)
 })
 
+// ---- Custom confirm dialog --------------------------------------------
+// Replaces the native window.confirm() that phoenix_html fires for
+// `data-confirm`, which is unreliable in iOS standalone PWAs. We intercept
+// [data-confirm] clicks in the CAPTURE phase (before phoenix_html's and
+// LiveView's bubble-phase window listeners), show an HTML <dialog>, and —
+// because a modal is async while confirm() is sync — only re-fire the
+// original click once the user accepts. On accept we briefly drop the
+// `data-confirm` attribute so the re-dispatched click passes straight
+// through with no second prompt. Falls back to native confirm if the
+// modal isn't on the page.
+document.addEventListener(
+  "click",
+  (e) => {
+    const el = e.target.closest && e.target.closest("[data-confirm]")
+    if (!el) return
+
+    const dialog = document.getElementById("js-confirm-modal")
+    if (!dialog) return // no modal in this layout → leave native confirm intact
+
+    e.preventDefault()
+    e.stopImmediatePropagation()
+
+    dialog.querySelector("#js-confirm-message").textContent =
+      el.getAttribute("data-confirm")
+
+    const accept = dialog.querySelector("#js-confirm-accept")
+    const cancel = dialog.querySelector("#js-confirm-cancel")
+
+    const cleanup = () => {
+      accept.removeEventListener("click", onAccept)
+      cancel.removeEventListener("click", onCancel)
+      dialog.removeEventListener("close", onCancel)
+    }
+    const onAccept = () => {
+      cleanup()
+      dialog.close()
+      const message = el.getAttribute("data-confirm")
+      el.removeAttribute("data-confirm")
+      el.click()
+      el.setAttribute("data-confirm", message)
+    }
+    const onCancel = () => {
+      cleanup()
+      if (dialog.open) dialog.close()
+    }
+
+    accept.addEventListener("click", onAccept)
+    cancel.addEventListener("click", onCancel)
+    dialog.addEventListener("close", onCancel) // backdrop click / Escape = cancel
+
+    dialog.showModal()
+  },
+  true,
+)
+
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 

@@ -407,5 +407,12 @@ defmodule PeggyWeb.FarmLiveTest do
       assert html =~ "KEEPME"
       assert html =~ "Flagged for culling"
     end
+
+    test "the desktop layout includes the custom confirm dialog",
+         %{conn: conn, farm: farm} do
+      {:ok, _lv, html} = live(conn, ~p"/farms/#{farm.slug}/animals")
+      assert html =~ ~s(id="js-confirm-modal")
+      assert html =~ ~s(id="js-confirm-accept")
+    end
   end
 end

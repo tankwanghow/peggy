@@ -104,6 +104,7 @@ defmodule PeggyWeb.Layouts do
     </main>
 
     <.flash_group flash={@flash} />
+    <.confirm_modal />
     """
   end
 
@@ -135,6 +136,7 @@ defmodule PeggyWeb.Layouts do
       scope={@current_scope}
     />
     <.flash_group flash={@flash} />
+    <.confirm_modal />
     """
   end
 
@@ -173,6 +175,7 @@ defmodule PeggyWeb.Layouts do
     <.mobile_bottom_nav current_scope={@current_scope} active={@active} />
     <.mobile_more_sheet current_scope={@current_scope} />
     <.flash_group flash={@flash} />
+    <.confirm_modal />
     """
   end
 

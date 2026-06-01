@@ -80,6 +80,37 @@ defmodule PeggyWeb.CoreComponents do
   end
 
   @doc """
+  A single reusable confirmation dialog that replaces the native
+  `window.confirm()` used by `data-confirm`. Native confirm/alert dialogs
+  are unreliable in iOS standalone PWAs, so the global interceptor in
+  `app.js` opens this `<dialog>` for any `[data-confirm]` click and only
+  re-fires the action when the user accepts.
+
+  Rendered once per layout; never invoked directly from page templates.
+  The interceptor sets the message text, so it stays `phx-update="ignore"`.
+  """
+  def confirm_modal(assigns) do
+    ~H"""
+    <dialog id="js-confirm-modal" class="modal" phx-update="ignore">
+      <div class="modal-box max-w-sm">
+        <p id="js-confirm-message" class="text-base whitespace-pre-line"></p>
+        <div class="modal-action">
+          <button type="button" id="js-confirm-cancel" class="btn btn-ghost">
+            {gettext("Cancel")}
+          </button>
+          <button type="button" id="js-confirm-accept" class="btn btn-primary">
+            {gettext("Confirm")}
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button aria-label={gettext("Close")}>close</button>
+      </form>
+    </dialog>
+    """
+  end
+
+  @doc """
   Renders a button with navigation support.
 
   ## Examples

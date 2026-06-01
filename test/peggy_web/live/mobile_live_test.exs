@@ -70,6 +70,8 @@ defmodule PeggyWeb.MobileLiveTest do
       assert html =~ ~s(aria-label="Edit")
       # The bar is sticky
       assert html =~ "sticky top-0"
+      # The mobile layout includes the custom confirm dialog
+      assert html =~ ~s(id="js-confirm-modal")
     end
   end
 end
