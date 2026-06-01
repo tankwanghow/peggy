@@ -39,9 +39,15 @@ defmodule Peggy.Reports.PerformanceAnalysis do
     days = Date.diff(to, from) + 1
 
     ctx = %{
-      services: services, farrowings: farrowings, weanings: weanings,
-      abortions: abortions, litter_events: litter_events,
-      denom: denom, range_days: days, from: from, to: to,
+      services: services,
+      farrowings: farrowings,
+      weanings: weanings,
+      abortions: abortions,
+      litter_events: litter_events,
+      denom: denom,
+      range_days: days,
+      from: from,
+      to: to,
       farm_id: farm_id
     }
 
@@ -59,10 +65,16 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp fetch_services(farm_id, from, to) do
     from(s in "breeding_services",
-      where: s.farm_id == ^farm_id and is_nil(s.deleted_at) and
-               s.served_at >= ^from and s.served_at <= ^to,
-      select: %{sow_id: s.sow_id, served_at: s.served_at, result: s.result,
-                service_type: s.service_type, mounting_count: s.mounting_count}
+      where:
+        s.farm_id == ^farm_id and is_nil(s.deleted_at) and
+          s.served_at >= ^from and s.served_at <= ^to,
+      select: %{
+        sow_id: s.sow_id,
+        served_at: s.served_at,
+        result: s.result,
+        service_type: s.service_type,
+        mounting_count: s.mounting_count
+      }
     )
     |> Repo.all()
   end
@@ -80,12 +92,20 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp fetch_farrowings(farm_id, from, to) do
     from(f in "breeding_farrowings",
-      left_join: s in "breeding_services", on: s.id == f.service_id and is_nil(s.deleted_at),
-      where: f.farm_id == ^farm_id and is_nil(f.deleted_at) and
-               f.farrowed_at >= ^from and f.farrowed_at <= ^to,
-      select: %{sow_id: f.sow_id, farrowed_at: f.farrowed_at, born_alive: f.born_alive,
-                stillborn: f.stillborn, mummified: f.mummified,
-                total_birth_weight_g: f.total_birth_weight_g, served_at: s.served_at}
+      left_join: s in "breeding_services",
+      on: s.id == f.service_id and is_nil(s.deleted_at),
+      where:
+        f.farm_id == ^farm_id and is_nil(f.deleted_at) and
+          f.farrowed_at >= ^from and f.farrowed_at <= ^to,
+      select: %{
+        sow_id: f.sow_id,
+        farrowed_at: f.farrowed_at,
+        born_alive: f.born_alive,
+        stillborn: f.stillborn,
+        mummified: f.mummified,
+        total_birth_weight_g: f.total_birth_weight_g,
+        served_at: s.served_at
+      }
     )
     |> Repo.all()
   end
@@ -101,21 +121,29 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp fetch_weanings(farm_id, from, to) do
     from(w in "breeding_weanings",
-      join: f in "breeding_farrowings", on: f.id == w.farrowing_id and is_nil(f.deleted_at),
-      where: w.farm_id == ^farm_id and is_nil(w.deleted_at) and
-               w.weaned_at >= ^from and w.weaned_at <= ^to,
-      select: %{sow_id: f.sow_id, weaned_at: w.weaned_at, weaned_count: w.weaned_count,
-                avg_wean_weight_g: w.avg_wean_weight_g, born_alive: f.born_alive,
-                farrowed_at: f.farrowed_at}
+      join: f in "breeding_farrowings",
+      on: f.id == w.farrowing_id and is_nil(f.deleted_at),
+      where:
+        w.farm_id == ^farm_id and is_nil(w.deleted_at) and
+          w.weaned_at >= ^from and w.weaned_at <= ^to,
+      select: %{
+        sow_id: f.sow_id,
+        weaned_at: w.weaned_at,
+        weaned_count: w.weaned_count,
+        avg_wean_weight_g: w.avg_wean_weight_g,
+        born_alive: f.born_alive,
+        farrowed_at: f.farrowed_at
+      }
     )
     |> Repo.all()
   end
 
   defp fetch_abortions(farm_id, from, to) do
     from(s in "breeding_services",
-      where: s.farm_id == ^farm_id and is_nil(s.deleted_at) and
-               s.result == "abortion" and not is_nil(s.result_at) and
-               s.result_at >= ^from and s.result_at <= ^to,
+      where:
+        s.farm_id == ^farm_id and is_nil(s.deleted_at) and
+          s.result == "abortion" and not is_nil(s.result_at) and
+          s.result_at >= ^from and s.result_at <= ^to,
       select: %{result_at: s.result_at}
     )
     |> Repo.all()
@@ -123,8 +151,9 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp fetch_litter_events(farm_id, from, to) do
     from(e in "breeding_litter_events",
-      where: e.farm_id == ^farm_id and is_nil(e.deleted_at) and
-               e.occurred_at >= ^from and e.occurred_at <= ^to,
+      where:
+        e.farm_id == ^farm_id and is_nil(e.deleted_at) and
+          e.occurred_at >= ^from and e.occurred_at <= ^to,
       select: %{kind: e.kind, quantity: e.quantity, occurred_at: e.occurred_at}
     )
     |> Repo.all()
@@ -156,27 +185,39 @@ defmodule Peggy.Reports.PerformanceAnalysis do
       prior = prior_by_date(seq, s.served_at, & &1.served_at)
       classification = if prior && prior.result == "re_service", do: :repeat, else: :first
 
-      last_wean = prior_by_date(Map.get(weanings_by_sow, s.sow_id, []), s.served_at, & &1.weaned_at)
-      last_farrow = prior_by_date(Map.get(farrowings_by_sow, s.sow_id, []), s.served_at, & &1.farrowed_at)
+      last_wean =
+        prior_by_date(Map.get(weanings_by_sow, s.sow_id, []), s.served_at, & &1.weaned_at)
+
+      last_farrow =
+        prior_by_date(Map.get(farrowings_by_sow, s.sow_id, []), s.served_at, & &1.farrowed_at)
+
       after_weaning? = classification == :first and not is_nil(last_wean)
       after_entry? = classification == :first and is_nil(last_farrow) and is_nil(last_wean)
 
       %{
-        sow_id: s.sow_id, served_at: s.served_at, result: s.result,
-        service_type: s.service_type, mounting_count: s.mounting_count || 1,
+        sow_id: s.sow_id,
+        served_at: s.served_at,
+        result: s.result,
+        service_type: s.service_type,
+        mounting_count: s.mounting_count || 1,
         classification: classification,
         after_weaning?: after_weaning?,
-        wean_to_service_days: if(after_weaning?, do: Date.diff(s.served_at, last_wean.weaned_at), else: nil),
+        wean_to_service_days:
+          if(after_weaning?, do: Date.diff(s.served_at, last_wean.weaned_at), else: nil),
         after_entry?: after_entry?,
         entry_to_service_days:
-          if(after_entry? and entries[s.sow_id], do: Date.diff(s.served_at, entries[s.sow_id]), else: nil)
+          if(after_entry? and entries[s.sow_id],
+            do: Date.diff(s.served_at, entries[s.sow_id]),
+            else: nil
+          )
       }
     end)
   end
 
   defp fetch_weanings_all(sow_ids) do
     from(w in "breeding_weanings",
-      join: f in "breeding_farrowings", on: f.id == w.farrowing_id and is_nil(f.deleted_at),
+      join: f in "breeding_farrowings",
+      on: f.id == w.farrowing_id and is_nil(f.deleted_at),
       where: f.sow_id in ^sow_ids and is_nil(w.deleted_at),
       select: %{sow_id: f.sow_id, weaned_at: w.weaned_at}
     )
@@ -197,8 +238,11 @@ defmodule Peggy.Reports.PerformanceAnalysis do
       prior = prior_by_date(seq, f.farrowed_at, & &1.farrowed_at)
 
       %{
-        sow_id: f.sow_id, farrowed_at: f.farrowed_at, born_alive: f.born_alive,
-        stillborn: f.stillborn || 0, mummified: f.mummified || 0,
+        sow_id: f.sow_id,
+        farrowed_at: f.farrowed_at,
+        born_alive: f.born_alive,
+        stillborn: f.stillborn || 0,
+        mummified: f.mummified || 0,
         total_birth_weight_g: f.total_birth_weight_g,
         parity: Map.get(legacy, f.sow_id, 0) + rank,
         gestation_days: f.served_at && Date.diff(f.farrowed_at, f.served_at),
@@ -224,8 +268,11 @@ defmodule Peggy.Reports.PerformanceAnalysis do
       bred_7d? = Enum.any?(svcs, fn s -> Date.diff(s.served_at, w.weaned_at) in 0..7 end)
 
       %{
-        sow_id: w.sow_id, weaned_at: w.weaned_at, weaned_count: w.weaned_count,
-        avg_wean_weight_g: w.avg_wean_weight_g, born_alive: w.born_alive,
+        sow_id: w.sow_id,
+        weaned_at: w.weaned_at,
+        weaned_count: w.weaned_count,
+        avg_wean_weight_g: w.avg_wean_weight_g,
+        born_alive: w.born_alive,
         lactation_days: w.farrowed_at && Date.diff(w.weaned_at, w.farrowed_at),
         bred_within_7d?: !!bred_7d?
       }
@@ -262,10 +309,12 @@ defmodule Peggy.Reports.PerformanceAnalysis do
   def m_entry_to_service(s), do: avg_vals(s, &(&1.after_entry? && &1.entry_to_service_days))
 
   defp closed(s), do: Enum.filter(s, &(&1.result != nil))
+
   def m_conception_rate(s) do
     c = closed(s)
     pct(Enum.count(c, &(&1.result != "re_service")), length(c))
   end
+
   def m_farrowing_rate(s) do
     c = closed(s)
     pct(Enum.count(c, &(&1.result == "farrowing")), length(c))
@@ -279,6 +328,7 @@ defmodule Peggy.Reports.PerformanceAnalysis do
   # avg over rows where `getter` returns a number; falsy/nil are skipped
   defp avg_vals(rows, getter) do
     vals = rows |> Enum.map(getter) |> Enum.filter(&is_number/1)
+
     case vals do
       [] -> nil
       xs -> Enum.sum(xs) / length(xs)
@@ -304,7 +354,10 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp service_section(ctx, periods) do
     s = ctx.services
-    r = fn key, label, fmt, fun -> metric_row(key, label, fmt, s, :served_at, ctx, periods, fun) end
+
+    r = fn key, label, fmt, fun ->
+      metric_row(key, label, fmt, s, :served_at, ctx, periods, fun)
+    end
 
     rows = [
       r.(:total_services, "Total services", :int, &m_total/1),
@@ -345,8 +398,11 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   def m_birthweight_per_liveborn(fs) do
     recorded = Enum.filter(fs, &(&1.total_birth_weight_g != nil))
+
     case recorded do
-      [] -> nil
+      [] ->
+        nil
+
       rs ->
         w = rs |> Enum.map(& &1.total_birth_weight_g) |> Enum.sum()
         a = rs |> Enum.map(& &1.born_alive) |> Enum.sum()
@@ -375,12 +431,18 @@ defmodule Peggy.Reports.PerformanceAnalysis do
 
   defp farrowing_section(ctx, periods) do
     f = ctx.farrowings
-    r = fn key, label, fmt, fun -> metric_row(key, label, fmt, f, :farrowed_at, ctx, periods, fun) end
+
+    r = fn key, label, fmt, fun ->
+      metric_row(key, label, fmt, f, :farrowed_at, ctx, periods, fun)
+    end
 
     # weanings keyed for cohort pre-wean mortality, attributed to the
     # FARROWING date (cohort), carrying born_alive + weaned_count.
     cohort = pair_cohort(ctx)
-    cr = fn key, label, fmt, fun -> metric_row(key, label, fmt, cohort, :farrowed_at, ctx, periods, fun) end
+
+    cr = fn key, label, fmt, fun ->
+      metric_row(key, label, fmt, cohort, :farrowed_at, ctx, periods, fun)
+    end
 
     ann = fn key, label, source, value_fun ->
       values =
@@ -388,6 +450,7 @@ defmodule Peggy.Reports.PerformanceAnalysis do
           v = value_fun.(in_range(source, :farrowed_at, p.from, p.to))
           m_per_female_year(v, Date.diff(p.to, p.from) + 1, ctx.denom)
         end)
+
       acum = m_per_female_year(value_fun.(source), ctx.range_days, ctx.denom)
       %{key: key, label: label, format: :dec1, values: values, acum: acum}
     end
@@ -405,10 +468,21 @@ defmodule Peggy.Reports.PerformanceAnalysis do
       r.(:gestation, "Avg gestation length", :dec1, &m_avg(&1, :gestation_days)),
       r.(:birthweight, "Birthweight / liveborn (g)", :dec1, &m_birthweight_per_liveborn/1),
       r.(:interval, "Farrowing interval", :dec1, &m_avg(&1, :interval_days)),
-      metric_row(:abortions, "Abortions", :int, ctx.abortions, :result_at, ctx, periods, &m_count_abortions/1),
+      metric_row(
+        :abortions,
+        "Abortions",
+        :int,
+        ctx.abortions,
+        :result_at,
+        ctx,
+        periods,
+        &m_count_abortions/1
+      ),
       cr.(:pre_wean_cohort, "Preweaning mortality rate (cohort)", :pct, &m_pre_wean_mortality/1),
       ann.(:litters_per_female_year, "Litters / female / year", f, &m_count/1),
-      ann.(:liveborn_per_female_year, "Live born / female / year", f, fn rows -> Enum.sum(Enum.map(rows, & &1.born_alive)) end)
+      ann.(:liveborn_per_female_year, "Live born / female / year", f, fn rows ->
+        Enum.sum(Enum.map(rows, & &1.born_alive))
+      end)
     ]
 
     %{key: :farrowing, title: "Farrowing performance", rows: rows}
@@ -418,21 +492,30 @@ defmodule Peggy.Reports.PerformanceAnalysis do
   # Attributed to farrowed_at so the cohort metric buckets by farrow date.
   defp pair_cohort(ctx) do
     %{from: from, to: to} = ctx
+
     Repo.all(
       from(f in "breeding_farrowings",
-        join: w in "breeding_weanings", on: w.farrowing_id == f.id and is_nil(w.deleted_at),
-        where: f.farm_id == ^ctx.farm_id and is_nil(f.deleted_at) and
-                 f.farrowed_at >= ^from and f.farrowed_at <= ^to,
-        select: %{farrowed_at: f.farrowed_at, born_alive: f.born_alive, weaned_count: w.weaned_count}
+        join: w in "breeding_weanings",
+        on: w.farrowing_id == f.id and is_nil(w.deleted_at),
+        where:
+          f.farm_id == ^ctx.farm_id and is_nil(f.deleted_at) and
+            f.farrowed_at >= ^from and f.farrowed_at <= ^to,
+        select: %{
+          farrowed_at: f.farrowed_at,
+          born_alive: f.born_alive,
+          weaned_count: w.weaned_count
+        }
       )
     )
   end
 
   # ── Weaning metric functions ──────────────────────────────────────
 
-  def m_sum(rows, field), do: rows |> Enum.map(&Map.get(&1, field)) |> Enum.reject(&is_nil/1) |> Enum.sum()
+  def m_sum(rows, field),
+    do: rows |> Enum.map(&Map.get(&1, field)) |> Enum.reject(&is_nil/1) |> Enum.sum()
 
   def m_per_female([]), do: nil
+
   def m_per_female(ws) do
     sows = ws |> Enum.map(& &1.sow_id) |> Enum.uniq() |> length()
     if sows == 0, do: nil, else: m_sum(ws, :weaned_count) / sows
@@ -448,19 +531,63 @@ defmodule Peggy.Reports.PerformanceAnalysis do
   end
 
   def m_net_fostered(events) do
-    sum = fn k -> events |> Enum.filter(&(&1.kind == k)) |> Enum.map(& &1.quantity) |> Enum.sum() end
+    sum = fn k ->
+      events |> Enum.filter(&(&1.kind == k)) |> Enum.map(& &1.quantity) |> Enum.sum()
+    end
+
     sum.("foster_in") - sum.("foster_out")
   end
 
   def m_recorded_deaths(events),
     do: events |> Enum.filter(&(&1.kind == "death")) |> Enum.map(& &1.quantity) |> Enum.sum()
 
+  # ── CSV rendering ─────────────────────────────────────────────────
+
+  @doc "Renders a built report to CSV iodata (metric rows × month columns + ACUM)."
+  def to_csv(%{periods: periods, sections: sections}) do
+    header = ["Metric" | Enum.map(periods, & &1.label)] ++ ["ACUM"]
+
+    rows =
+      Enum.flat_map(sections, fn section ->
+        [[section.title]] ++
+          Enum.map(section.rows, fn row ->
+            [row.label | Enum.map(row.values, &fmt_csv(&1, row.format))] ++
+              [fmt_csv(row.acum, row.format)]
+          end)
+      end)
+
+    [header | rows]
+    |> Enum.map(&csv_line/1)
+    |> Enum.intersperse("\n")
+  end
+
+  defp csv_line(cells), do: cells |> Enum.map(&csv_cell/1) |> Enum.intersperse(",")
+
+  defp csv_cell(s) do
+    s = to_string(s)
+
+    if String.contains?(s, [",", "\"", "\n"]),
+      do: ~s("#{String.replace(s, "\"", "\"\"")}"),
+      else: s
+  end
+
+  defp fmt_csv(nil, _), do: ""
+  defp fmt_csv(v, :int), do: round(v) |> Integer.to_string()
+  defp fmt_csv(v, :dec1), do: :erlang.float_to_binary(v / 1, decimals: 1)
+  defp fmt_csv(v, :pct), do: :erlang.float_to_binary(v / 1, decimals: 1)
+
   # ── Weaning section ───────────────────────────────────────────────
 
   defp weaning_section(ctx, periods) do
     w = ctx.weanings
-    r = fn key, label, fmt, fun -> metric_row(key, label, fmt, w, :weaned_at, ctx, periods, fun) end
-    ev = fn key, label, fmt, fun -> metric_row(key, label, fmt, ctx.litter_events, :occurred_at, ctx, periods, fun) end
+
+    r = fn key, label, fmt, fun ->
+      metric_row(key, label, fmt, w, :weaned_at, ctx, periods, fun)
+    end
+
+    ev = fn key, label, fmt, fun ->
+      metric_row(key, label, fmt, ctx.litter_events, :occurred_at, ctx, periods, fun)
+    end
 
     ann_value = fn source, value_fun ->
       values =
@@ -468,6 +595,7 @@ defmodule Peggy.Reports.PerformanceAnalysis do
           v = value_fun.(in_range(source, :weaned_at, p.from, p.to))
           m_per_female_year(v, Date.diff(p.to, p.from) + 1, ctx.denom)
         end)
+
       acum = m_per_female_year(value_fun.(source), ctx.range_days, ctx.denom)
       %{values: values, acum: acum}
     end
@@ -485,7 +613,10 @@ defmodule Peggy.Reports.PerformanceAnalysis do
       ev.(:recorded_deaths, "Recorded preweaned deaths", :int, &m_recorded_deaths/1),
       r.(:wean_weight, "Avg weight / weaned pig (g)", :dec1, &m_avg_wean_weight/1),
       r.(:pre_wean_period, "Preweaning mortality rate (period)", :pct, &m_pre_wean_mortality/1),
-      Map.merge(%{key: :weaned_per_female_year, label: "Weaned / female / year", format: :dec1}, weaned_year)
+      Map.merge(
+        %{key: :weaned_per_female_year, label: "Weaned / female / year", format: :dec1},
+        weaned_year
+      )
     ]
 
     %{key: :weaning, title: "Weaning performance", rows: rows}
