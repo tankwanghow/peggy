@@ -41,4 +41,34 @@ defmodule Peggy.Reports.PerformanceAnalysisTest do
 
   defp build_year(scope),
     do: Peggy.Reports.PerformanceAnalysis.build(scope, %{from: ~D[2025-01-01], to: ~D[2025-12-31]})
+
+  describe "service metrics (pure)" do
+    alias Peggy.Reports.PerformanceAnalysis, as: PA
+
+    test "repeat % and matings" do
+      svcs = [
+        %{result: nil, classification: :first, mounting_count: 1, service_type: "ai"},
+        %{result: nil, classification: :repeat, mounting_count: 2, service_type: "ai"},
+        %{result: nil, classification: :first, mounting_count: 1, service_type: "natural"}
+      ]
+      assert PA.m_total(svcs) == 3
+      assert PA.m_count_class(svcs, :repeat) == 1
+      assert_in_delta PA.m_pct_repeat(svcs), 33.3, 0.1
+      assert PA.m_multiple_matings(svcs) == 1
+      assert_in_delta PA.m_matings_per_service(svcs), 1.33, 0.01
+      assert PA.m_count_type(svcs, "ai") == 2
+      assert_in_delta PA.m_pct_type(svcs, "ai"), 66.7, 0.1
+    end
+
+    test "conception + farrowing rate over closed services" do
+      svcs = [
+        %{result: "farrowing"}, %{result: "farrowing"},
+        %{result: "re_service"}, %{result: "abortion"}, %{result: nil}
+      ]
+      # closed = 4 (nil excluded); not-returned = 3 → 75%
+      assert_in_delta PA.m_conception_rate(svcs), 75.0, 0.1
+      # farrowing = 2 / 4 closed → 50%
+      assert_in_delta PA.m_farrowing_rate(svcs), 50.0, 0.1
+    end
+  end
 end

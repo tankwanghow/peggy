@@ -244,9 +244,91 @@ defmodule Peggy.Reports.PerformanceAnalysis do
     ids |> Enum.uniq() |> length()
   end
 
-  # Section builders are added in Tasks 3–5. Temporary stubs so build/2
-  # compiles now:
-  defp service_section(_ctx, _periods), do: %{key: :service, title: "Service performance", rows: []}
+  # ── Service metric functions (public for unit tests) ──────────────
+
+  def m_total(s), do: length(s)
+  def m_count_class(s, class), do: Enum.count(s, &(&1.classification == class))
+  def m_pct_repeat(s), do: pct(m_count_class(s, :repeat), length(s))
+  def m_multiple_matings(s), do: Enum.count(s, &((&1.mounting_count || 1) > 1))
+  def m_pct_multiple(s), do: pct(m_multiple_matings(s), length(s))
+  def m_matings_per_service([]), do: nil
+  def m_matings_per_service(s), do: Enum.sum(Enum.map(s, &(&1.mounting_count || 1))) / length(s)
+  def m_count_type(s, t), do: Enum.count(s, &(&1.service_type == t))
+  def m_pct_type(s, t), do: pct(m_count_type(s, t), length(s))
+
+  def m_count_after_weaning(s), do: Enum.count(s, & &1.after_weaning?)
+  def m_wean_to_service(s), do: avg_vals(s, &(&1.after_weaning? && &1.wean_to_service_days))
+  def m_count_after_entry(s), do: Enum.count(s, & &1.after_entry?)
+  def m_entry_to_service(s), do: avg_vals(s, &(&1.after_entry? && &1.entry_to_service_days))
+
+  defp closed(s), do: Enum.filter(s, &(&1.result != nil))
+  def m_conception_rate(s) do
+    c = closed(s)
+    pct(Enum.count(c, &(&1.result != "re_service")), length(c))
+  end
+  def m_farrowing_rate(s) do
+    c = closed(s)
+    pct(Enum.count(c, &(&1.result == "farrowing")), length(c))
+  end
+
+  # ── shared helpers ────────────────────────────────────────────────
+
+  defp pct(_n, 0), do: nil
+  defp pct(n, d), do: n / d * 100
+
+  # avg over rows where `getter` returns a number; falsy/nil are skipped
+  defp avg_vals(rows, getter) do
+    vals = rows |> Enum.map(getter) |> Enum.filter(&is_number/1)
+    case vals do
+      [] -> nil
+      xs -> Enum.sum(xs) / length(xs)
+    end
+  end
+
+  defp in_range(rows, date_key, from, to) do
+    Enum.filter(rows, fn r ->
+      d = Map.fetch!(r, date_key)
+      Date.compare(d, from) != :lt and Date.compare(d, to) != :gt
+    end)
+  end
+
+  # builds one matrix row: applies `fun` to the rows of `source` in each
+  # period bucket (filtered by `date_key`) and to the whole range (ACUM)
+  defp metric_row(key, label, format, source, date_key, ctx, periods, fun) do
+    values = Enum.map(periods, fn p -> fun.(in_range(source, date_key, p.from, p.to)) end)
+    acum = fun.(in_range(source, date_key, ctx.from, ctx.to))
+    %{key: key, label: label, format: format, values: values, acum: acum}
+  end
+
+  # ── Service section ───────────────────────────────────────────────
+
+  defp service_section(ctx, periods) do
+    s = ctx.services
+    r = fn key, label, fmt, fun -> metric_row(key, label, fmt, s, :served_at, ctx, periods, fun) end
+
+    rows = [
+      r.(:total_services, "Total services", :int, &m_total/1),
+      r.(:first_services, "Number 1st services", :int, &m_count_class(&1, :first)),
+      r.(:repeat_services, "Number repeat services", :int, &m_count_class(&1, :repeat)),
+      r.(:pct_repeat, "Percent repeat services", :pct, &m_pct_repeat/1),
+      r.(:multiple_matings, "Number multiple matings", :int, &m_multiple_matings/1),
+      r.(:pct_multiple, "Percent multiple matings", :pct, &m_pct_multiple/1),
+      r.(:matings_per_service, "Matings per service", :dec1, &m_matings_per_service/1),
+      r.(:ai_services, "Number AI services", :int, &m_count_type(&1, "ai")),
+      r.(:pct_ai, "% AI services", :pct, &m_pct_type(&1, "ai")),
+      r.(:natural_services, "Number natural services", :int, &m_count_type(&1, "natural")),
+      r.(:pct_natural, "% natural services", :pct, &m_pct_type(&1, "natural")),
+      r.(:after_weaning, "Served 1st service after weaning", :int, &m_count_after_weaning/1),
+      r.(:wean_to_service, "Weaning-1st service interval", :dec1, &m_wean_to_service/1),
+      r.(:after_entry, "Served 1st service after entry", :int, &m_count_after_entry/1),
+      r.(:entry_to_service, "Entry to 1st service interval", :dec1, &m_entry_to_service/1),
+      r.(:conception_rate, "Conception rate", :pct, &m_conception_rate/1),
+      r.(:farrowing_rate, "Farrowing rate (service cohort)", :pct, &m_farrowing_rate/1)
+    ]
+
+    %{key: :service, title: "Service performance", rows: rows}
+  end
+
   defp farrowing_section(_ctx, _periods), do: %{key: :farrowing, title: "Farrowing performance", rows: []}
   defp weaning_section(_ctx, _periods), do: %{key: :weaning, title: "Weaning performance", rows: []}
 end
