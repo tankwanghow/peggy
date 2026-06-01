@@ -257,6 +257,18 @@ defmodule Peggy.Reports do
     }
   end
 
+  @doc "See `Peggy.Reports.PerformanceAnalysis.build/2`."
+  defdelegate performance_analysis(scope, range),
+    to: Peggy.Reports.PerformanceAnalysis,
+    as: :build
+
+  @doc "CSV iodata for the performance-analysis report over `range`."
+  def performance_analysis_csv(scope, range) do
+    scope
+    |> Peggy.Reports.PerformanceAnalysis.build(range)
+    |> Peggy.Reports.PerformanceAnalysis.to_csv()
+  end
+
   # ── Raw fetches ────────────────────────────────────────────────────
 
   defp services_in_range(farm_id, from, to) do

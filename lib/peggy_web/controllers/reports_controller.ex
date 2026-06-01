@@ -8,7 +8,7 @@ defmodule PeggyWeb.ReportsController do
   alias Peggy.{Farms, Reports}
   alias Peggy.Accounts.Scope
 
-  @types ~w(services farrowings weanings)
+  @types ~w(services farrowings weanings performance)
 
   def export(conn, %{"farm_slug" => slug, "type" => type} = params) when type in @types do
     base_scope = conn.assigns.current_scope
@@ -53,6 +53,7 @@ defmodule PeggyWeb.ReportsController do
   defp build_csv(scope, "services", range), do: Reports.services_csv(scope, range)
   defp build_csv(scope, "farrowings", range), do: Reports.farrowings_csv(scope, range)
   defp build_csv(scope, "weanings", range), do: Reports.weanings_csv(scope, range)
+  defp build_csv(scope, "performance", range), do: Reports.performance_analysis_csv(scope, range)
 
   defp parse_range(params, scope) do
     %{from: Reports.default_range(scope).from, to: Reports.default_range(scope).to}
