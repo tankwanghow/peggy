@@ -76,6 +76,12 @@ defmodule PeggyWeb.FarmLive.Reports do
           >
             <.icon name="hero-magnifying-glass-micro" class="size-3" /> {gettext("Inferred rows")}
           </.link>
+          <.link
+            navigate={~p"/farms/#{@current_scope.farm.slug}/reports/performance"}
+            class="btn btn-sm btn-ghost"
+          >
+            <.icon name="hero-table-cells-micro" class="size-3" /> {gettext("Performance Analysis")}
+          </.link>
         </div>
 
         <dl class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
