@@ -14,214 +14,214 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/index.ex:222
 #, elixir-autogen, elixir-format
 msgid "%{farm} is now your default farm."
-msgstr ""
+msgstr "%{farm} kini ladang lalai anda."
 
 #: lib/peggy_web/live/farm_live/settings.ex:318
 #, elixir-autogen, elixir-format
 msgid "(%{used} / %{cap} seats used)"
-msgstr ""
+msgstr "(%{used} / %{cap} kerusi digunakan)"
 
 #: lib/peggy_web/live/farm_live/index.ex:36
 #, elixir-autogen, elixir-format
 msgid "Accept"
-msgstr ""
+msgstr "Terima"
 
 #: lib/peggy_web/live/invitation_live/show.ex:49
 #, elixir-autogen, elixir-format
 msgid "Accept invitation"
-msgstr ""
+msgstr "Terima jemputan"
 
 #: lib/peggy_web/components/core_components.ex:485
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:372
 #, elixir-autogen, elixir-format
 msgid "Actions"
-msgstr ""
+msgstr "Tindakan"
 
 #: lib/peggy_web/live/invitation_live/show.ex:32
 #, elixir-autogen, elixir-format
 msgid "Already have an account?"
-msgstr ""
+msgstr "Sudah ada akaun?"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:16
 #, elixir-autogen, elixir-format
 msgid "Animal registry"
-msgstr ""
+msgstr "Daftar ternakan"
 
 #: lib/peggy_web/components/layouts.ex:654
 #: lib/peggy_web/components/layouts.ex:666
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
-msgstr ""
+msgstr "Cuba menyambung semula"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:56
 #, elixir-autogen, elixir-format
 msgid "Barn-floor phone app"
-msgstr ""
+msgstr "Aplikasi telefon di kandang"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:26
 #, elixir-autogen, elixir-format
 msgid "Breeding calendar"
-msgstr ""
+msgstr "Kalendar pembiakan"
 
 #: lib/peggy_web/live/farm_live/index.ex:208
 #: lib/peggy_web/live/invitation_live/show.ex:85
 #, elixir-autogen, elixir-format
 msgid "Could not accept invitation."
-msgstr ""
+msgstr "Tidak dapat menerima jemputan."
 
 #: lib/peggy_web/live/farm_live/index.ex:226
 #, elixir-autogen, elixir-format
 msgid "Could not set default."
-msgstr ""
+msgstr "Tidak dapat menetapkan lalai."
 
 #: lib/peggy_web/live/farm_live/index.ex:110
 #, elixir-autogen, elixir-format
 msgid "Create a farm"
-msgstr ""
+msgstr "Cipta ladang"
 
 #: lib/peggy_web/live/farm_live/index.ex:147
 #, elixir-autogen, elixir-format
 msgid "Create farm"
-msgstr ""
+msgstr "Cipta ladang"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:81
 #, elixir-autogen, elixir-format
 msgid "Create your farm"
-msgstr ""
+msgstr "Cipta ladang anda"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:74
 #: lib/peggy_web/live/farm_live/index.ex:146
 #, elixir-autogen, elixir-format
 msgid "Creating..."
-msgstr ""
+msgstr "Mencipta..."
 
 #: lib/peggy_web/live/farm_live/index.ex:55
 #, elixir-autogen, elixir-format
 msgid "Default"
-msgstr ""
+msgstr "Lalai"
 
 #: lib/peggy_web/live/invitation_live/show.ex:39
 #, elixir-autogen, elixir-format
 msgid "Different email required"
-msgstr ""
+msgstr "E-mel berbeza diperlukan"
 
 #: lib/peggy_web/live/farm_live/settings.ex:325
 #, elixir-autogen, elixir-format
 msgid "Email"
-msgstr ""
+msgstr "E-mel"
 
 #: lib/peggy_web/live/farm_live/index.ex:68
 #, elixir-autogen, elixir-format
 msgid "Enter"
-msgstr ""
+msgstr "Masuk"
 
 #: lib/peggy_web/live/farm_live/settings.ex:74
 #, elixir-autogen, elixir-format
 msgid "Farm profile"
-msgstr ""
+msgstr "Profil ladang"
 
 #: lib/peggy_web/live/farm_live/settings.ex:438
 #, elixir-autogen, elixir-format
 msgid "Farm saved."
-msgstr ""
+msgstr "Ladang disimpan."
 
 #: lib/peggy_web/live/farm_live/settings.ex:13
 #, elixir-autogen, elixir-format
 msgid "Farm settings - %{name}"
-msgstr ""
+msgstr "Tetapan ladang - %{name}"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:46
 #, elixir-autogen, elixir-format
 msgid "Feed & growth"
-msgstr ""
+msgstr "Makanan & tumbesaran"
 
 #: lib/peggy_web/live/farm_live/settings.ex:107
 #, elixir-autogen, elixir-format
 msgid "Free"
-msgstr ""
+msgstr "Percuma"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:36
 #, elixir-autogen, elixir-format
 msgid "Health & withdrawal"
-msgstr ""
+msgstr "Kesihatan & tempoh larangan"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:28
 #, elixir-autogen, elixir-format
 msgid "Heat, service, gestation, farrowing and weaning — with farrowing forecasts and sow performance surfaced automatically."
-msgstr ""
+msgstr "Berahi, kawin, kebuntingan, beranak dan cerai susu — dengan ramalan beranak dan prestasi babi ibu dipaparkan secara automatik."
 
 #: lib/peggy_web/live/farm_live/index.ex:144
 #: lib/peggy_web/live/farm_live/settings.ex:101
 #, elixir-autogen, elixir-format
 msgid "Imperial"
-msgstr ""
+msgstr "Imperial"
 
 #: lib/peggy_web/live/invitation_live/show.ex:13
 #, elixir-autogen, elixir-format
 msgid "Invitation not valid"
-msgstr ""
+msgstr "Jemputan tidak sah"
 
 #: lib/peggy_web/live/farm_live/settings.ex:511
 #, elixir-autogen, elixir-format
 msgid "Invitation revoked."
-msgstr ""
+msgstr "Jemputan ditarik balik."
 
 #: lib/peggy_web/live/farm_live/settings.ex:489
 #, elixir-autogen, elixir-format
 msgid "Invitation sent."
-msgstr ""
+msgstr "Jemputan dihantar."
 
 #: lib/peggy_web/live/farm_live/settings.ex:316
 #, elixir-autogen, elixir-format
 msgid "Invite a member"
-msgstr ""
+msgstr "Jemput ahli"
 
 #: lib/peggy_web/live/invitation_live/show.ex:46
 #, elixir-autogen, elixir-format
 msgid "Join %{farm}"
-msgstr ""
+msgstr "Sertai %{farm}"
 
 #: lib/peggy_web/components/layouts.ex:85
 #: lib/peggy_web/live/invitation_live/show.ex:34
 #, elixir-autogen, elixir-format
 msgid "Log in"
-msgstr ""
+msgstr "Log masuk"
 
 #: lib/peggy_web/live/invitation_live/show.ex:21
 #, elixir-autogen, elixir-format
 msgid "Log in or register with"
-msgstr ""
+msgstr "Log masuk atau daftar dengan"
 
 #: lib/peggy_web/live/invitation_live/show.ex:18
 #, elixir-autogen, elixir-format
 msgid "Log in to accept"
-msgstr ""
+msgstr "Log masuk untuk menerima"
 
 #: lib/peggy_web/components/layouts.ex:79
 #: lib/peggy_web/components/layouts.ex:335
 #, elixir-autogen, elixir-format
 msgid "Log out"
-msgstr ""
+msgstr "Log keluar"
 
 #: lib/peggy_web/live/invitation_live/show.ex:43
 #, elixir-autogen, elixir-format
 msgid "Log out and try again."
-msgstr ""
+msgstr "Log keluar dan cuba lagi."
 
 #: lib/peggy_web/live/farm_live/settings.ex:331
 #, elixir-autogen, elixir-format
 msgid "Manager"
-msgstr ""
+msgstr "Pengurus"
 
 #: lib/peggy_web/live/farm_live/settings.ex:532
 #, elixir-autogen, elixir-format
 msgid "Member removed."
-msgstr ""
+msgstr "Ahli dikeluarkan."
 
 #: lib/peggy_web/live/farm_live/settings.ex:292
 #, elixir-autogen, elixir-format
 msgid "Members"
-msgstr ""
+msgstr "Ahli"
 
 #: lib/peggy_web/live/farm_live/index.ex:144
 #: lib/peggy_web/live/farm_live/reports.ex:149
@@ -230,29 +230,29 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/settings.ex:101
 #, elixir-autogen, elixir-format
 msgid "Metric"
-msgstr ""
+msgstr "Metrik"
 
 #: lib/peggy_web/components/layouts.ex:70
 #, elixir-autogen, elixir-format
 msgid "My farms"
-msgstr ""
+msgstr "Ladang saya"
 
 #: lib/peggy_web/live/farm_live/index.ex:125
 #: lib/peggy_web/live/farm_live/settings.ex:82
 #, elixir-autogen, elixir-format
 msgid "Name"
-msgstr ""
+msgstr "Nama"
 
 #: lib/peggy_web/live/farm_live/index.ex:73
 #, elixir-autogen, elixir-format
 msgid "No farms yet."
-msgstr ""
+msgstr "Belum ada ladang."
 
 #: lib/peggy_web/live/farm_live/settings.ex:357
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:112
 #, elixir-autogen, elixir-format
 msgid "None."
-msgstr ""
+msgstr "Tiada."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:811
 #: lib/peggy_web/live/farm_live/animal_detail.ex:820
@@ -331,105 +331,105 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/tasks.ex:305
 #, elixir-autogen, elixir-format
 msgid "Not authorized."
-msgstr ""
+msgstr "Tidak dibenarkan."
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:58
 #, elixir-autogen, elixir-format
 msgid "Offline-first PWA with QR/RFID scanning, large touch targets, and a write queue that syncs when you're back on Wi-Fi."
-msgstr ""
+msgstr "PWA mengutamakan luar talian dengan imbasan QR/RFID, sasaran sentuh besar, dan baris gilir tulis yang menyegerak apabila anda kembali ke Wi-Fi."
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:7
 #, elixir-autogen, elixir-format
 msgid "Peggy is a farm management system for swine operations — breeding, health, feed, growth and sales in one place. Built for the desktop office and the barn floor."
-msgstr ""
+msgstr "Peggy ialah sistem pengurusan ladang untuk operasi babi — pembiakan, kesihatan, makanan, tumbesaran dan jualan dalam satu tempat. Dibina untuk pejabat desktop dan lantai kandang."
 
 #: lib/peggy_web/live/farm_live/index.ex:18
 #: lib/peggy_web/live/farm_live/settings.ex:341
 #, elixir-autogen, elixir-format
 msgid "Pending invitations"
-msgstr ""
+msgstr "Jemputan tertangguh"
 
 #: lib/peggy_web/live/farm_live/index.ex:14
 #, elixir-autogen, elixir-format
 msgid "Pick a farm to enter, or create a new one."
-msgstr ""
+msgstr "Pilih ladang untuk dimasuki, atau cipta yang baharu."
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:68
 #, elixir-autogen, elixir-format
 msgid "Pigs weaned / sow / year, farrowing rate, pre-wean mortality — and a traceability report per animal or batch."
-msgstr ""
+msgstr "Babi dicerai susu / babi ibu / tahun, kadar beranak, kematian sebelum cerai susu — dan laporan kebolehkesanan bagi setiap ternakan atau kumpulan."
 
 #: lib/peggy_web/live/farm_live/settings.ex:106
 #, elixir-autogen, elixir-format
 msgid "Plan"
-msgstr ""
+msgstr "Pelan"
 
 #: lib/peggy_web/live/farm_live/settings.ex:107
 #, elixir-autogen, elixir-format
 msgid "Pro"
-msgstr ""
+msgstr "Pro"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:48
 #, elixir-autogen, elixir-format
 msgid "Ration library, daily feedings, weight records — with ADG and FCR computed per batch."
-msgstr ""
+msgstr "Pustaka catuan, pemberian makan harian, rekod berat — dengan ADG dan FCR dikira bagi setiap kumpulan."
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:76
 #, elixir-autogen, elixir-format
 msgid "Ready to ear-tag your first pig?"
-msgstr ""
+msgstr "Sedia untuk tag telinga babi pertama anda?"
 
 #: lib/peggy_web/live/invitation_live/show.ex:29
 #: lib/peggy_web/live/mobile_live/animals.ex:429
 #, elixir-autogen, elixir-format
 msgid "Register"
-msgstr ""
+msgstr "Daftar"
 
 #: lib/peggy_web/live/farm_live/settings.ex:308
 #, elixir-autogen, elixir-format
 msgid "Remove"
-msgstr ""
+msgstr "Keluarkan"
 
 #: lib/peggy_web/live/farm_live/settings.ex:306
 #, elixir-autogen, elixir-format
 msgid "Remove this member?"
-msgstr ""
+msgstr "Keluarkan ahli ini?"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:66
 #: lib/peggy_web/live/farm_live/reports.ex:13
 #, elixir-autogen, elixir-format
 msgid "Reports & KPIs"
-msgstr ""
+msgstr "Laporan & KPI"
 
 #: lib/peggy_web/live/farm_live/settings.ex:354
 #, elixir-autogen, elixir-format
 msgid "Revoke"
-msgstr ""
+msgstr "Tarik balik"
 
 #: lib/peggy_web/live/farm_live/settings.ex:329
 #, elixir-autogen, elixir-format
 msgid "Role"
-msgstr ""
+msgstr "Peranan"
 
 #: lib/peggy_web/live/invitation_live/show.ex:47
 #, elixir-autogen, elixir-format
 msgid "Role:"
-msgstr ""
+msgstr "Peranan:"
 
 #: lib/peggy_web/live/farm_live/index.ex:28
 #, elixir-autogen, elixir-format
 msgid "Role: %{role}"
-msgstr ""
+msgstr "Peranan: %{role}"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:4
 #, elixir-autogen, elixir-format
 msgid "Run your pig farm, not your spreadsheet."
-msgstr ""
+msgstr "Uruskan ladang babi anda, bukan hamparan anda."
 
 #: lib/peggy_web/live/farm_live/settings.ex:123
 #, elixir-autogen, elixir-format
 msgid "Save changes"
-msgstr ""
+msgstr "Simpan perubahan"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:543
 #: lib/peggy_web/live/farm_live/animals.ex:312
@@ -445,75 +445,75 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/tasks.ex:213
 #, elixir-autogen, elixir-format
 msgid "Saving..."
-msgstr ""
+msgstr "Menyimpan..."
 
 #: lib/peggy_web/live/farm_live/settings.ex:109
 #, elixir-autogen, elixir-format
 msgid "Seat limit"
-msgstr ""
+msgstr "Had kerusi"
 
 #: lib/peggy_web/live/farm_live/settings.ex:496
 #, elixir-autogen, elixir-format
 msgid "Seat limit (%{cap}) reached. Raise it in farm settings or remove a member."
-msgstr ""
+msgstr "Had kerusi (%{cap}) dicapai. Naikkan dalam tetapan ladang atau keluarkan ahli."
 
 #: lib/peggy_web/live/farm_live/settings.ex:337
 #, elixir-autogen, elixir-format
 msgid "Send invitation"
-msgstr ""
+msgstr "Hantar jemputan"
 
 #: lib/peggy_web/live/farm_live/settings.ex:336
 #, elixir-autogen, elixir-format
 msgid "Sending..."
-msgstr ""
+msgstr "Menghantar..."
 
 #: lib/peggy_web/live/farm_live/index.ex:65
 #, elixir-autogen, elixir-format
 msgid "Set as default"
-msgstr ""
+msgstr "Tetapkan sebagai lalai"
 
 #: lib/peggy_web/components/layouts.ex:74
 #: lib/peggy_web/components/layouts.ex:607
 #, elixir-autogen, elixir-format
 msgid "Settings"
-msgstr ""
+msgstr "Tetapan"
 
 #: lib/peggy_web/components/layouts.ex:90
 #, elixir-autogen, elixir-format
 msgid "Sign up"
-msgstr ""
+msgstr "Daftar"
 
 #: lib/peggy_web/live/farm_live/index.ex:129
 #: lib/peggy_web/live/farm_live/settings.ex:86
 #, elixir-autogen, elixir-format
 msgid "Slug"
-msgstr ""
+msgstr "Slug"
 
 #: lib/peggy_web/components/layouts.ex:661
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
-msgstr ""
+msgstr "Sesuatu tidak kena!"
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:78
 #, elixir-autogen, elixir-format
 msgid "Start free. Invite your team. Bring your farm online in an afternoon."
-msgstr ""
+msgstr "Mula percuma. Jemput pasukan anda. Bawa ladang anda dalam talian dalam satu petang."
 
 #: lib/peggy_web/live/farm_live/index.ex:204
 #: lib/peggy_web/live/invitation_live/show.ex:82
 #, elixir-autogen, elixir-format
 msgid "That farm is full — ask an owner to free up a seat."
-msgstr ""
+msgstr "Ladang itu penuh — minta pemilik kosongkan satu kerusi."
 
 #: lib/peggy_web/live/invitation_live/show.ex:41
 #, elixir-autogen, elixir-format
 msgid "This invitation is for"
-msgstr ""
+msgstr "Jemputan ini untuk"
 
 #: lib/peggy_web/live/invitation_live/show.ex:15
 #, elixir-autogen, elixir-format
 msgid "This invitation link is invalid, expired, or already accepted."
-msgstr ""
+msgstr "Pautan jemputan ini tidak sah, tamat tempoh, atau telah diterima."
 
 #: lib/peggy_web/live/farm_live/index.ex:137
 #: lib/peggy_web/live/farm_live/settings.ex:93
@@ -892,7 +892,7 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/herd_import.ex:28
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Animals"
-msgstr ""
+msgstr "Ternakan"
 
 #: lib/peggy_web/live/farm_live/reports.ex:101
 #, elixir-autogen, elixir-format
@@ -1266,7 +1266,7 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:25
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Breeding"
-msgstr ""
+msgstr "Pembiakan"
 
 #: lib/peggy_web/live/farm_live/animals.ex:824
 #: lib/peggy_web/live/mobile_live/animals.ex:911
@@ -1390,7 +1390,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/tasks.ex:194
 #, elixir-autogen, elixir-format
 msgid "Cancel"
-msgstr ""
+msgstr "Batal"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:615
 #, elixir-autogen, elixir-format
@@ -1798,7 +1798,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/dashboard.ex:174
 #, elixir-autogen, elixir-format
 msgid "Dashboard"
-msgstr ""
+msgstr "Papan Pemuka"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:686
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:367
@@ -2824,7 +2824,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/locations.ex:83
 #, elixir-autogen, elixir-format
 msgid "Locations"
-msgstr ""
+msgstr "Lokasi"
 
 #: lib/peggy_web/live/farm_live/locations.ex:43
 #, elixir-autogen, elixir-format, fuzzy
@@ -4036,7 +4036,7 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:24
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Reports"
-msgstr ""
+msgstr "Laporan"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:59
 #, elixir-autogen, elixir-format
@@ -4194,7 +4194,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:415
 #, elixir-autogen, elixir-format
 msgid "Save"
-msgstr ""
+msgstr "Simpan"
 
 #: lib/peggy_web/live/farm_live/settings.ex:285
 #, elixir-autogen, elixir-format
@@ -4820,7 +4820,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/tasks.ex:220
 #, elixir-autogen, elixir-format
 msgid "Tasks"
-msgstr ""
+msgstr "Tugasan"
 
 #: lib/peggy_web/components/layouts.ex:272
 #, elixir-autogen, elixir-format
@@ -5866,4 +5866,4 @@ msgstr ""
 #: lib/peggy_web/components/layouts.ex:679
 #, elixir-autogen, elixir-format
 msgid "Language"
-msgstr ""
+msgstr "Bahasa"
