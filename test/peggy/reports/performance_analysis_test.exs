@@ -37,6 +37,21 @@ defmodule Peggy.Reports.PerformanceAnalysisTest do
       assert length(result.periods) == 12
       assert Enum.map(result.sections, & &1.key) == [:service, :farrowing, :weaning]
     end
+
+    test "end-to-end: a March service + farrowing + weaning lands in the right columns", %{scope: scope, sow: sow} do
+      f = Peggy.BreedingFixtures.farrowing_fixture(scope, sow, farrowed_at: ~D[2025-03-20], born_alive: 11, service_type: "ai")
+      {:ok, _, _} = Peggy.Breeding.record_weaning(scope, f, %{weaned_at: ~D[2025-04-14], weaned_count: 10, batch_tag: "W-E2E"})
+
+      result = build_year(scope)
+      farrowings = Enum.find(result.sections, &(&1.key == :farrowing))
+      far_count = Enum.find(farrowings.rows, &(&1.key == :farrowings))
+      assert Enum.at(far_count.values, 2) == 1   # March
+      assert far_count.acum == 1
+
+      weanings = Enum.find(result.sections, &(&1.key == :weaning))
+      pigs = Enum.find(weanings.rows, &(&1.key == :pigs_weaned))
+      assert Enum.at(pigs.values, 3) == 10       # April
+    end
   end
 
   defp build_year(scope),
