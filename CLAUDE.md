@@ -57,7 +57,7 @@ Full Phoenix 1.8 / Elixir / LiveView / Ecto / HEEx usage rules are in **`AGENTS.
 - LiveView templates **must** start with `<Layouts.app flash={@flash} ...>`; `current_scope` must be passed through.
 - Forms: always `to_form/2` in the LiveView + `<.form for={@form}>` + `<.input>` in the template. Never pass a changeset to `<.form>`.
 - Icons: always `<.icon name="hero-..." />`, never the `Heroicons` module.
-- Tailwind v4: no `tailwind.config.js`; use `@source` directives in `app.css`; never use `@apply`; no daisyUI.
+- Tailwind v4: no `tailwind.config.js`; use `@source` directives in `app.css`; never use `@apply`. **daisyUI 5 IS used** — build UI with its component classes (`btn`, `badge`, `card`, `modal`, `navbar`, `alert`, `input`, …) and the shared `core_components.ex` / `layouts.ex` components.
 - Collections in LiveView must use streams (`stream/3` + `phx-update="stream"`); never `phx-update="append"`.
 - Inline JS in HEEx must use colocated hooks (`:type={Phoenix.LiveView.ColocatedHook}`), never raw `<script>`.
 - Elixir: no `String.to_atom/1` on user input; predicates end in `?` not `is_`; lists use `Enum.at` not `list[i]`; `if`/`case` results must be rebound outside the block.
