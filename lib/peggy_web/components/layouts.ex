@@ -50,6 +50,7 @@ defmodule PeggyWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex items-center gap-2">
+          <li><.language_switcher current_scope={@current_scope} /></li>
           <li><.theme_toggle /></li>
           <%= if @current_scope && @current_scope.user do %>
             <li class="hidden sm:block text-sm text-base-content/70">
@@ -271,6 +272,13 @@ defmodule PeggyWeb.Layouts do
               <span>{gettext("Theme")}</span>
             </span>
             <.theme_toggle />
+          </li>
+          <li class="flex items-center justify-between gap-3 px-4 py-3">
+            <span class="flex items-center gap-3">
+              <.icon name="hero-language" class="size-5 text-base-content/60" />
+              <span>{gettext("Language")}</span>
+            </span>
+            <.language_switcher current_scope={@current_scope} />
           </li>
           <li :if={@current_scope && @current_scope.farm}>
             <.link
@@ -660,6 +668,37 @@ defmodule PeggyWeb.Layouts do
       </.flash>
     </div>
     """
+  end
+
+  @doc "Language picker; persists to user.locale via LocaleController. Logged-in only."
+  attr :current_scope, :map, required: true
+
+  def language_switcher(assigns) do
+    ~H"""
+    <div :if={@current_scope && @current_scope.user} class="dropdown dropdown-end">
+      <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-1" title={gettext("Language")}>
+        <.icon name="hero-language-micro" class="size-4" />
+        <span class="hidden sm:inline">{language_label(@current_scope.user.locale)}</span>
+      </div>
+      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-44 p-2 shadow">
+        <li :for={{code, label} <- language_options()}>
+          <.link
+            href={~p"/locale/#{code}"}
+            class={@current_scope.user.locale == code && "menu-active"}
+          >
+            {label}
+          </.link>
+        </li>
+      </ul>
+    </div>
+    """
+  end
+
+  defp language_options, do: [{"en", "English"}, {"ms", "Bahasa Malaysia"}, {"zh", "中文"}]
+
+  defp language_label(code) do
+    {_, label} = Enum.find(language_options(), {code, code}, fn {c, _} -> c == code end)
+    label
   end
 
   @doc """
