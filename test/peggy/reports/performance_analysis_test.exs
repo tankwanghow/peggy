@@ -42,6 +42,33 @@ defmodule Peggy.Reports.PerformanceAnalysisTest do
   defp build_year(scope),
     do: Peggy.Reports.PerformanceAnalysis.build(scope, %{from: ~D[2025-01-01], to: ~D[2025-12-31]})
 
+  describe "farrowing metrics (pure)" do
+    alias Peggy.Reports.PerformanceAnalysis, as: PA
+
+    test "litter composition" do
+      fs = [
+        %{born_alive: 12, stillborn: 1, mummified: 0, total_birth_weight_g: nil, parity: 3, gestation_days: 115, interval_days: 150},
+        %{born_alive: 6, stillborn: 3, mummified: 1, total_birth_weight_g: nil, parity: 5, gestation_days: 114, interval_days: 160}
+      ]
+      assert PA.m_count(fs) == 2
+      assert_in_delta PA.m_pct_small_litter(fs), 50.0, 0.1   # one < 7 born alive
+      assert_in_delta PA.m_avg(fs, :parity), 4.0, 0.01
+      assert_in_delta PA.m_avg_total_born(fs), 11.5, 0.01     # (13 + 10)/2
+      assert_in_delta PA.m_avg(fs, :born_alive), 9.0, 0.01
+      assert_in_delta PA.m_pct_of_total_born(fs, :stillborn), 17.39, 0.1  # 4/23
+      assert_in_delta PA.m_avg(fs, :gestation_days), 114.5, 0.01
+    end
+
+    test "birthweight per liveborn only over recorded rows" do
+      fs = [
+        %{born_alive: 10, total_birth_weight_g: 14_000},
+        %{born_alive: 10, total_birth_weight_g: nil}
+      ]
+      assert PA.m_birthweight_per_liveborn(fs) == 1400.0
+      assert PA.m_birthweight_per_liveborn([%{born_alive: 10, total_birth_weight_g: nil}]) == nil
+    end
+  end
+
   describe "service metrics (pure)" do
     alias Peggy.Reports.PerformanceAnalysis, as: PA
 

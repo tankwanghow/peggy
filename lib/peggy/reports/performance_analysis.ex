@@ -329,6 +329,104 @@ defmodule Peggy.Reports.PerformanceAnalysis do
     %{key: :service, title: "Service performance", rows: rows}
   end
 
-  defp farrowing_section(_ctx, _periods), do: %{key: :farrowing, title: "Farrowing performance", rows: []}
+  # ── Farrowing metric functions ────────────────────────────────────
+
+  def m_count(rows), do: length(rows)
+  def m_avg(rows, field), do: avg_vals(rows, &Map.get(&1, field))
+
+  def m_pct_small_litter(fs), do: pct(Enum.count(fs, &(&1.born_alive < 7)), length(fs))
+  def m_total_born(f), do: f.born_alive + (f.stillborn || 0) + (f.mummified || 0)
+  def m_avg_total_born(fs), do: avg_vals(fs, &m_total_born/1)
+
+  def m_pct_of_total_born(fs, field) do
+    total = fs |> Enum.map(&m_total_born/1) |> Enum.sum()
+    pct(fs |> Enum.map(&Map.get(&1, field)) |> Enum.sum(), total)
+  end
+
+  def m_birthweight_per_liveborn(fs) do
+    recorded = Enum.filter(fs, &(&1.total_birth_weight_g != nil))
+    case recorded do
+      [] -> nil
+      rs ->
+        w = rs |> Enum.map(& &1.total_birth_weight_g) |> Enum.sum()
+        a = rs |> Enum.map(& &1.born_alive) |> Enum.sum()
+        if a == 0, do: nil, else: w / a
+    end
+  end
+
+  def m_count_abortions(abortions), do: length(abortions)
+
+  # annualized: (bucket value / period days) * 365 / herd denominator
+  def m_per_female_year(value, period_days, denom) do
+    if denom in [0, nil] or period_days in [0, nil] or value in [nil],
+      do: nil,
+      else: value / period_days * 365 / denom
+  end
+
+  # pre-wean mortality over rows carrying born_alive + weaned_count
+  def m_pre_wean_mortality(rows) do
+    pairs = Enum.filter(rows, &(&1[:born_alive] && &1[:weaned_count]))
+    born = pairs |> Enum.map(& &1.born_alive) |> Enum.sum()
+    weaned = pairs |> Enum.map(& &1.weaned_count) |> Enum.sum()
+    pct(born - weaned, born)
+  end
+
+  # ── Farrowing section ─────────────────────────────────────────────
+
+  defp farrowing_section(ctx, periods) do
+    f = ctx.farrowings
+    r = fn key, label, fmt, fun -> metric_row(key, label, fmt, f, :farrowed_at, ctx, periods, fun) end
+
+    # weanings keyed for cohort pre-wean mortality, attributed to the
+    # FARROWING date (cohort), carrying born_alive + weaned_count.
+    cohort = pair_cohort(ctx)
+    cr = fn key, label, fmt, fun -> metric_row(key, label, fmt, cohort, :farrowed_at, ctx, periods, fun) end
+
+    ann = fn key, label, source, value_fun ->
+      values =
+        Enum.map(periods, fn p ->
+          v = value_fun.(in_range(source, :farrowed_at, p.from, p.to))
+          m_per_female_year(v, Date.diff(p.to, p.from) + 1, ctx.denom)
+        end)
+      acum = m_per_female_year(value_fun.(source), ctx.range_days, ctx.denom)
+      %{key: key, label: label, format: :dec1, values: values, acum: acum}
+    end
+
+    rows = [
+      r.(:farrowings, "Farrowings", :int, &m_count/1),
+      r.(:pct_small_litter, "% litters less than 7 born alive", :pct, &m_pct_small_litter/1),
+      r.(:avg_parity, "Avg parity farrowed", :dec1, &m_avg(&1, :parity)),
+      r.(:total_born, "Total born per farrow", :dec1, &m_avg_total_born/1),
+      r.(:liveborn, "Liveborn per farrow", :dec1, &m_avg(&1, :born_alive)),
+      r.(:stillborn, "Stillborn per farrow", :dec1, &m_avg(&1, :stillborn)),
+      r.(:pct_stillborn, "% Stillborn", :pct, &m_pct_of_total_born(&1, :stillborn)),
+      r.(:mummies, "Mummies per farrow", :dec1, &m_avg(&1, :mummified)),
+      r.(:pct_mummies, "% Mummies", :pct, &m_pct_of_total_born(&1, :mummified)),
+      r.(:gestation, "Avg gestation length", :dec1, &m_avg(&1, :gestation_days)),
+      r.(:birthweight, "Birthweight / liveborn (g)", :dec1, &m_birthweight_per_liveborn/1),
+      r.(:interval, "Farrowing interval", :dec1, &m_avg(&1, :interval_days)),
+      metric_row(:abortions, "Abortions", :int, ctx.abortions, :result_at, ctx, periods, &m_count_abortions/1),
+      cr.(:pre_wean_cohort, "Preweaning mortality rate (cohort)", :pct, &m_pre_wean_mortality/1),
+      ann.(:litters_per_female_year, "Litters / female / year", f, &m_count/1),
+      ann.(:liveborn_per_female_year, "Live born / female / year", f, fn rows -> Enum.sum(Enum.map(rows, & &1.born_alive)) end)
+    ]
+
+    %{key: :farrowing, title: "Farrowing performance", rows: rows}
+  end
+
+  # For each farrowing in range, attach its weaning's weaned_count (if any).
+  # Attributed to farrowed_at so the cohort metric buckets by farrow date.
+  defp pair_cohort(ctx) do
+    %{from: from, to: to} = ctx
+    Repo.all(
+      from(f in "breeding_farrowings",
+        join: w in "breeding_weanings", on: w.farrowing_id == f.id and is_nil(w.deleted_at),
+        where: f.farm_id == ^ctx.farm_id and is_nil(f.deleted_at) and
+                 f.farrowed_at >= ^from and f.farrowed_at <= ^to,
+        select: %{farrowed_at: f.farrowed_at, born_alive: f.born_alive, weaned_count: w.weaned_count}
+      )
+    )
+  end
+
   defp weaning_section(_ctx, _periods), do: %{key: :weaning, title: "Weaning performance", rows: []}
 end
