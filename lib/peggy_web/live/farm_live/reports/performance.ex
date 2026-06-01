@@ -29,7 +29,9 @@ defmodule PeggyWeb.FarmLive.Reports.Performance do
               <.icon name="hero-arrow-down-tray-micro" class="size-3" /> {gettext("CSV")}
             </.link>
             <.link
-              href={"/farms/#{@current_scope.farm.slug}/reports/performance/print?from=#{Date.to_iso8601(@range.from)}&to=#{Date.to_iso8601(@range.to)}"}
+              navigate={
+                ~p"/farms/#{@current_scope.farm.slug}/reports/performance/print?#{[from: Date.to_iso8601(@range.from), to: Date.to_iso8601(@range.to)]}"
+              }
               class="btn btn-sm btn-ghost"
             >
               <.icon name="hero-printer-micro" class="size-3" /> {gettext("Print")}

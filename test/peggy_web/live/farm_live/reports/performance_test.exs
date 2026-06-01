@@ -32,4 +32,11 @@ defmodule PeggyWeb.FarmLive.Reports.PerformanceTest do
     assert html =~ "Weaning performance"
     assert html =~ "Total services"
   end
+
+  test "print view renders the matrix and an auto-print hook", %{conn: conn, farm: farm} do
+    {:ok, _lv, html} = live(conn, ~p"/farms/#{farm.slug}/reports/performance/print")
+    assert html =~ "Performance Analysis"
+    assert html =~ "Service performance"
+    assert html =~ "AutoPrint"
+  end
 end
