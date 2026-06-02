@@ -7,7 +7,11 @@ defmodule PeggyWeb.PageController do
         Phoenix.Controller.redirect(conn, to: PeggyWeb.UserAuth.default_farm_path(user))
 
       _ ->
-        render(conn, :home)
+        if PeggyWeb.Device.mobile?(conn) do
+          render(conn, :home_mobile)
+        else
+          render(conn, :home)
+        end
     end
   end
 end

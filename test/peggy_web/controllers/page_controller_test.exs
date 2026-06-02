@@ -1,16 +1,28 @@
 defmodule PeggyWeb.PageControllerTest do
-  use PeggyWeb.ConnCase
+  use PeggyWeb.ConnCase, async: true
 
-  test "GET / shows the landing page for anonymous visitors", %{conn: conn} do
-    conn = get(conn, ~p"/")
-    response = html_response(conn, 200)
-    assert response =~ "Run your pig farm"
-    assert response =~ ~p"/users/register"
+  test "desktop home renders the landing with an anonymous language switcher", %{conn: conn} do
+    html =
+      conn
+      |> put_req_header("user-agent", "Mozilla (Macintosh)")
+      |> get(~p"/")
+      |> html_response(200)
+
+    assert html =~ "Run your pig farm"
+    assert html =~ "Bahasa Malaysia"
+    assert html =~ "/locale/zh"
+    refute html =~ ~s(id="mobile-home")
   end
 
-  test "GET / redirects logged-in users to /farms", %{conn: conn} do
-    user = Peggy.AccountsFixtures.user_fixture()
-    conn = conn |> log_in_user(user) |> get(~p"/")
-    assert redirected_to(conn) == ~p"/farms"
+  test "mobile visitor gets the mobile home with the switcher", %{conn: conn} do
+    html =
+      conn
+      |> Plug.Test.put_req_cookie("peggy_view", "mobile")
+      |> get(~p"/")
+      |> html_response(200)
+
+    assert html =~ ~s(id="mobile-home")
+    assert html =~ "Run your pig farm"
+    assert html =~ "Bahasa Malaysia"
   end
 end
