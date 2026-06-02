@@ -20,6 +20,12 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
         <.header>
           {gettext("Serviceable")}
           <:subtitle>{gettext("Sows ready for a new service")}</:subtitle>
+          <:actions>
+            <.iframe_print_button
+              id="serviceable-print-btn"
+              url={print_path(@current_scope.farm.slug, @filters, @sort, @dir)}
+            />
+          </:actions>
         </.header>
 
         <section class="mt-4">
@@ -476,6 +482,27 @@ defmodule PeggyWeb.FarmLive.Breeding.Serviceable do
     case merged do
       m when map_size(m) == 0 -> path
       m -> path <> "?" <> URI.encode_query(m)
+    end
+  end
+
+  defp print_path(slug, filters, sort, dir) do
+    query =
+      %{
+        "q" => filters.q,
+        "status" => filters.status,
+        "pen_search" => filters.pen_search,
+        "min_parity" => filters.min_parity,
+        "max_parity" => filters.max_parity,
+        "sort" => sort,
+        "dir" => dir
+      }
+      |> prune_query()
+
+    base = ~p"/farms/#{slug}/breeding/serviceable/print"
+
+    case query do
+      m when map_size(m) == 0 -> base
+      m -> base <> "?" <> URI.encode_query(m)
     end
   end
 

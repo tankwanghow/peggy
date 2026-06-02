@@ -412,6 +412,22 @@ defmodule PeggyWeb.Layouts do
         /* Ensure browsers respect our forced colors instead of auto-tweaking. */
         .print-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       }
+      /* A long table repeats its <thead> on every printed page. When the
+         browser's print "Margins" setting is small/none it overrides the
+         @page margin, leaving the repeated header flush against the top paper
+         edge from page 2 on. A borderless spacer row as the first <thead> row
+         repeats with the header, giving a clean top gap on every page that is
+         independent of the @page margin. */
+      .print-sheet tr.print-thead-spacer > * {
+        border: 0 !important;
+        padding: 0 !important;
+        height: 8mm;
+      }
+      /* The spacer repeats with the <thead> on every page, but page 1 already
+         has the report header for top spacing. A top margin only applies at the
+         element's start (page 1), so pulling the table up by the spacer height
+         cancels it on page 1 while continuation pages keep their top gap. */
+      .print-sheet table:has(> thead > tr.print-thead-spacer) { margin-top: -8mm; }
       .print-page {
         max-width: 186mm; /* A4 minus 12mm margins */
         margin: 0 auto;

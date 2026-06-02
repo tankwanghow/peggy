@@ -1,25 +1,23 @@
-defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
+defmodule PeggyWeb.FarmLive.Breeding.ServiceablePrint do
   @moduledoc """
-  Print-friendly view of currently-filtered lactating sows. Mounts with
-  the same query params as the Lactating tab, loads every matching row
-  (no pagination), and auto-opens the browser print preview where the
-  user can print to paper or save as PDF. DestPen and WeanAmt columns
-  are intentionally blank for the operator to fill in at the barn.
+  Print-friendly view of currently-filtered serviceable females. Mounts
+  with the same query params as the Serviceable tab, loads every matching
+  row (no pagination), and auto-opens the browser print preview where the
+  user can print to paper or save as PDF.
   """
   use PeggyWeb, :live_view
 
   alias Peggy.{Breeding, FarmClock}
-  alias PeggyWeb.FarmLive.Breeding.Shared
 
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.print flash={@flash} title={gettext("Lactating sows")}>
-      <header class="print-mono border-black pb-1">
+    <Layouts.print flash={@flash} title={gettext("Serviceable")}>
+      <header class="print-mono mb-2 pb-1">
         <div class="flex items-baseline justify-between gap-4">
           <div>
             <h1 class="text-xl font-semibold">
-              {gettext("Lactating sows")}
+              {gettext("Serviceable")}
             </h1>
             <p class="text-xs">
               {@current_scope.farm.name} · {gettext("Reference date")}: {@today}
@@ -38,47 +36,44 @@ defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
         <colgroup>
           <col style="width: 16%" />
           <col style="width: 14%" />
+          <col style="width: 12%" />
           <col style="width: 8%" />
+          <col style="width: 22%" />
+          <col style="width: 10%" />
           <col style="width: 18%" />
-          <col style="width: 8%" />
-          <col style="width: 8%" />
-          <col style="width: 14%" />
-          <col style="width: 14%" />
         </colgroup>
         <thead>
           <tr class="print-thead-spacer" aria-hidden="true">
-            <td colspan="8"></td>
+            <td colspan="7"></td>
           </tr>
           <tr class="text-center">
             <th class="p-2 border-1">{gettext("Sow")}</th>
+            <th class="p-2 border-1">{gettext("Status")}</th>
             <th class="p-2 border-1">{gettext("Pen")}</th>
             <th class="p-2 border-1">{gettext("Prty")}</th>
-            <th class="p-2 border-1">{gettext("FarrAt")}</th>
-            <th class="p-2 border-1">{gettext("SLive")}</th>
-            <th class="p-2 border-1">{gettext("Age")}</th>
-            <th class="p-2 border-1">{gettext("DestPen")}</th>
-            <th class="p-2 border-1">{gettext("WAmt")}</th>
+            <th class="p-2 border-1">{gettext("Last event")}</th>
+            <th class="p-2 border-1">{gettext("Idle(d)")}</th>
+            <th class="p-2 border-1">{gettext("Note")}</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            :for={entry <- @rows}
-            class="border-b border-black/40 align-top break-inside-avoid font-mono"
+            :for={e <- @rows}
+            class="align-top break-inside-avoid font-mono"
           >
-            <td class="p-2 border-1 font-semibold">{entry.farrowing.sow.ear_tag}</td>
-            <td class="p-2 border-1">{pen_label(entry.farrowing.pen)}</td>
-            <td class="p-2 border-1 text-center">{entry.parity}</td>
-            <td class="p-2 border-1">{entry.farrowing.farrowed_at}</td>
-            <td class="p-2 border-1 text-center">{entry.surviving}</td>
-            <td class="p-2 border-1 text-center">
-              {Date.diff(@today, entry.farrowing.farrowed_at)}
+            <td class="p-2 border-1 font-semibold">{e.animal.ear_tag}</td>
+            <td class="p-2 border-1 uppercase">
+              {e.animal.status}<span :if={e.animal.status == "served"}> ({gettext("in heat")})</span>
             </td>
-            <td class="py-1.5 pr-2 border-1"></td>
-            <td class="py-1.5 pr-2 border-1"></td>
+            <td class="p-2 border-1">{sow_pen_label(e.animal)}</td>
+            <td class="p-2 border-1 text-center">{e.parity}</td>
+            <td class="p-2 border-1 whitespace-nowrap">{last_event_label(e)}</td>
+            <td class="p-2 border-1 text-center">{idle_text(e.days_idle)}</td>
+            <td class="p-2 border-1"></td>
           </tr>
           <tr :if={@total == 0}>
-            <td colspan="8" class="py-4 text-center">
-              {gettext("No lactating sows match the filters.")}
+            <td colspan="7" class="py-4 text-center">
+              {gettext("No serviceable females match the filters.")}
             </td>
           </tr>
         </tbody>
@@ -115,8 +110,7 @@ defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
 
     filters = %{
       q: params["q"] || "",
-      age: Shared.param_age(params["age"]),
-      pen_id: params["pen_id"] || "",
+      status: status_param(params["status"]),
       pen_search: params["pen_search"] || "",
       min_parity: params["min_parity"] || "",
       max_parity: params["max_parity"] || ""
@@ -124,26 +118,20 @@ defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
 
     opts = [
       search: filters.q,
-      age_bucket: filters.age,
-      pen_id: blank_to_nil(filters.pen_id),
+      status: filters.status,
       pen_search: blank_to_nil(filters.pen_search),
       min_parity: blank_to_nil(filters.min_parity),
       max_parity: blank_to_nil(filters.max_parity),
-      sort: sort_param(params["sort"]),
+      sort: serviceable_sort_param(params["sort"]),
       dir: dir_param(params["dir"]),
       limit: :all
     ]
 
-    rows =
-      Breeding.list_lactating_sows(scope, opts)
-      |> Enum.map(fn f ->
-        %{farrowing: f, surviving: Breeding.surviving_piglet_count(f)}
-      end)
-      |> attach_parity(scope)
+    rows = Breeding.list_serviceable(scope, opts)
 
     {:noreply,
      assign(socket,
-       page_title: gettext("Print — Lactating sows"),
+       page_title: gettext("Print — Serviceable"),
        filters: filters,
        rows: rows,
        total: length(rows),
@@ -155,31 +143,42 @@ defmodule PeggyWeb.FarmLive.Breeding.LactatingPrint do
 
   # ── Helpers ────────────────────────────────────────────────────────
 
-  defp attach_parity(rows, scope) do
-    sow_ids = Enum.map(rows, & &1.farrowing.sow_id)
-    parities = Breeding.parities_for(scope, sow_ids)
-    Enum.map(rows, &Map.put(&1, :parity, Map.get(parities, &1.farrowing.sow_id, 0)))
-  end
+  defp sow_pen_label(%{current_pen: %{code: code, house: %{code: hcode}}}),
+    do: "#{hcode}-#{code}"
 
-  defp pen_label(%{code: code, house: %{code: hcode}}), do: "#{hcode}-#{code}"
-  defp pen_label(%{code: code}), do: code
-  defp pen_label(_), do: "—"
+  defp sow_pen_label(%{current_pen: %{code: code}}), do: code
+  defp sow_pen_label(_), do: "—"
+
+  defp idle_text(nil), do: "—"
+  defp idle_text(d), do: Integer.to_string(d)
+
+  # Last-event label only (no date) so the column never wraps.
+  defp last_event_label(%{last_event_kind: :served} = e),
+    do: gettext("Mnt") <> "-" <> Integer.to_string(e.mounting_count || 1)
+
+  defp last_event_label(%{last_event_kind: :weaned}), do: gettext("Weaned")
+  defp last_event_label(%{last_event_kind: :farrowed}), do: gettext("Farrowed")
+  defp last_event_label(%{last_event_kind: :aborted}), do: gettext("Aborted/Failed")
+  defp last_event_label(_), do: "—"
 
   defp blank_to_nil(nil), do: nil
   defp blank_to_nil(""), do: nil
   defp blank_to_nil(v), do: v
 
-  @sort_columns ~w(tag pen parity farrowed days)
-  defp sort_param(s) when s in @sort_columns, do: s
-  defp sort_param(_), do: "farrowed"
+  @sort_columns ~w(tag pen parity idle status)
+  defp serviceable_sort_param(s) when s in @sort_columns, do: s
+  defp serviceable_sort_param(_), do: "idle"
 
-  defp dir_param("desc"), do: "desc"
-  defp dir_param(_), do: "asc"
+  defp dir_param("asc"), do: "asc"
+  defp dir_param(_), do: "desc"
+
+  defp status_param(s) when s in ~w(open dry active served_outside_window), do: s
+  defp status_param(_), do: "all"
 
   defp filter_summary(filters) do
     [
       filters.q != "" && gettext("tag~%{q}", q: filters.q),
-      filters.age != "all" && gettext("age=%{a}", a: filters.age),
+      filters.status != "all" && gettext("status=%{s}", s: filters.status),
       filters.pen_search != "" && gettext("pen~%{p}", p: filters.pen_search),
       filters.min_parity != "" && gettext("parity≥%{n}", n: filters.min_parity),
       filters.max_parity != "" && gettext("parity≤%{n}", n: filters.max_parity)

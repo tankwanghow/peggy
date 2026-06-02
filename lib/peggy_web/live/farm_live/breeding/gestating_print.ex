@@ -43,6 +43,9 @@ defmodule PeggyWeb.FarmLive.Breeding.GestatingPrint do
           <col style="width: 30%" />
         </colgroup>
         <thead>
+          <tr class="print-thead-spacer" aria-hidden="true">
+            <td colspan="6"></td>
+          </tr>
           <tr class="text-center">
             <th class="p-2 border-1">{gettext("Sow")}</th>
             <th class="p-2 border-1">{gettext("Pen")}</th>

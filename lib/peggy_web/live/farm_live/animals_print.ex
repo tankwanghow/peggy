@@ -43,6 +43,9 @@ defmodule PeggyWeb.FarmLive.AnimalsPrint do
           <col style="width: 20%" />
         </colgroup>
         <thead>
+          <tr class="print-thead-spacer" aria-hidden="true">
+            <td colspan={if(@show_days, do: 7, else: 6)}></td>
+          </tr>
           <tr class="text-center">
             <th class="p-2 border-1">{gettext("Tag / ID")}</th>
             <th class="p-2 border-1">{gettext("Stage")}</th>

@@ -88,6 +88,11 @@ defmodule PeggyWeb.Router do
       live "/farms/:farm_slug/animals/:id/batch-entry", FarmLive.BatchEntry, :show
       live "/farms/:farm_slug/breeding", FarmLive.Breeding, :index
       live "/farms/:farm_slug/breeding/serviceable", FarmLive.Breeding.Serviceable, :index
+
+      live "/farms/:farm_slug/breeding/serviceable/print",
+           FarmLive.Breeding.ServiceablePrint,
+           :show
+
       live "/farms/:farm_slug/breeding/gestating", FarmLive.Breeding.Gestating, :index
       live "/farms/:farm_slug/breeding/gestating/print", FarmLive.Breeding.GestatingPrint, :show
       live "/farms/:farm_slug/breeding/lactating", FarmLive.Breeding.Lactating, :index

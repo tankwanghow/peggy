@@ -24,6 +24,9 @@ defmodule PeggyWeb.FarmLive.Reports.PerformancePrint do
           <col class="w-[46mm]" />
         </colgroup>
         <thead>
+          <tr class="print-thead-spacer" aria-hidden="true">
+            <td colspan={length(@report.periods) + 2}></td>
+          </tr>
           <tr>
             <th colspan={length(@report.periods) + 2} class="px-1 pt-1 pb-2 text-left">
               <span class="text-base font-semibold">{gettext("Performance Analysis")}</span>
