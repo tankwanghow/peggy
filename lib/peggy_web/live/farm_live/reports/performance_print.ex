@@ -12,43 +12,57 @@ defmodule PeggyWeb.FarmLive.Reports.PerformancePrint do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.print flash={@flash} title={gettext("Performance Analysis")}>
-      <header class="print-mono mb-2 pb-1">
-        <div class="flex items-baseline justify-between gap-4">
-          <div>
-            <h1 class="text-xl font-semibold">{gettext("Performance Analysis")}</h1>
-            <p class="text-xs">
-              {@current_scope.farm.name} · {@range.from} → {@range.to}
-            </p>
-          </div>
-        </div>
-      </header>
-
-      <table class="print-mono w-full border-collapse table-fixed tracking-tighter">
+    <Layouts.print flash={@flash} title={gettext("Performance Analysis")} orientation="landscape">
+      <table
+        :for={{section, idx} <- Enum.with_index(@report.sections)}
+        class={[
+          "mt-10 text-[10px] leading-tight print-mono w-full border-collapse table-fixed tracking-tighter break-inside-avoid",
+          idx > 0 && "break-before-page"
+        ]}
+      >
+        <colgroup>
+          <col class="w-[46mm]" />
+        </colgroup>
         <thead>
+          <tr>
+            <th colspan={length(@report.periods) + 2} class="px-1 pt-1 pb-2 text-left">
+              <span class="text-base font-semibold">{gettext("Performance Analysis")}</span>
+              <span class="ml-2 text-[10px] font-normal">
+                {@current_scope.farm.name} · {@range.from} → {@range.to}
+              </span>
+            </th>
+          </tr>
+          <tr class="bg-base-200">
+            <th
+              colspan={length(@report.periods) + 2}
+              class="px-1 py-0.5 border-1 text-left font-semibold"
+            >
+              {section.title}
+            </th>
+          </tr>
           <tr class="text-center">
-            <th class="p-1 border-1 text-left">{gettext("Metric")}</th>
-            <th :for={p <- @report.periods} class="p-1 border-1 text-right">{p.label}</th>
-            <th class="p-1 border-1 text-right font-bold">{gettext("ACUM")}</th>
+            <th class="px-1 py-0.5 border-1 text-left">{gettext("Metric")}</th>
+            <th :for={p <- @report.periods} class="px-1 py-0.5 border-1 text-right whitespace-nowrap">
+              {p.label}
+            </th>
+            <th class="px-1 py-0.5 border-1 text-right font-bold whitespace-nowrap">
+              {gettext("ACUM")}
+            </th>
           </tr>
         </thead>
         <tbody>
-          <%= for section <- @report.sections do %>
-            <tr class="bg-base-200">
-              <td class="p-1 border-1 font-semibold" colspan={length(@report.periods) + 2}>
-                {section.title}
-              </td>
-            </tr>
-            <tr :for={row <- section.rows} class="align-top break-inside-avoid">
-              <td class="p-1 border-1">{row.label}</td>
-              <td :for={v <- row.values} class="p-1 border-1 text-right tabular-nums">
-                {Performance.fmt(v, row.format)}
-              </td>
-              <td class="p-1 border-1 text-right tabular-nums font-semibold">
-                {Performance.fmt(row.acum, row.format)}
-              </td>
-            </tr>
-          <% end %>
+          <tr :for={row <- section.rows} class="align-top break-inside-avoid">
+            <td class="px-1 py-0.5 border-1">{row.label}</td>
+            <td
+              :for={v <- row.values}
+              class="px-1 py-0.5 border-1 text-right tabular-nums whitespace-nowrap"
+            >
+              {Performance.fmt(v, row.format)}
+            </td>
+            <td class="px-1 py-0.5 border-1 text-right tabular-nums font-semibold whitespace-nowrap">
+              {Performance.fmt(row.acum, row.format)}
+            </td>
+          </tr>
         </tbody>
       </table>
 

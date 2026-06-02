@@ -75,7 +75,7 @@ Canonical domain vocabulary (capitalization adapts per string). Corrected per re
 | Finisher | Babi akhir | 育肥猪 |
 | Farrowing | Beranak | 分娩 |
 | Weaning | Cerai susu | 断奶 |
-| Gestation | Kebuntingan | 妊娠 |
+| Gestation | Kebuntingan | 怀孕 |
 | Service / mating | Kawin | 配种 |
 | Heat / oestrus | Berahi | 发情 |
 | Parity | Paliti | 胎次 |

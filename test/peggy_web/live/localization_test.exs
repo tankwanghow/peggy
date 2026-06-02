@@ -55,6 +55,50 @@ defmodule PeggyWeb.LocalizationTest do
     end
   end
 
+  test "language_switcher renders for anonymous when anonymous: true" do
+    html =
+      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1,
+        anonymous: true
+      )
+
+    assert html =~ "Bahasa Malaysia"
+    assert html =~ "中文"
+    assert html =~ "/locale/ms"
+  end
+
+  test "language_switcher renders nothing for anonymous by default" do
+    html =
+      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1,
+        current_scope: nil
+      )
+
+    assert html == "" or not (html =~ "/locale/ms")
+  end
+
+  describe "anonymous switcher on auth pages" do
+    test "login page shows the language switcher", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/log-in")
+      assert html =~ "Bahasa Malaysia"
+      assert html =~ "/locale/ms"
+    end
+
+    test "registration page shows the language switcher", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/register")
+      assert html =~ "中文"
+      assert html =~ "/locale/zh"
+    end
+
+    test "login page renders translated when the peggy_locale cookie is set (anonymous)", %{
+      conn: conn
+    } do
+      {:ok, _lv, html} =
+        conn |> Plug.Test.put_req_cookie("peggy_locale", "ms") |> live(~p"/users/log-in")
+
+      assert html =~ "Log masuk"
+      assert html =~ "Kata laluan"
+    end
+  end
+
   defp t(locale, msgid) do
     Gettext.with_locale(PeggyWeb.Gettext, locale, fn ->
       Gettext.gettext(PeggyWeb.Gettext, msgid)

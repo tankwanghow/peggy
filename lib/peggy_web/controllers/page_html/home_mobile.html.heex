@@ -1,0 +1,51 @@
+<Layouts.mobile flash={@flash} current_scope={@current_scope}>
+  <div id="mobile-home" class="min-h-screen flex flex-col">
+    <header class="flex items-center justify-between px-4 py-3 border-b border-base-200">
+      <span class="flex items-center gap-2 font-bold text-lg">
+        <span class="text-2xl">🐷</span>
+        <span>Peggy</span>
+      </span>
+      <div class="flex items-center gap-2">
+        <Layouts.language_switcher anonymous={true} />
+        <Layouts.theme_toggle />
+      </div>
+    </header>
+
+    <main class="flex-1 px-5 py-8 space-y-8">
+      <section class="text-center space-y-3">
+        <h1 class="text-3xl font-bold tracking-tight">
+          {gettext("Run your pig farm, not your spreadsheet.")}
+        </h1>
+        <p class="text-base text-base-content/70">
+          {gettext(
+            "Peggy is a farm management system for swine operations — breeding, health, feed, growth and sales in one place. Built for the desktop office and the barn floor."
+          )}
+        </p>
+      </section>
+
+      <section class="space-y-3">
+        <div class="card bg-base-200 p-4">
+          <.icon name="hero-identification" class="size-6 text-primary" />
+          <h3 class="mt-2 font-semibold">{gettext("Animal registry")}</h3>
+        </div>
+        <div class="card bg-base-200 p-4">
+          <.icon name="hero-calendar-days" class="size-6 text-primary" />
+          <h3 class="mt-2 font-semibold">{gettext("Breeding calendar")}</h3>
+        </div>
+        <div class="card bg-base-200 p-4">
+          <.icon name="hero-chart-bar" class="size-6 text-primary" />
+          <h3 class="mt-2 font-semibold">{gettext("Reports & KPIs")}</h3>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-3 pb-8">
+        <.link navigate={~p"/users/register"} class="btn btn-primary btn-block">
+          {gettext("Sign up")}
+        </.link>
+        <.link navigate={~p"/users/log-in"} class="btn btn-ghost btn-block">
+          {gettext("Log in")}
+        </.link>
+      </section>
+    </main>
+  </div>
+</Layouts.mobile>
