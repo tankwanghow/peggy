@@ -8,7 +8,7 @@ defmodule Peggy.BreedingTest do
   import Peggy.BreedingFixtures
   import Ecto.Query
 
-  alias Peggy.{Breeding, Audit}
+  alias Peggy.{Breeding, Audit, FarmClock}
 
   setup do
     user = user_fixture()
@@ -3389,7 +3389,7 @@ defmodule Peggy.BreedingTest do
 
       assert row.last_event_kind == :aborted
       assert row.last_event_date == result_at
-      assert row.days_idle == Date.diff(Date.utc_today(), result_at)
+      assert row.days_idle == Date.diff(FarmClock.today(scope), result_at)
     end
 
     test "status: served_outside_window restricts to just mid-heat sows",
@@ -3506,7 +3506,7 @@ defmodule Peggy.BreedingTest do
       [row] = Breeding.list_serviceable(scope, search: "dry1")
       assert row.last_event_kind == :weaned
       assert row.last_event_date == ~D[2026-02-25]
-      assert row.days_idle == Date.diff(Date.utc_today(), ~D[2026-02-25])
+      assert row.days_idle == Date.diff(FarmClock.today(scope), ~D[2026-02-25])
     end
 
     test "decorates last_event_kind: nil when no breeding history (gilt-like)",
