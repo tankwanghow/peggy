@@ -46,7 +46,24 @@ defmodule PeggyWeb.LocalizationTest do
     assert html =~ "我的农场"
   end
 
+  describe "error-domain translations" do
+    test "common validation messages are translated" do
+      assert de("ms", "can't be blank") == "tidak boleh kosong"
+      assert de("zh", "can't be blank") == "不能为空"
+      assert de("ms", "is invalid") == "tidak sah"
+      assert de("zh", "is invalid") == "无效"
+    end
+  end
+
   defp t(locale, msgid) do
-    Gettext.with_locale(PeggyWeb.Gettext, locale, fn -> Gettext.gettext(PeggyWeb.Gettext, msgid) end)
+    Gettext.with_locale(PeggyWeb.Gettext, locale, fn ->
+      Gettext.gettext(PeggyWeb.Gettext, msgid)
+    end)
+  end
+
+  defp de(locale, msgid) do
+    Gettext.with_locale(PeggyWeb.Gettext, locale, fn ->
+      Gettext.dgettext(PeggyWeb.Gettext, "errors", msgid)
+    end)
   end
 end
