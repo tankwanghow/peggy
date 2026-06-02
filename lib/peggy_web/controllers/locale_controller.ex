@@ -17,7 +17,9 @@ defmodule PeggyWeb.LocaleController do
       _ -> :noop
     end
 
-    redirect(conn, to: return_path(conn))
+    conn
+    |> put_resp_cookie("peggy_locale", locale, max_age: 60 * 60 * 24 * 365, same_site: "Lax")
+    |> redirect(to: return_path(conn))
   end
 
   def update(conn, _params), do: redirect(conn, to: return_path(conn))
