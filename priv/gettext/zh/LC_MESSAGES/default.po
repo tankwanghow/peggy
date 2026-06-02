@@ -148,7 +148,7 @@ msgstr "健康与休药期"
 #: lib/peggy_web/controllers/page_html/home.html.heex:28
 #, elixir-autogen, elixir-format
 msgid "Heat, service, gestation, farrowing and weaning — with farrowing forecasts and sow performance surfaced automatically."
-msgstr "发情、配种、妊娠、分娩与断奶 — 自动呈现分娩预测和母猪表现。"
+msgstr "发情、配种、怀孕、分娩与断奶 — 自动呈现分娩预测和母猪表现。"
 
 #: lib/peggy_web/live/farm_live/index.ex:144
 #: lib/peggy_web/live/farm_live/settings.ex:101
@@ -835,7 +835,7 @@ msgstr "已加载全部 %{n} 项"
 #: lib/peggy_web/components/layouts.ex:435
 #, elixir-autogen, elixir-format
 msgid "All age, gestation, and lactation calculations use this date instead of today."
-msgstr "所有日龄、妊娠和哺乳计算均使用此日期而非今天。"
+msgstr "所有日龄、怀孕和哺乳计算均使用此日期而非今天。"
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:28
 #: lib/peggy_web/live/farm_live/promote_batches.ex:34
@@ -1722,7 +1722,7 @@ msgstr "创建方式"
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:99
 #, elixir-autogen, elixir-format
 msgid "Created when a farrowing or weaning didn't match any service inside the gestation window. The 'farrowed at' column shows whether the inferred service did get attached to a real farrowing."
-msgstr "当分娩或断奶在妊娠窗口内未匹配到任何配种时创建。“分娩于”列显示推断的配种是否已附加到真实分娩。"
+msgstr "当分娩或断奶在怀孕窗口内未匹配到任何配种时创建。“分娩于”列显示推断的配种是否已附加到真实分娩。"
 
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:37
 #, elixir-autogen, elixir-format
@@ -1862,7 +1862,7 @@ msgstr "默认 24。当仅知断奶日期时用于回填分娩日期。"
 #: lib/peggy_web/live/farm_live/settings.ex:165
 #, elixir-autogen, elixir-format
 msgid "Default 3. Farrowing must land within ±this many days of served_at + gestation."
-msgstr "默认 3。分娩必须落在 served_at + 妊娠期 的 ±此天数内。"
+msgstr "默认 3。分娩必须落在 served_at + 怀孕期 的 ±此天数内。"
 
 #: lib/peggy_web/live/farm_live/settings.ex:206
 #, elixir-autogen, elixir-format
@@ -2272,7 +2272,7 @@ msgstr "需要分娩日期。"
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:861
 #, elixir-autogen, elixir-format
 msgid "Farrowed date must be within 3 days of the 114-day gestation."
-msgstr "分娩日期必须在 114 天妊娠期的 3 天内。"
+msgstr "分娩日期必须在 114 天怀孕期的 3 天内。"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:21
 #, elixir-autogen, elixir-format
@@ -2512,12 +2512,12 @@ msgstr "怀孕母猪"
 #: lib/peggy_web/live/farm_live/settings.ex:147
 #, elixir-autogen, elixir-format
 msgid "Gestation length (days)"
-msgstr "妊娠期（天）"
+msgstr "怀孕期（天）"
 
 #: lib/peggy_web/live/farm_live/settings.ex:160
 #, elixir-autogen, elixir-format
 msgid "Gestation tolerance (±days)"
-msgstr "妊娠容差（±天）"
+msgstr "怀孕容差（±天）"
 
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:157
 #, elixir-autogen, elixir-format
@@ -3193,7 +3193,7 @@ msgstr "无失败记录。"
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:144
 #, elixir-autogen, elixir-format
 msgid "No gestating sows match the filters."
-msgstr "没有妊娠母猪符合筛选条件。"
+msgstr "没有怀孕母猪符合筛选条件。"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:67
 #, elixir-autogen, elixir-format
@@ -3622,7 +3622,7 @@ msgstr "每头母猪每年断奶仔猪数"
 #: lib/peggy_web/live/farm_live/settings.ex:117
 #, elixir-autogen, elixir-format
 msgid "Pin a date the app uses for age, lactation length, gestation day, and other date-of-day calculations. Leave blank to use the real date. Audit timestamps and record-creation times always use real time."
-msgstr "固定应用用于日龄、哺乳期、妊娠天数及其他按日计算的日期。留空则使用真实日期。审计时间戳和记录创建时间始终使用真实时间。"
+msgstr "固定应用用于日龄、哺乳期、怀孕天数及其他按日计算的日期。留空则使用真实日期。审计时间戳和记录创建时间始终使用真实时间。"
 
 #: lib/peggy_web/live/farm_live/reports.ex:128
 #, elixir-autogen, elixir-format
@@ -3690,7 +3690,7 @@ msgstr "打印 — 猪只"
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:133
 #, elixir-autogen, elixir-format
 msgid "Print — Gestating sows"
-msgstr "打印 — 妊娠母猪"
+msgstr "打印 — 怀孕母猪"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:143
 #, elixir-autogen, elixir-format
@@ -4872,7 +4872,7 @@ msgstr "在当前日期范围内按时间分组的汇总。"
 #: lib/peggy_web/live/farm_live/herd_import.ex:43
 #, elixir-autogen, elixir-format
 msgid "Tip: set status to \"served\" with a last-service date to create an open gestation. Use \"lactating\" with a farrowing date + born-alive to create a closed service, farrowing, and litter batch."
-msgstr "提示：将状态设为\"已配种\"并填写最近配种日期可创建未结妊娠。使用\"哺乳\"并填写分娩日期 + 活产数可创建已结配种、分娩和窝批次。"
+msgstr "提示：将状态设为\"已配种\"并填写最近配种日期可创建未结怀孕。使用\"哺乳\"并填写分娩日期 + 活产数可创建已结配种、分娩和窝批次。"
 
 #: lib/peggy_web/live/farm_live/tasks.ex:89
 #: lib/peggy_web/live/farm_live/tasks.ex:189
@@ -4940,7 +4940,7 @@ msgstr "转移"
 #: lib/peggy_web/live/farm_live/settings.ex:131
 #, elixir-autogen, elixir-format
 msgid "Tune the reproductive cycle to your herd. Changes apply immediately to new and existing services — a sow gestating today will use the new gestation length for her expected farrow date."
-msgstr "根据您的猪群调整繁殖周期。更改会立即应用于新的和现有的配种 — 今天妊娠的母猪将使用新的妊娠期来计算其预计分娩日期。"
+msgstr "根据您的猪群调整繁殖周期。更改会立即应用于新的和现有的配种 — 今天怀孕的母猪将使用新的怀孕期来计算其预计分娩日期。"
 
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:33
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:70

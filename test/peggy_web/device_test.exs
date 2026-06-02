@@ -14,6 +14,9 @@ defmodule PeggyWeb.DeviceTest do
 
   test "falls back to the user-agent when no cookie" do
     assert PeggyWeb.Device.mobile?(put_req_header(build_conn(), "user-agent", "Mozilla (iPhone)"))
-    refute PeggyWeb.Device.mobile?(put_req_header(build_conn(), "user-agent", "Mozilla (Macintosh)"))
+
+    refute PeggyWeb.Device.mobile?(
+             put_req_header(build_conn(), "user-agent", "Mozilla (Macintosh)")
+           )
   end
 end

@@ -57,7 +57,9 @@ defmodule PeggyWeb.LocalizationTest do
 
   test "language_switcher renders for anonymous when anonymous: true" do
     html =
-      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1, anonymous: true)
+      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1,
+        anonymous: true
+      )
 
     assert html =~ "Bahasa Malaysia"
     assert html =~ "中文"
@@ -66,9 +68,25 @@ defmodule PeggyWeb.LocalizationTest do
 
   test "language_switcher renders nothing for anonymous by default" do
     html =
-      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1, current_scope: nil)
+      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1,
+        current_scope: nil
+      )
 
     assert html == "" or not (html =~ "/locale/ms")
+  end
+
+  describe "anonymous switcher on auth pages" do
+    test "login page shows the language switcher", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/log-in")
+      assert html =~ "Bahasa Malaysia"
+      assert html =~ "/locale/ms"
+    end
+
+    test "registration page shows the language switcher", %{conn: conn} do
+      {:ok, _lv, html} = live(conn, ~p"/users/register")
+      assert html =~ "中文"
+      assert html =~ "/locale/zh"
+    end
   end
 
   defp t(locale, msgid) do

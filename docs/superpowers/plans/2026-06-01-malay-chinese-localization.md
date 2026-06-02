@@ -429,7 +429,7 @@ git commit -m "Translate ms default.po (Bahasa Malaysia)"
 
 ## Task 6: Translate `zh` default.po
 
-Same as Task 5 for Simplified Chinese in `priv/gettext/zh/LC_MESSAGES/default.po`. Same rules (preserve `%{...}`, no fuzzy, glossary: 母猪/公猪/分娩/断奶/妊娠/配种/胎次/淘汰/猪舍/栏/移动/猪场/猪群…).
+Same as Task 5 for Simplified Chinese in `priv/gettext/zh/LC_MESSAGES/default.po`. Same rules (preserve `%{...}`, no fuzzy, glossary: 母猪/公猪/分娩/断奶/怀孕/配种/胎次/淘汰/猪舍/栏/移动/猪场/猪群…).
 
 **Files:**
 - Modify: `priv/gettext/zh/LC_MESSAGES/default.po`

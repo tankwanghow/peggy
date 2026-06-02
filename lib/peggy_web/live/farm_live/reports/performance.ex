@@ -44,7 +44,9 @@ defmodule PeggyWeb.FarmLive.Reports.Performance do
             <thead>
               <tr>
                 <th class="sticky left-0 bg-base-100 z-10 text-left">{gettext("Metric")}</th>
-                <th :for={p <- @report.periods} class="text-xs text-right tabular-nums">{p.label}</th>
+                <th :for={p <- @report.periods} class="text-xs xtext-right tabular-nums">
+                  {p.label}
+                </th>
                 <th class="text-right font-bold">{gettext("ACUM")}</th>
               </tr>
             </thead>

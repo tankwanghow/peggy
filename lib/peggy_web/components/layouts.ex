@@ -56,7 +56,7 @@ defmodule PeggyWeb.Layouts do
           >
             {@current_scope.user.email}
           </li>
-          <li><.language_switcher current_scope={@current_scope} /></li>
+          <li><.language_switcher current_scope={@current_scope} anonymous={true} /></li>
           <li><.theme_toggle /></li>
           <%= if @current_scope && @current_scope.user do %>
             <li :if={@current_scope.farm}>
