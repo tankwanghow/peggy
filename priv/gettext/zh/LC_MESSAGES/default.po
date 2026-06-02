@@ -14,7 +14,7 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/index.ex:222
 #, elixir-autogen, elixir-format
 msgid "%{farm} is now your default farm."
-msgstr "%{farm} 现在是您的默认农场。"
+msgstr "%{farm} 现在是您的預設农场。"
 
 #: lib/peggy_web/live/farm_live/settings.ex:318
 #, elixir-autogen, elixir-format
@@ -72,7 +72,7 @@ msgstr "无法接受邀请。"
 #: lib/peggy_web/live/farm_live/index.ex:226
 #, elixir-autogen, elixir-format
 msgid "Could not set default."
-msgstr "无法设为默认。"
+msgstr "无法设为預設。"
 
 #: lib/peggy_web/live/farm_live/index.ex:110
 #, elixir-autogen, elixir-format
@@ -470,7 +470,7 @@ msgstr "发送中..."
 #: lib/peggy_web/live/farm_live/index.ex:65
 #, elixir-autogen, elixir-format
 msgid "Set as default"
-msgstr "设为默认"
+msgstr "设为預設"
 
 #: lib/peggy_web/components/layouts.ex:74
 #: lib/peggy_web/components/layouts.ex:607
@@ -571,7 +571,7 @@ msgstr "您已被邀请加入"
 #: lib/peggy_web/live/farm_live/index.ex:53
 #, elixir-autogen, elixir-format
 msgid "Your default farm"
-msgstr "您的默认农场"
+msgstr "您的預設农场"
 
 #: lib/peggy_web/live/farm_live/index.ex:13
 #, elixir-autogen, elixir-format
