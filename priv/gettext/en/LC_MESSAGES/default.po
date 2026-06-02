@@ -43,12 +43,13 @@ msgid "Already have an account?"
 msgstr ""
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:16
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:29
 #, elixir-autogen, elixir-format
 msgid "Animal registry"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:654
-#: lib/peggy_web/components/layouts.ex:666
+#: lib/peggy_web/components/layouts.ex:672
+#: lib/peggy_web/components/layouts.ex:684
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr ""
@@ -59,6 +60,7 @@ msgid "Barn-floor phone app"
 msgstr ""
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:26
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:33
 #, elixir-autogen, elixir-format
 msgid "Breeding calendar"
 msgstr ""
@@ -106,6 +108,10 @@ msgid "Different email required"
 msgstr ""
 
 #: lib/peggy_web/live/farm_live/settings.ex:325
+#: lib/peggy_web/live/user_live/login.ex:49
+#: lib/peggy_web/live/user_live/login.ex:74
+#: lib/peggy_web/live/user_live/registration.ex:29
+#: lib/peggy_web/live/user_live/settings.ex:23
 #, elixir-autogen, elixir-format
 msgid "Email"
 msgstr ""
@@ -181,8 +187,12 @@ msgstr ""
 msgid "Join %{farm}"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:85
+#: lib/peggy_web/components/layouts.ex:88
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:46
 #: lib/peggy_web/live/invitation_live/show.ex:34
+#: lib/peggy_web/live/user_live/confirmation.ex:53
+#: lib/peggy_web/live/user_live/login.ex:13
+#: lib/peggy_web/live/user_live/registration.ex:18
 #, elixir-autogen, elixir-format
 msgid "Log in"
 msgstr ""
@@ -197,8 +207,8 @@ msgstr ""
 msgid "Log in to accept"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:79
-#: lib/peggy_web/components/layouts.ex:335
+#: lib/peggy_web/components/layouts.ex:82
+#: lib/peggy_web/components/layouts.ex:337
 #, elixir-autogen, elixir-format
 msgid "Log out"
 msgstr ""
@@ -226,13 +236,13 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/index.ex:144
 #: lib/peggy_web/live/farm_live/reports.ex:149
 #: lib/peggy_web/live/farm_live/reports/performance.ex:46
-#: lib/peggy_web/live/farm_live/reports/performance_print.ex:30
+#: lib/peggy_web/live/farm_live/reports/performance_print.ex:47
 #: lib/peggy_web/live/farm_live/settings.ex:101
 #, elixir-autogen, elixir-format
 msgid "Metric"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:70
+#: lib/peggy_web/components/layouts.ex:73
 #, elixir-autogen, elixir-format
 msgid "My farms"
 msgstr ""
@@ -339,6 +349,7 @@ msgid "Offline-first PWA with QR/RFID scanning, large touch targets, and a write
 msgstr ""
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:7
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:20
 #, elixir-autogen, elixir-format
 msgid "Peggy is a farm management system for swine operations — breeding, health, feed, growth and sales in one place. Built for the desktop office and the barn floor."
 msgstr ""
@@ -396,6 +407,7 @@ msgid "Remove this member?"
 msgstr ""
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:66
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:37
 #: lib/peggy_web/live/farm_live/reports.ex:13
 #, elixir-autogen, elixir-format
 msgid "Reports & KPIs"
@@ -422,6 +434,7 @@ msgid "Role: %{role}"
 msgstr ""
 
 #: lib/peggy_web/controllers/page_html/home.html.heex:4
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:17
 #, elixir-autogen, elixir-format
 msgid "Run your pig farm, not your spreadsheet."
 msgstr ""
@@ -443,6 +456,7 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/settings.ex:122
 #: lib/peggy_web/live/farm_live/settings.ex:284
 #: lib/peggy_web/live/farm_live/tasks.ex:213
+#: lib/peggy_web/live/user_live/settings.ex:64
 #, elixir-autogen, elixir-format
 msgid "Saving..."
 msgstr ""
@@ -472,13 +486,15 @@ msgstr ""
 msgid "Set as default"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:74
-#: lib/peggy_web/components/layouts.ex:607
+#: lib/peggy_web/components/layouts.ex:77
+#: lib/peggy_web/components/layouts.ex:625
 #, elixir-autogen, elixir-format
 msgid "Settings"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:90
+#: lib/peggy_web/components/layouts.ex:93
+#: lib/peggy_web/controllers/page_html/home_mobile.html.heex:43
+#: lib/peggy_web/live/user_live/login.ex:22
 #, elixir-autogen, elixir-format
 msgid "Sign up"
 msgstr ""
@@ -489,7 +505,7 @@ msgstr ""
 msgid "Slug"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:661
+#: lib/peggy_web/components/layouts.ex:679
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr ""
@@ -542,7 +558,7 @@ msgstr ""
 msgid "Veterinarian"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:649
+#: lib/peggy_web/components/layouts.ex:667
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr ""
@@ -691,8 +707,8 @@ msgstr ""
 msgid "+%{n} more on desktop"
 msgstr ""
 
-#: lib/peggy_web/live/farm_live/reports/performance.ex:48
-#: lib/peggy_web/live/farm_live/reports/performance_print.ex:32
+#: lib/peggy_web/live/farm_live/reports/performance.ex:50
+#: lib/peggy_web/live/farm_live/reports/performance_print.ex:52
 #, elixir-autogen, elixir-format
 msgid "ACUM"
 msgstr ""
@@ -725,7 +741,7 @@ msgstr ""
 msgid "Abortion"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:325
+#: lib/peggy_web/components/layouts.ex:327
 #, elixir-autogen, elixir-format
 msgid "Account settings"
 msgstr ""
@@ -832,7 +848,7 @@ msgstr ""
 msgid "All %{n} loaded"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:435
+#: lib/peggy_web/components/layouts.ex:453
 #, elixir-autogen, elixir-format
 msgid "All age, gestation, and lactation calculations use this date instead of today."
 msgstr ""
@@ -883,8 +899,8 @@ msgstr ""
 msgid "Animal updated."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:214
-#: lib/peggy_web/components/layouts.ex:475
+#: lib/peggy_web/components/layouts.ex:217
+#: lib/peggy_web/components/layouts.ex:493
 #: lib/peggy_web/live/farm_live/animals.ex:19
 #: lib/peggy_web/live/farm_live/animals_print.ex:18
 #: lib/peggy_web/live/farm_live/animals_print.ex:22
@@ -1083,7 +1099,7 @@ msgstr ""
 msgid "Batch"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:571
+#: lib/peggy_web/components/layouts.ex:589
 #, elixir-autogen, elixir-format
 msgid "Batch Farrowing"
 msgstr ""
@@ -1098,12 +1114,12 @@ msgstr ""
 msgid "Batch Register"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:494
+#: lib/peggy_web/components/layouts.ex:512
 #, elixir-autogen, elixir-format
 msgid "Batch Register Sire/Dam"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:566
+#: lib/peggy_web/components/layouts.ex:584
 #, elixir-autogen, elixir-format
 msgid "Batch Service"
 msgstr ""
@@ -1119,7 +1135,7 @@ msgstr ""
 msgid "Batch Transfer"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:576
+#: lib/peggy_web/components/layouts.ex:594
 #, elixir-autogen, elixir-format
 msgid "Batch Weaning"
 msgstr ""
@@ -1258,8 +1274,8 @@ msgstr ""
 msgid "Breed (optional)"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:227
-#: lib/peggy_web/components/layouts.ex:514
+#: lib/peggy_web/components/layouts.ex:230
+#: lib/peggy_web/components/layouts.ex:532
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:27
 #: lib/peggy_web/live/farm_live/batch_farrowing.ex:25
 #: lib/peggy_web/live/farm_live/batch_service.ex:25
@@ -1295,7 +1311,7 @@ msgstr ""
 msgid "Bucket"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:499
+#: lib/peggy_web/components/layouts.ex:517
 #: lib/peggy_web/live/farm_live/bulk_move.ex:33
 #, elixir-autogen, elixir-format
 msgid "Bulk Move Sire/Dam"
@@ -1434,7 +1450,7 @@ msgstr ""
 msgid "Capacity each"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:442
+#: lib/peggy_web/components/layouts.ex:460
 #, elixir-autogen, elixir-format
 msgid "Change"
 msgstr ""
@@ -1472,7 +1488,7 @@ msgid "Clear all"
 msgstr ""
 
 #: lib/peggy_web/components/core_components.ex:107
-#: lib/peggy_web/components/layouts.ex:344
+#: lib/peggy_web/components/layouts.ex:346
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:215
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:405
 #: lib/peggy_web/live/farm_live/data_import.ex:443
@@ -1493,7 +1509,7 @@ msgstr ""
 msgid "Close Service"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:581
+#: lib/peggy_web/components/layouts.ex:599
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:32
 #, elixir-autogen, elixir-format
 msgid "Close Services"
@@ -1794,7 +1810,7 @@ msgstr ""
 msgid "Danger zone"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:458
+#: lib/peggy_web/components/layouts.ex:476
 #: lib/peggy_web/live/mobile_live/dashboard.ex:174
 #, elixir-autogen, elixir-format
 msgid "Dashboard"
@@ -1968,7 +1984,7 @@ msgstr ""
 msgid "Delete weaning"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:586
+#: lib/peggy_web/components/layouts.ex:604
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:17
 #, elixir-autogen, elixir-format
 msgid "Deleted"
@@ -2487,12 +2503,12 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/animals_print.ex:80
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:80
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:85
-#: lib/peggy_web/live/farm_live/reports/performance_print.ex:56
+#: lib/peggy_web/live/farm_live/reports/performance_print.ex:73
 #, elixir-autogen, elixir-format
 msgid "Generated"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:528
+#: lib/peggy_web/components/layouts.ex:546
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:21
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:69
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:68
@@ -2572,7 +2588,7 @@ msgstr ""
 msgid "History"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:201
+#: lib/peggy_web/components/layouts.ex:204
 #, elixir-autogen, elixir-format
 msgid "Home"
 msgstr ""
@@ -2706,7 +2722,7 @@ msgstr ""
 msgid "Kind"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:533
+#: lib/peggy_web/components/layouts.ex:551
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:20
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:75
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:74
@@ -2816,8 +2832,8 @@ msgstr ""
 msgid "Loading more..."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:298
-#: lib/peggy_web/components/layouts.ex:463
+#: lib/peggy_web/components/layouts.ex:300
+#: lib/peggy_web/components/layouts.ex:481
 #: lib/peggy_web/live/farm_live/data_import.ex:172
 #: lib/peggy_web/live/farm_live/locations.ex:15
 #: lib/peggy_web/live/mobile_live/locations.ex:19
@@ -2938,12 +2954,12 @@ msgstr ""
 msgid "Mnt"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:66
+#: lib/peggy_web/components/layouts.ex:69
 #, elixir-autogen, elixir-format
 msgid "Mobile"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:63
+#: lib/peggy_web/components/layouts.ex:66
 #, elixir-autogen, elixir-format
 msgid "Mobile view"
 msgstr ""
@@ -2958,7 +2974,7 @@ msgstr ""
 msgid "Monthly breeding KPIs across the date range, with an accumulated column."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:237
+#: lib/peggy_web/components/layouts.ex:240
 #, elixir-autogen, elixir-format
 msgid "More"
 msgstr ""
@@ -3402,7 +3418,7 @@ msgstr ""
 msgid "Open"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:307
+#: lib/peggy_web/components/layouts.ex:309
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:306
 #, elixir-autogen, elixir-format
 msgid "Open desktop view"
@@ -3667,7 +3683,7 @@ msgstr ""
 msgid "Present (any)"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:484
+#: lib/peggy_web/components/layouts.ex:502
 #, elixir-autogen, elixir-format
 msgid "Presents Animal"
 msgstr ""
@@ -3697,7 +3713,7 @@ msgstr ""
 msgid "Print — Lactating sows"
 msgstr ""
 
-#: lib/peggy_web/live/farm_live/reports/performance_print.ex:92
+#: lib/peggy_web/live/farm_live/reports/performance_print.ex:109
 #, elixir-autogen, elixir-format
 msgid "Print — Performance Analysis"
 msgstr ""
@@ -3887,7 +3903,7 @@ msgstr ""
 msgid "Record Death"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:553
+#: lib/peggy_web/components/layouts.ex:571
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:467
 #, elixir-autogen, elixir-format
 msgid "Record Farrowing"
@@ -3904,14 +3920,14 @@ msgstr ""
 msgid "Record Pre-Wean Death"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:546
+#: lib/peggy_web/components/layouts.ex:564
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:245
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:212
 #, elixir-autogen, elixir-format
 msgid "Record Service"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:558
+#: lib/peggy_web/components/layouts.ex:576
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:413
 #, elixir-autogen, elixir-format
 msgid "Record Weaning"
@@ -3979,7 +3995,7 @@ msgstr ""
 msgid "Reference date"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:489
+#: lib/peggy_web/components/layouts.ex:507
 #: lib/peggy_web/live/farm_live/animals.ex:383
 #: lib/peggy_web/live/farm_live/animals.ex:452
 #: lib/peggy_web/live/mobile_live/animals.ex:59
@@ -4031,7 +4047,7 @@ msgstr ""
 msgid "Reopen"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:595
+#: lib/peggy_web/components/layouts.ex:613
 #: lib/peggy_web/live/farm_live/reports.ex:325
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:24
 #, elixir-autogen, elixir-format, fuzzy
@@ -4458,7 +4474,7 @@ msgstr ""
 msgid "Service undone."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:523
+#: lib/peggy_web/components/layouts.ex:541
 #: lib/peggy_web/live/farm_live/animals.ex:823
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:21
 #: lib/peggy_web/live/mobile_live/animals.ex:910
@@ -4488,7 +4504,7 @@ msgstr ""
 msgid "Services awaiting farrowing"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:434
+#: lib/peggy_web/components/layouts.ex:452
 #, elixir-autogen, elixir-format
 msgid "Simulated date: %{date}."
 msgstr ""
@@ -4739,7 +4755,7 @@ msgstr ""
 msgid "Surviving:"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:316
+#: lib/peggy_web/components/layouts.ex:318
 #, elixir-autogen, elixir-format
 msgid "Switch farm"
 msgstr ""
@@ -4812,8 +4828,8 @@ msgstr ""
 msgid "Task reopened."
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:289
-#: lib/peggy_web/components/layouts.ex:601
+#: lib/peggy_web/components/layouts.ex:291
+#: lib/peggy_web/components/layouts.ex:619
 #: lib/peggy_web/live/farm_live/tasks.ex:21
 #: lib/peggy_web/live/farm_live/tasks.ex:235
 #: lib/peggy_web/live/mobile_live/tasks.ex:19
@@ -4822,7 +4838,7 @@ msgstr ""
 msgid "Tasks"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:272
+#: lib/peggy_web/components/layouts.ex:275
 #, elixir-autogen, elixir-format
 msgid "Theme"
 msgstr ""
@@ -5181,7 +5197,7 @@ msgstr ""
 msgid "Wean-to-service (days)"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:538
+#: lib/peggy_web/components/layouts.ex:556
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:49
 #: lib/peggy_web/live/farm_live/breeding/shared.ex:43
 #: lib/peggy_web/live/farm_live/breeding/weaned.ex:19
@@ -5862,8 +5878,196 @@ msgstr ""
 msgid "✗ Sow is %{status} — cannot record service"
 msgstr ""
 
-#: lib/peggy_web/components/layouts.ex:279
-#: lib/peggy_web/components/layouts.ex:679
+#: lib/peggy_web/components/layouts.ex:282
+#: lib/peggy_web/components/layouts.ex:703
 #, elixir-autogen, elixir-format
 msgid "Language"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:127
+#, elixir-autogen, elixir-format
+msgid "A link to confirm your email change has been sent to the new address."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:14
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Account Settings"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/registration.ex:16
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Already registered?"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/registration.ex:77
+#, elixir-autogen, elixir-format
+msgid "An email was sent to %{email}, please access it to confirm your account."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:28
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Change Email"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:28
+#, elixir-autogen, elixir-format
+msgid "Changing..."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:37
+#, elixir-autogen, elixir-format
+msgid "Confirm and log in only this time"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:31
+#, elixir-autogen, elixir-format
+msgid "Confirm and stay logged in"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:60
+#, elixir-autogen, elixir-format
+msgid "Confirm new password"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:28
+#: lib/peggy_web/live/user_live/confirmation.ex:34
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Confirming..."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/registration.ex:37
+#, elixir-autogen, elixir-format
+msgid "Create an account"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/registration.ex:36
+#, elixir-autogen, elixir-format, fuzzy
+msgid "Creating account..."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:18
+#, elixir-autogen, elixir-format
+msgid "Don't have an account?"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:80
+#, elixir-autogen, elixir-format
+msgid "Email change link is invalid or it has expired."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:77
+#, elixir-autogen, elixir-format
+msgid "Email changed successfully."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:123
+#, elixir-autogen, elixir-format
+msgid "If your email is in our system, you will receive instructions for logging in shortly."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:62
+#, elixir-autogen, elixir-format
+msgid "Keep me logged in on this device"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:87
+#, elixir-autogen, elixir-format
+msgid "Log in and stay logged in"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:90
+#, elixir-autogen, elixir-format
+msgid "Log in only this time"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:56
+#, elixir-autogen, elixir-format
+msgid "Log in with email"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:68
+#, elixir-autogen, elixir-format
+msgid "Log me in only this time"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:52
+#: lib/peggy_web/live/user_live/confirmation.ex:59
+#: lib/peggy_web/live/user_live/confirmation.ex:65
+#, elixir-autogen, elixir-format
+msgid "Logging in..."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:91
+#, elixir-autogen, elixir-format
+msgid "Magic link is invalid or it has expired."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:15
+#, elixir-autogen, elixir-format
+msgid "Manage your account email address and password settings"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:52
+#, elixir-autogen, elixir-format
+msgid "New password"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:82
+#, elixir-autogen, elixir-format
+msgid "Password"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/registration.ex:14
+#, elixir-autogen, elixir-format
+msgid "Register for an account"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/settings.ex:65
+#, elixir-autogen, elixir-format
+msgid "Save Password"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:74
+#, elixir-autogen, elixir-format
+msgid "Tip: If you prefer passwords, you can enable them in the user settings."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:33
+#, elixir-autogen, elixir-format
+msgid "To see sent emails, visit"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/confirmation.ex:12
+#, elixir-autogen, elixir-format
+msgid "Welcome"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:31
+#, elixir-autogen, elixir-format
+msgid "You are running the local mail adapter."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:16
+#, elixir-autogen, elixir-format
+msgid "You need to reauthenticate to perform sensitive actions on your account."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:22
+#, elixir-autogen, elixir-format
+msgid "for an account now."
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:60
+#, elixir-autogen, elixir-format, fuzzy
+msgid "or"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/login.ex:33
+#, elixir-autogen, elixir-format
+msgid "the mailbox page"
+msgstr ""
+
+#: lib/peggy_web/live/user_live/registration.ex:20
+#, elixir-autogen, elixir-format
+msgid "to your account now."
 msgstr ""
