@@ -12,17 +12,24 @@ defmodule PeggyWeb.Locale do
   def init(opts), do: opts
 
   def call(conn, _opts) do
-    locale = locale_for(conn.assigns[:current_scope])
+    conn = fetch_cookies(conn)
+    locale = locale_for(conn.assigns[:current_scope], conn.cookies["peggy_locale"])
     Gettext.put_locale(PeggyWeb.Gettext, locale)
-    assign(conn, :locale, locale)
+
+    conn
+    |> assign(:locale, locale)
+    |> put_session(:locale, locale)
   end
 
-  def on_mount(:default, _params, _session, socket) do
-    locale = locale_for(socket.assigns[:current_scope])
+  def on_mount(:default, _params, session, socket) do
+    locale = locale_for(socket.assigns[:current_scope], session["locale"])
     Gettext.put_locale(PeggyWeb.Gettext, locale)
     {:cont, Phoenix.Component.assign(socket, :locale, locale)}
   end
 
-  defp locale_for(%{user: %{locale: l}}) when l in @supported, do: l
-  defp locale_for(_), do: @default
+  # Precedence: logged-in user's locale, then the request/session fallback
+  # (cookie for the plug, session value for LiveView), then the default.
+  defp locale_for(%{user: %{locale: l}}, _fallback) when l in @supported, do: l
+  defp locale_for(_scope, fallback) when fallback in @supported, do: fallback
+  defp locale_for(_scope, _fallback), do: @default
 end
