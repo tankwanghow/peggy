@@ -18,7 +18,17 @@
       "Bash(elixir -e \"IO.inspect Enum.min_by\\([], & &1, Date, fn -> nil end\\)\")",
       "Bash(elixir -e \"IO.inspect Enum.max_by\\([], & &1, Date, fn -> nil end\\)\")",
       "Bash(iex --no-halt)",
-      "Bash(iex --no-halt -e ' *)"
+      "Bash(iex --no-halt -e ' *)",
+      "Bash(sed 's/^msgid \"//; s/\"$//')",
+      "Bash(sed -n '1,80p' /tmp/msgids.txt)",
+      "Bash(grep -c '^msgstr \"\"$' priv/gettext/ms/LC_MESSAGES/default.po)",
+      "Bash(echo \"ms blank left: $\\(grep -c '^msgstr \"\"$' priv/gettext/ms/LC_MESSAGES/default.po\\)\")",
+      "Bash(grep -c '^msgstr \"\"$' priv/gettext/zh/LC_MESSAGES/default.po)",
+      "Bash(echo \"zh blank left: $\\(grep -c '^msgstr \"\"$' priv/gettext/zh/LC_MESSAGES/default.po\\)\")",
+      "Bash(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/ms/LC_MESSAGES/errors.po)",
+      "Bash(echo \"ms errors blank: $\\(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/ms/LC_MESSAGES/errors.po\\)\")",
+      "Bash(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/zh/LC_MESSAGES/errors.po)",
+      "Bash(echo \"zh errors blank: $\\(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/zh/LC_MESSAGES/errors.po\\)\")"
     ],
     "additionalDirectories": [
       "/tmp"

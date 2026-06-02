@@ -2195,7 +2195,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:355
 #, elixir-autogen, elixir-format
 msgid "Failed pregnancy"
-msgstr "妊娠失败"
+msgstr "怀孕失败"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:406
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:306
@@ -4481,12 +4481,12 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/reports.ex:445
 #, elixir-autogen, elixir-format
 msgid "Services"
-msgstr ""
+msgstr "交配"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:22
 #, elixir-autogen, elixir-format
 msgid "Services awaiting farrowing"
-msgstr ""
+msgstr "等待分娩"
 
 #: lib/peggy_web/components/layouts.ex:434
 #, elixir-autogen, elixir-format

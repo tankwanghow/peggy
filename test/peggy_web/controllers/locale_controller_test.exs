@@ -24,7 +24,9 @@ defmodule PeggyWeb.LocaleControllerTest do
   end
 
   test "falls back to / for an external referer (no open redirect)", %{conn: conn} do
-    conn = conn |> put_req_header("referer", "https://evil.example.com/farms") |> get(~p"/locale/ms")
+    conn =
+      conn |> put_req_header("referer", "https://evil.example.com/farms") |> get(~p"/locale/ms")
+
     assert redirected_to(conn) == "/"
   end
 end
