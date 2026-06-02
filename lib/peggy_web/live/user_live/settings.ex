@@ -25,7 +25,9 @@ defmodule PeggyWeb.UserLive.Settings do
           spellcheck="false"
           required
         />
-        <.button variant="primary" phx-disable-with={gettext("Changing...")}>{gettext("Change Email")}</.button>
+        <.button variant="primary" phx-disable-with={gettext("Changing...")}>
+          {gettext("Change Email")}
+        </.button>
       </.form>
 
       <div class="divider" />

@@ -750,7 +750,7 @@ msgstr "账户设置"
 #: lib/peggy_web/live/farm_live/audit.ex:55
 #: lib/peggy_web/live/farm_live/bulk_move.ex:58
 #: lib/peggy_web/live/farm_live/promote_batches.ex:243
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Action"
 msgstr "操作"
 
@@ -760,7 +760,7 @@ msgid "Action contains"
 msgstr "操作包含"
 
 #: lib/peggy_web/live/farm_live/dashboard.ex:28
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Action list"
 msgstr "操作清单"
 
@@ -888,7 +888,7 @@ msgstr "猪只详情"
 
 #: lib/peggy_web/live/farm_live/animals.ex:497
 #: lib/peggy_web/live/mobile_live/animals.ex:605
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Animal registered."
 msgstr "猪只已登记。"
 
@@ -906,7 +906,7 @@ msgstr "猪只已更新。"
 #: lib/peggy_web/live/farm_live/animals_print.ex:22
 #: lib/peggy_web/live/farm_live/batch_register.ex:21
 #: lib/peggy_web/live/farm_live/herd_import.ex:28
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Animals"
 msgstr "猪只"
 
@@ -1280,13 +1280,13 @@ msgstr "品种（可选）"
 #: lib/peggy_web/live/farm_live/batch_farrowing.ex:25
 #: lib/peggy_web/live/farm_live/batch_service.ex:25
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:25
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Breeding"
 msgstr "繁殖"
 
 #: lib/peggy_web/live/farm_live/animals.ex:824
 #: lib/peggy_web/live/mobile_live/animals.ex:911
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Breeding herd"
 msgstr "繁殖群"
 
@@ -1499,7 +1499,7 @@ msgstr "全部清除"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:573
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:154
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:444
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Close"
 msgstr "关闭"
 
@@ -1657,7 +1657,7 @@ msgid "Could not mark as reviewed."
 msgstr "无法标记为已审核。"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:879
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Could not promote stage."
 msgstr "无法升级阶段。"
 
@@ -1673,7 +1673,7 @@ msgid "Could not register sow: %{err}"
 msgstr "无法登记母猪：%{err}"
 
 #: lib/peggy_web/live/farm_live/index.ex:186
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Could not restore farm."
 msgstr "无法恢复农场。"
 
@@ -1690,7 +1690,7 @@ msgstr "无法撤销。"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:973
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:964
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Could not update the cull flag."
 msgstr "无法更新淘汰标记。"
 
@@ -1707,7 +1707,7 @@ msgid "Counterpart sow"
 msgstr "对方母猪"
 
 #: lib/peggy_web/live/mobile_live/tasks.ex:201
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Create"
 msgstr "创建"
 
@@ -1731,7 +1731,7 @@ msgstr "创建栏"
 
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:58
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:121
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Created via"
 msgstr "创建方式"
 
@@ -2514,7 +2514,7 @@ msgstr "已生成"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:68
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:64
 #: lib/peggy_web/live/mobile_live/dashboard.ex:30
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Gestating"
 msgstr "怀孕中"
 
@@ -2843,7 +2843,7 @@ msgid "Locations"
 msgstr "位置"
 
 #: lib/peggy_web/live/farm_live/locations.ex:43
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Manage pens"
 msgstr "管理栏"
 
@@ -3720,7 +3720,7 @@ msgstr "打印 — 绩效分析"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:440
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:635
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Promote"
 msgstr "升级"
 
@@ -3787,7 +3787,7 @@ msgid "Prty"
 msgstr "胎次"
 
 #: lib/peggy_web/live/farm_live/locations.ex:92
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Purpose"
 msgstr "用途"
 
@@ -4000,7 +4000,7 @@ msgstr "参考日期"
 #: lib/peggy_web/live/farm_live/animals.ex:452
 #: lib/peggy_web/live/mobile_live/animals.ex:59
 #: lib/peggy_web/live/mobile_live/animals.ex:280
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Register animal"
 msgstr "登记猪只"
 
@@ -4025,7 +4025,7 @@ msgid "Registered %{n} animals."
 msgstr "已登记 %{n} 头猪。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:225
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Removals"
 msgstr "移除"
 
@@ -4037,7 +4037,7 @@ msgstr "移除"
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:210
 #: lib/peggy_web/live/farm_live/bulk_move.ex:113
 #: lib/peggy_web/live/farm_live/herd_import.ex:179
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Remove row"
 msgstr "移除行"
 
@@ -4050,7 +4050,7 @@ msgstr "重新打开"
 #: lib/peggy_web/components/layouts.ex:613
 #: lib/peggy_web/live/farm_live/reports.ex:325
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:24
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Reports"
 msgstr "报告"
 
@@ -4068,7 +4068,7 @@ msgid "Reset filters"
 msgstr "重置筛选"
 
 #: lib/peggy_web/live/farm_live/index.ex:102
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Restore"
 msgstr "恢复"
 
@@ -4118,7 +4118,7 @@ msgstr "正在恢复备份..."
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:100
 #: lib/peggy_web/live/farm_live/restore.ex:79
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Restoring..."
 msgstr "恢复中..."
 
@@ -4262,7 +4262,7 @@ msgstr "保存断奶 + 登记母猪"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:476
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:411
 #: lib/peggy_web/live/mobile_live/tasks.ex:198
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Saving…"
 msgstr "保存中…"
 
@@ -5703,7 +5703,7 @@ msgid "re-serviced at"
 msgstr "复配于"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:96
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "remove"
 msgstr "移除"
 
@@ -5887,187 +5887,187 @@ msgstr "语言"
 #: lib/peggy_web/live/user_live/settings.ex:127
 #, elixir-autogen, elixir-format
 msgid "A link to confirm your email change has been sent to the new address."
-msgstr ""
+msgstr "确认更改电子邮件的链接已发送至新地址。"
 
 #: lib/peggy_web/live/user_live/settings.ex:14
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Account Settings"
 msgstr "账户设置"
 
 #: lib/peggy_web/live/user_live/registration.ex:16
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Already registered?"
-msgstr "已删除。"
+msgstr "已有账户？"
 
 #: lib/peggy_web/live/user_live/registration.ex:77
 #, elixir-autogen, elixir-format
 msgid "An email was sent to %{email}, please access it to confirm your account."
-msgstr ""
+msgstr "已向 %{email} 发送电子邮件，请查收以确认您的账户。"
 
 #: lib/peggy_web/live/user_live/settings.ex:28
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Change Email"
-msgstr "更改"
+msgstr "更改电子邮件"
 
 #: lib/peggy_web/live/user_live/settings.ex:28
 #, elixir-autogen, elixir-format
 msgid "Changing..."
-msgstr ""
+msgstr "更改中..."
 
 #: lib/peggy_web/live/user_live/confirmation.ex:37
 #, elixir-autogen, elixir-format
 msgid "Confirm and log in only this time"
-msgstr ""
+msgstr "确认并仅此次登录"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:31
 #, elixir-autogen, elixir-format
 msgid "Confirm and stay logged in"
-msgstr ""
+msgstr "确认并保持登录"
 
 #: lib/peggy_web/live/user_live/settings.ex:60
 #, elixir-autogen, elixir-format
 msgid "Confirm new password"
-msgstr ""
+msgstr "确认新密码"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:28
 #: lib/peggy_web/live/user_live/confirmation.ex:34
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Confirming..."
-msgstr "确认"
+msgstr "确认中..."
 
 #: lib/peggy_web/live/user_live/registration.ex:37
 #, elixir-autogen, elixir-format
 msgid "Create an account"
-msgstr ""
+msgstr "创建账户"
 
 #: lib/peggy_web/live/user_live/registration.ex:36
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Creating account..."
-msgstr "创建中..."
+msgstr "创建账户中..."
 
 #: lib/peggy_web/live/user_live/login.ex:18
 #, elixir-autogen, elixir-format
 msgid "Don't have an account?"
-msgstr ""
+msgstr "还没有账户？"
 
 #: lib/peggy_web/live/user_live/settings.ex:80
 #, elixir-autogen, elixir-format
 msgid "Email change link is invalid or it has expired."
-msgstr ""
+msgstr "电子邮件更改链接无效或已过期。"
 
 #: lib/peggy_web/live/user_live/settings.ex:77
 #, elixir-autogen, elixir-format
 msgid "Email changed successfully."
-msgstr ""
+msgstr "电子邮件已成功更改。"
 
 #: lib/peggy_web/live/user_live/login.ex:123
 #, elixir-autogen, elixir-format
 msgid "If your email is in our system, you will receive instructions for logging in shortly."
-msgstr ""
+msgstr "如果您的电子邮件在我们的系统中，您将很快收到登录说明。"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:62
 #, elixir-autogen, elixir-format
 msgid "Keep me logged in on this device"
-msgstr ""
+msgstr "在此设备上保持登录"
 
 #: lib/peggy_web/live/user_live/login.ex:87
 #, elixir-autogen, elixir-format
 msgid "Log in and stay logged in"
-msgstr ""
+msgstr "登录并保持登录"
 
 #: lib/peggy_web/live/user_live/login.ex:90
 #, elixir-autogen, elixir-format
 msgid "Log in only this time"
-msgstr ""
+msgstr "仅此次登录"
 
 #: lib/peggy_web/live/user_live/login.ex:56
 #, elixir-autogen, elixir-format
 msgid "Log in with email"
-msgstr ""
+msgstr "使用电子邮件登录"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:68
 #, elixir-autogen, elixir-format
 msgid "Log me in only this time"
-msgstr ""
+msgstr "仅此次登录我"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:52
 #: lib/peggy_web/live/user_live/confirmation.ex:59
 #: lib/peggy_web/live/user_live/confirmation.ex:65
 #, elixir-autogen, elixir-format
 msgid "Logging in..."
-msgstr ""
+msgstr "登录中..."
 
 #: lib/peggy_web/live/user_live/confirmation.ex:91
 #, elixir-autogen, elixir-format
 msgid "Magic link is invalid or it has expired."
-msgstr ""
+msgstr "魔术链接无效或已过期。"
 
 #: lib/peggy_web/live/user_live/settings.ex:15
 #, elixir-autogen, elixir-format
 msgid "Manage your account email address and password settings"
-msgstr ""
+msgstr "管理您的账户电子邮件地址和密码设置"
 
 #: lib/peggy_web/live/user_live/settings.ex:52
 #, elixir-autogen, elixir-format
 msgid "New password"
-msgstr ""
+msgstr "新密码"
 
 #: lib/peggy_web/live/user_live/login.ex:82
 #, elixir-autogen, elixir-format
 msgid "Password"
-msgstr ""
+msgstr "密码"
 
 #: lib/peggy_web/live/user_live/registration.ex:14
 #, elixir-autogen, elixir-format
 msgid "Register for an account"
-msgstr ""
+msgstr "注册账户"
 
 #: lib/peggy_web/live/user_live/settings.ex:65
 #, elixir-autogen, elixir-format
 msgid "Save Password"
-msgstr ""
+msgstr "保存密码"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:74
 #, elixir-autogen, elixir-format
 msgid "Tip: If you prefer passwords, you can enable them in the user settings."
-msgstr ""
+msgstr "提示：如果您更喜欢使用密码，可以在用户设置中启用。"
 
 #: lib/peggy_web/live/user_live/login.ex:33
 #, elixir-autogen, elixir-format
 msgid "To see sent emails, visit"
-msgstr ""
+msgstr "要查看已发送的电子邮件，请访问"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:12
 #, elixir-autogen, elixir-format
 msgid "Welcome"
-msgstr ""
+msgstr "欢迎"
 
 #: lib/peggy_web/live/user_live/login.ex:31
 #, elixir-autogen, elixir-format
 msgid "You are running the local mail adapter."
-msgstr ""
+msgstr "您正在使用本地邮件适配器。"
 
 #: lib/peggy_web/live/user_live/login.ex:16
 #, elixir-autogen, elixir-format
 msgid "You need to reauthenticate to perform sensitive actions on your account."
-msgstr ""
+msgstr "您需要重新验证身份才能对账户执行敏感操作。"
 
 #: lib/peggy_web/live/user_live/login.ex:22
 #, elixir-autogen, elixir-format
 msgid "for an account now."
-msgstr ""
+msgstr "立即创建账户。"
 
 #: lib/peggy_web/live/user_live/login.ex:60
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "or"
-msgstr "更多"
+msgstr "或"
 
 #: lib/peggy_web/live/user_live/login.ex:33
 #, elixir-autogen, elixir-format
 msgid "the mailbox page"
-msgstr ""
+msgstr "邮箱页面"
 
 #: lib/peggy_web/live/user_live/registration.ex:20
 #, elixir-autogen, elixir-format
 msgid "to your account now."
-msgstr ""
+msgstr "立即登录您的账户。"

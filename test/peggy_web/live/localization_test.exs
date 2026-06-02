@@ -87,6 +87,16 @@ defmodule PeggyWeb.LocalizationTest do
       assert html =~ "中文"
       assert html =~ "/locale/zh"
     end
+
+    test "login page renders translated when the peggy_locale cookie is set (anonymous)", %{
+      conn: conn
+    } do
+      {:ok, _lv, html} =
+        conn |> Plug.Test.put_req_cookie("peggy_locale", "ms") |> live(~p"/users/log-in")
+
+      assert html =~ "Log masuk"
+      assert html =~ "Kata laluan"
+    end
   end
 
   defp t(locale, msgid) do

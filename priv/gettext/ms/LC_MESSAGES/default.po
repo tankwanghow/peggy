@@ -750,7 +750,7 @@ msgstr "Tetapan akaun"
 #: lib/peggy_web/live/farm_live/audit.ex:55
 #: lib/peggy_web/live/farm_live/bulk_move.ex:58
 #: lib/peggy_web/live/farm_live/promote_batches.ex:243
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Action"
 msgstr "Tindakan"
 
@@ -760,7 +760,7 @@ msgid "Action contains"
 msgstr "Tindakan mengandungi"
 
 #: lib/peggy_web/live/farm_live/dashboard.ex:28
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Action list"
 msgstr "Senarai tindakan"
 
@@ -888,7 +888,7 @@ msgstr "Butiran ternakan"
 
 #: lib/peggy_web/live/farm_live/animals.ex:497
 #: lib/peggy_web/live/mobile_live/animals.ex:605
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Animal registered."
 msgstr "Ternakan didaftarkan."
 
@@ -906,7 +906,7 @@ msgstr "Ternakan dikemas kini."
 #: lib/peggy_web/live/farm_live/animals_print.ex:22
 #: lib/peggy_web/live/farm_live/batch_register.ex:21
 #: lib/peggy_web/live/farm_live/herd_import.ex:28
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Animals"
 msgstr "Ternakan"
 
@@ -1280,13 +1280,13 @@ msgstr "Baka (pilihan)"
 #: lib/peggy_web/live/farm_live/batch_farrowing.ex:25
 #: lib/peggy_web/live/farm_live/batch_service.ex:25
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:25
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Breeding"
 msgstr "Pembiakan"
 
 #: lib/peggy_web/live/farm_live/animals.ex:824
 #: lib/peggy_web/live/mobile_live/animals.ex:911
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Breeding herd"
 msgstr "Kawanan pembiakan"
 
@@ -1499,7 +1499,7 @@ msgstr "Kosongkan semua"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:573
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:154
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:444
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Close"
 msgstr "Tutup"
 
@@ -1657,7 +1657,7 @@ msgid "Could not mark as reviewed."
 msgstr "Tidak dapat menanda sebagai disemak."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:879
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Could not promote stage."
 msgstr "Tidak dapat menaik taraf peringkat."
 
@@ -1673,7 +1673,7 @@ msgid "Could not register sow: %{err}"
 msgstr "Tidak dapat mendaftar babi ibu: %{err}"
 
 #: lib/peggy_web/live/farm_live/index.ex:186
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Could not restore farm."
 msgstr "Tidak dapat memulihkan ladang."
 
@@ -1690,7 +1690,7 @@ msgstr "Tidak dapat buat asal."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:973
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:964
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Could not update the cull flag."
 msgstr "Tidak dapat mengemas kini tanda singkir."
 
@@ -1707,7 +1707,7 @@ msgid "Counterpart sow"
 msgstr "Babi Ibu pasangan"
 
 #: lib/peggy_web/live/mobile_live/tasks.ex:201
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Create"
 msgstr "Cipta"
 
@@ -1731,7 +1731,7 @@ msgstr "Cipta kandang"
 
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:58
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:121
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Created via"
 msgstr "Dicipta melalui"
 
@@ -2514,7 +2514,7 @@ msgstr "Dijana"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:68
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:64
 #: lib/peggy_web/live/mobile_live/dashboard.ex:30
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Gestating"
 msgstr "Bunting"
 
@@ -2843,7 +2843,7 @@ msgid "Locations"
 msgstr "Lokasi"
 
 #: lib/peggy_web/live/farm_live/locations.ex:43
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Manage pens"
 msgstr "Urus kandang"
 
@@ -3720,7 +3720,7 @@ msgstr "Cetak — Analisis Prestasi"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:440
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:635
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Promote"
 msgstr "Naik taraf"
 
@@ -3787,7 +3787,7 @@ msgid "Prty"
 msgstr "Plt"
 
 #: lib/peggy_web/live/farm_live/locations.ex:92
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Purpose"
 msgstr "Tujuan"
 
@@ -4000,7 +4000,7 @@ msgstr "Tarikh rujukan"
 #: lib/peggy_web/live/farm_live/animals.ex:452
 #: lib/peggy_web/live/mobile_live/animals.ex:59
 #: lib/peggy_web/live/mobile_live/animals.ex:280
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Register animal"
 msgstr "Daftar ternakan"
 
@@ -4025,7 +4025,7 @@ msgid "Registered %{n} animals."
 msgstr "%{n} ekor didaftarkan."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:225
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Removals"
 msgstr "Pengeluaran"
 
@@ -4037,7 +4037,7 @@ msgstr "Pengeluaran"
 #: lib/peggy_web/live/farm_live/batch_weaning.ex:210
 #: lib/peggy_web/live/farm_live/bulk_move.ex:113
 #: lib/peggy_web/live/farm_live/herd_import.ex:179
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Remove row"
 msgstr "Keluarkan baris"
 
@@ -4050,7 +4050,7 @@ msgstr "Buka semula"
 #: lib/peggy_web/components/layouts.ex:613
 #: lib/peggy_web/live/farm_live/reports.ex:325
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:24
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Reports"
 msgstr "Laporan"
 
@@ -4068,7 +4068,7 @@ msgid "Reset filters"
 msgstr "Set semula penapis"
 
 #: lib/peggy_web/live/farm_live/index.ex:102
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Restore"
 msgstr "Pulih"
 
@@ -4118,7 +4118,7 @@ msgstr "Memulihkan sandaran..."
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:100
 #: lib/peggy_web/live/farm_live/restore.ex:79
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Restoring..."
 msgstr "Memulihkan..."
 
@@ -4262,7 +4262,7 @@ msgstr "Simpan cerai susu + daftar babi ibu"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:476
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:411
 #: lib/peggy_web/live/mobile_live/tasks.ex:198
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Saving…"
 msgstr "Menyimpan…"
 
@@ -5703,7 +5703,7 @@ msgid "re-serviced at"
 msgstr "dikawin semula pada"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:96
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "remove"
 msgstr "keluarkan"
 
@@ -5887,187 +5887,187 @@ msgstr "Bahasa"
 #: lib/peggy_web/live/user_live/settings.ex:127
 #, elixir-autogen, elixir-format
 msgid "A link to confirm your email change has been sent to the new address."
-msgstr ""
+msgstr "Pautan untuk mengesahkan perubahan e-mel anda telah dihantar ke alamat baharu."
 
 #: lib/peggy_web/live/user_live/settings.ex:14
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Account Settings"
 msgstr "Tetapan akaun"
 
 #: lib/peggy_web/live/user_live/registration.ex:16
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Already registered?"
-msgstr "Sudah dipadam."
+msgstr "Sudah berdaftar?"
 
 #: lib/peggy_web/live/user_live/registration.ex:77
 #, elixir-autogen, elixir-format
 msgid "An email was sent to %{email}, please access it to confirm your account."
-msgstr ""
+msgstr "E-mel telah dihantar ke %{email}, sila aksesnya untuk mengesahkan akaun anda."
 
 #: lib/peggy_web/live/user_live/settings.ex:28
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Change Email"
-msgstr "Tukar"
+msgstr "Tukar E-mel"
 
 #: lib/peggy_web/live/user_live/settings.ex:28
 #, elixir-autogen, elixir-format
 msgid "Changing..."
-msgstr ""
+msgstr "Menukar..."
 
 #: lib/peggy_web/live/user_live/confirmation.ex:37
 #, elixir-autogen, elixir-format
 msgid "Confirm and log in only this time"
-msgstr ""
+msgstr "Sahkan dan log masuk kali ini sahaja"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:31
 #, elixir-autogen, elixir-format
 msgid "Confirm and stay logged in"
-msgstr ""
+msgstr "Sahkan dan kekal log masuk"
 
 #: lib/peggy_web/live/user_live/settings.ex:60
 #, elixir-autogen, elixir-format
 msgid "Confirm new password"
-msgstr ""
+msgstr "Sahkan kata laluan baharu"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:28
 #: lib/peggy_web/live/user_live/confirmation.ex:34
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Confirming..."
-msgstr "Sahkan"
+msgstr "Mengesahkan..."
 
 #: lib/peggy_web/live/user_live/registration.ex:37
 #, elixir-autogen, elixir-format
 msgid "Create an account"
-msgstr ""
+msgstr "Cipta akaun"
 
 #: lib/peggy_web/live/user_live/registration.ex:36
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "Creating account..."
-msgstr "Mencipta..."
+msgstr "Mencipta akaun..."
 
 #: lib/peggy_web/live/user_live/login.ex:18
 #, elixir-autogen, elixir-format
 msgid "Don't have an account?"
-msgstr ""
+msgstr "Tiada akaun?"
 
 #: lib/peggy_web/live/user_live/settings.ex:80
 #, elixir-autogen, elixir-format
 msgid "Email change link is invalid or it has expired."
-msgstr ""
+msgstr "Pautan perubahan e-mel tidak sah atau telah tamat tempoh."
 
 #: lib/peggy_web/live/user_live/settings.ex:77
 #, elixir-autogen, elixir-format
 msgid "Email changed successfully."
-msgstr ""
+msgstr "E-mel berjaya ditukar."
 
 #: lib/peggy_web/live/user_live/login.ex:123
 #, elixir-autogen, elixir-format
 msgid "If your email is in our system, you will receive instructions for logging in shortly."
-msgstr ""
+msgstr "Jika e-mel anda dalam sistem kami, anda akan menerima arahan untuk log masuk sebentar lagi."
 
 #: lib/peggy_web/live/user_live/confirmation.ex:62
 #, elixir-autogen, elixir-format
 msgid "Keep me logged in on this device"
-msgstr ""
+msgstr "Kekalkan saya log masuk pada peranti ini"
 
 #: lib/peggy_web/live/user_live/login.ex:87
 #, elixir-autogen, elixir-format
 msgid "Log in and stay logged in"
-msgstr ""
+msgstr "Log masuk dan kekal log masuk"
 
 #: lib/peggy_web/live/user_live/login.ex:90
 #, elixir-autogen, elixir-format
 msgid "Log in only this time"
-msgstr ""
+msgstr "Log masuk kali ini sahaja"
 
 #: lib/peggy_web/live/user_live/login.ex:56
 #, elixir-autogen, elixir-format
 msgid "Log in with email"
-msgstr ""
+msgstr "Log masuk dengan e-mel"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:68
 #, elixir-autogen, elixir-format
 msgid "Log me in only this time"
-msgstr ""
+msgstr "Log masuk saya kali ini sahaja"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:52
 #: lib/peggy_web/live/user_live/confirmation.ex:59
 #: lib/peggy_web/live/user_live/confirmation.ex:65
 #, elixir-autogen, elixir-format
 msgid "Logging in..."
-msgstr ""
+msgstr "Sedang log masuk..."
 
 #: lib/peggy_web/live/user_live/confirmation.ex:91
 #, elixir-autogen, elixir-format
 msgid "Magic link is invalid or it has expired."
-msgstr ""
+msgstr "Pautan ajaib tidak sah atau telah tamat tempoh."
 
 #: lib/peggy_web/live/user_live/settings.ex:15
 #, elixir-autogen, elixir-format
 msgid "Manage your account email address and password settings"
-msgstr ""
+msgstr "Urus alamat e-mel dan tetapan kata laluan akaun anda"
 
 #: lib/peggy_web/live/user_live/settings.ex:52
 #, elixir-autogen, elixir-format
 msgid "New password"
-msgstr ""
+msgstr "Kata laluan baharu"
 
 #: lib/peggy_web/live/user_live/login.ex:82
 #, elixir-autogen, elixir-format
 msgid "Password"
-msgstr ""
+msgstr "Kata laluan"
 
 #: lib/peggy_web/live/user_live/registration.ex:14
 #, elixir-autogen, elixir-format
 msgid "Register for an account"
-msgstr ""
+msgstr "Daftar untuk akaun"
 
 #: lib/peggy_web/live/user_live/settings.ex:65
 #, elixir-autogen, elixir-format
 msgid "Save Password"
-msgstr ""
+msgstr "Simpan Kata Laluan"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:74
 #, elixir-autogen, elixir-format
 msgid "Tip: If you prefer passwords, you can enable them in the user settings."
-msgstr ""
+msgstr "Petua: Jika anda lebih suka kata laluan, anda boleh mengaktifkannya dalam tetapan pengguna."
 
 #: lib/peggy_web/live/user_live/login.ex:33
 #, elixir-autogen, elixir-format
 msgid "To see sent emails, visit"
-msgstr ""
+msgstr "Untuk melihat e-mel yang dihantar, lawati"
 
 #: lib/peggy_web/live/user_live/confirmation.ex:12
 #, elixir-autogen, elixir-format
 msgid "Welcome"
-msgstr ""
+msgstr "Selamat datang"
 
 #: lib/peggy_web/live/user_live/login.ex:31
 #, elixir-autogen, elixir-format
 msgid "You are running the local mail adapter."
-msgstr ""
+msgstr "Anda menggunakan penyesuai mel tempatan."
 
 #: lib/peggy_web/live/user_live/login.ex:16
 #, elixir-autogen, elixir-format
 msgid "You need to reauthenticate to perform sensitive actions on your account."
-msgstr ""
+msgstr "Anda perlu mengesahkan semula untuk melakukan tindakan sensitif pada akaun anda."
 
 #: lib/peggy_web/live/user_live/login.ex:22
 #, elixir-autogen, elixir-format
 msgid "for an account now."
-msgstr ""
+msgstr "untuk akaun sekarang."
 
 #: lib/peggy_web/live/user_live/login.ex:60
-#, elixir-autogen, elixir-format, fuzzy
+#, elixir-autogen, elixir-format
 msgid "or"
-msgstr "Lagi"
+msgstr "atau"
 
 #: lib/peggy_web/live/user_live/login.ex:33
 #, elixir-autogen, elixir-format
 msgid "the mailbox page"
-msgstr ""
+msgstr "halaman peti mel"
 
 #: lib/peggy_web/live/user_live/registration.ex:20
 #, elixir-autogen, elixir-format
 msgid "to your account now."
-msgstr ""
+msgstr "ke akaun anda sekarang."

@@ -28,7 +28,10 @@
       "Bash(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/ms/LC_MESSAGES/errors.po)",
       "Bash(echo \"ms errors blank: $\\(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/ms/LC_MESSAGES/errors.po\\)\")",
       "Bash(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/zh/LC_MESSAGES/errors.po)",
-      "Bash(echo \"zh errors blank: $\\(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/zh/LC_MESSAGES/errors.po\\)\")"
+      "Bash(echo \"zh errors blank: $\\(grep -c '^msgstr \"\"$\\\\|^msgstr\\\\[0\\\\] \"\"$' priv/gettext/zh/LC_MESSAGES/errors.po\\)\")",
+      "Bash(sed 's/^msgid \"//;s/\"$//')",
+      "Bash(echo \"=== zh blank count: $\\(grep -c '^msgstr \"\"$' priv/gettext/zh/LC_MESSAGES/default.po\\), ms blank count: $\\(grep -c '^msgstr \"\"$' priv/gettext/ms/LC_MESSAGES/default.po\\) ===\")",
+      "Bash(echo \"ms blank: $\\(grep -c '^msgstr \"\"$' priv/gettext/ms/LC_MESSAGES/default.po\\) zh blank: $\\(grep -c '^msgstr \"\"$' priv/gettext/zh/LC_MESSAGES/default.po\\)\")"
     ],
     "additionalDirectories": [
       "/tmp"
