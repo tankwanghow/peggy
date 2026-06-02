@@ -16,6 +16,14 @@ defmodule Peggy.Accounts.User do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Changeset for just the UI locale (no timezone coupling)."
+  def locale_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:locale])
+    |> validate_required([:locale])
+    |> validate_inclusion(:locale, ~w(en ms zh))
+  end
+
   @doc """
   Changeset for user profile fields (locale, timezone).
   """

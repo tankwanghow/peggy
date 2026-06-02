@@ -13,101 +13,101 @@ msgstr ""
 ## effect: edit them in PO (`.po`) files instead.
 ## From Ecto.Changeset.cast/4
 msgid "can't be blank"
-msgstr ""
+msgstr "tidak boleh kosong"
 
 ## From Ecto.Changeset.unique_constraint/3
 msgid "has already been taken"
-msgstr ""
+msgstr "telah digunakan"
 
 ## From Ecto.Changeset.put_change/3
 msgid "is invalid"
-msgstr ""
+msgstr "tidak sah"
 
 ## From Ecto.Changeset.validate_acceptance/3
 msgid "must be accepted"
-msgstr ""
+msgstr "mesti diterima"
 
 ## From Ecto.Changeset.validate_format/3
 msgid "has invalid format"
-msgstr ""
+msgstr "format tidak sah"
 
 ## From Ecto.Changeset.validate_subset/3
 msgid "has an invalid entry"
-msgstr ""
+msgstr "mempunyai entri tidak sah"
 
 ## From Ecto.Changeset.validate_exclusion/3
 msgid "is reserved"
-msgstr ""
+msgstr "telah dikhaskan"
 
 ## From Ecto.Changeset.validate_confirmation/3
 msgid "does not match confirmation"
-msgstr ""
+msgstr "tidak sepadan dengan pengesahan"
 
 ## From Ecto.Changeset.no_assoc_constraint/3
 msgid "is still associated with this entry"
-msgstr ""
+msgstr "masih dikaitkan dengan entri ini"
 
 msgid "are still associated with this entry"
-msgstr ""
+msgstr "masih dikaitkan dengan entri ini"
 
 ## From Ecto.Changeset.validate_length/3
 msgid "should have %{count} item(s)"
 msgid_plural "should have %{count} item(s)"
-msgstr[0] ""
+msgstr[0] "patut mempunyai %{count} item"
 msgstr[1] ""
 
 msgid "should be %{count} character(s)"
 msgid_plural "should be %{count} character(s)"
-msgstr[0] ""
+msgstr[0] "patut %{count} aksara"
 msgstr[1] ""
 
 msgid "should be %{count} byte(s)"
 msgid_plural "should be %{count} byte(s)"
-msgstr[0] ""
+msgstr[0] "patut %{count} bait"
 msgstr[1] ""
 
 msgid "should have at least %{count} item(s)"
 msgid_plural "should have at least %{count} item(s)"
-msgstr[0] ""
+msgstr[0] "patut mempunyai sekurang-kurangnya %{count} item"
 msgstr[1] ""
 
 msgid "should be at least %{count} character(s)"
 msgid_plural "should be at least %{count} character(s)"
-msgstr[0] ""
+msgstr[0] "patut sekurang-kurangnya %{count} aksara"
 msgstr[1] ""
 
 msgid "should be at least %{count} byte(s)"
 msgid_plural "should be at least %{count} byte(s)"
-msgstr[0] ""
+msgstr[0] "patut sekurang-kurangnya %{count} bait"
 msgstr[1] ""
 
 msgid "should have at most %{count} item(s)"
 msgid_plural "should have at most %{count} item(s)"
-msgstr[0] ""
+msgstr[0] "patut mempunyai paling banyak %{count} item"
 msgstr[1] ""
 
 msgid "should be at most %{count} character(s)"
 msgid_plural "should be at most %{count} character(s)"
-msgstr[0] ""
+msgstr[0] "patut paling banyak %{count} aksara"
 msgstr[1] ""
 
 msgid "should be at most %{count} byte(s)"
 msgid_plural "should be at most %{count} byte(s)"
-msgstr[0] ""
+msgstr[0] "patut paling banyak %{count} bait"
 msgstr[1] ""
 
 ## From Ecto.Changeset.validate_number/3
 msgid "must be less than %{number}"
-msgstr ""
+msgstr "mesti kurang daripada %{number}"
 
 msgid "must be greater than %{number}"
-msgstr ""
+msgstr "mesti lebih daripada %{number}"
 
 msgid "must be less than or equal to %{number}"
-msgstr ""
+msgstr "mesti kurang daripada atau sama dengan %{number}"
 
 msgid "must be greater than or equal to %{number}"
-msgstr ""
+msgstr "mesti lebih daripada atau sama dengan %{number}"
 
 msgid "must be equal to %{number}"
-msgstr ""
+msgstr "mesti sama dengan %{number}"

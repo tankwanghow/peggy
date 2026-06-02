@@ -394,4 +394,19 @@ defmodule Peggy.AccountsTest do
       refute inspect(%User{password: "123456"}) =~ "password: \"123456\""
     end
   end
+
+  describe "update_user_locale/2" do
+    test "sets a supported locale" do
+      user = user_fixture()
+      assert {:ok, updated} = Peggy.Accounts.update_user_locale(user, "ms")
+      assert updated.locale == "ms"
+    end
+
+    test "rejects an unsupported locale" do
+      user = user_fixture()
+      assert {:error, changeset} = Peggy.Accounts.update_user_locale(user, "xx")
+      refute changeset.valid?
+      assert "is invalid" in errors_on(changeset).locale
+    end
+  end
 end

@@ -52,6 +52,7 @@ defmodule PeggyWeb.Router do
     pipe_through [:browser, :require_authenticated_user, PeggyWeb.Plugs.AutoRouteByDevice]
 
     get "/view-mode", ViewModeController, :set
+    get "/locale/:locale", LocaleController, :update
 
     live_session :require_authenticated_user,
       on_mount: [{PeggyWeb.UserAuth, :require_authenticated}, {PeggyWeb.Locale, :default}] do
