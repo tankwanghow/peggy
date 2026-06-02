@@ -55,6 +55,22 @@ defmodule PeggyWeb.LocalizationTest do
     end
   end
 
+  test "language_switcher renders for anonymous when anonymous: true" do
+    html =
+      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1, anonymous: true)
+
+    assert html =~ "Bahasa Malaysia"
+    assert html =~ "中文"
+    assert html =~ "/locale/ms"
+  end
+
+  test "language_switcher renders nothing for anonymous by default" do
+    html =
+      Phoenix.LiveViewTest.render_component(&PeggyWeb.Layouts.language_switcher/1, current_scope: nil)
+
+    assert html == "" or not (html =~ "/locale/ms")
+  end
+
   defp t(locale, msgid) do
     Gettext.with_locale(PeggyWeb.Gettext, locale, fn ->
       Gettext.gettext(PeggyWeb.Gettext, msgid)

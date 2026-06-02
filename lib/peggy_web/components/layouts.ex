@@ -50,12 +50,15 @@ defmodule PeggyWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex items-center gap-2">
+          <li
+            :if={@current_scope && @current_scope.user}
+            class="hidden sm:block text-sm text-base-content/70"
+          >
+            {@current_scope.user.email}
+          </li>
           <li><.language_switcher current_scope={@current_scope} /></li>
           <li><.theme_toggle /></li>
           <%= if @current_scope && @current_scope.user do %>
-            <li class="hidden sm:block text-sm text-base-content/70">
-              {@current_scope.user.email}
-            </li>
             <li :if={@current_scope.farm}>
               <.link
                 href={~p"/view-mode?#{[mode: "mobile", to: "/m/#{@current_scope.farm.slug}"]}"}
@@ -276,9 +279,8 @@ defmodule PeggyWeb.Layouts do
           <li class="flex items-center justify-between gap-3 px-4 py-3">
             <span class="flex items-center gap-3">
               <.icon name="hero-language" class="size-5 text-base-content/60" />
-              <span>{gettext("Language")}</span>
+              <span>{gettext("Language")} <.language_switcher current_scope={@current_scope} /></span>
             </span>
-            <.language_switcher current_scope={@current_scope} />
           </li>
           <li :if={@current_scope && @current_scope.farm}>
             <.link
@@ -359,9 +361,19 @@ defmodule PeggyWeb.Layouts do
       <Layouts.print flash={@flash} title="Gestating sows">
         <table>...</table>
       </Layouts.print>
+
+      <Layouts.print flash={@flash} title="Performance" orientation="landscape">
+        <table>...</table>
+      </Layouts.print>
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :title, :string, default: nil
+
+  attr :orientation, :string,
+    default: "portrait",
+    values: ~w(portrait landscape),
+    doc: "page orientation for the @page size rule"
+
   slot :inner_block, required: true
 
   def print(assigns) do
@@ -413,6 +425,12 @@ defmodule PeggyWeb.Layouts do
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
       }
+    </style>
+    <style :if={@orientation == "landscape"}>
+      /* Cascades over the static @page rule above, overriding only the size;
+         margin and @bottom-center page counter are preserved. */
+      @page { size: A4 landscape; }
+      .print-page { max-width: 273mm; } /* A4 landscape (297mm) minus 12mm margins */
     </style>
     <div class="print-page">
       <div class="print-sheet">
@@ -670,22 +688,25 @@ defmodule PeggyWeb.Layouts do
     """
   end
 
-  @doc "Language picker; persists to user.locale via LocaleController. Logged-in only."
-  attr :current_scope, :map, required: true
+  @doc "Language picker. Renders for logged-in users, or when `anonymous: true`."
+  attr :current_scope, :map, default: nil
+  attr :anonymous, :boolean, default: false
 
   def language_switcher(assigns) do
+    assigns = assign(assigns, :current, Gettext.get_locale(PeggyWeb.Gettext))
+
     ~H"""
-    <div :if={@current_scope && @current_scope.user} class="dropdown dropdown-end">
+    <div
+      :if={@anonymous || (@current_scope && @current_scope.user)}
+      class="dropdown dropdown-end"
+    >
       <div tabindex="0" role="button" class="btn btn-ghost btn-sm gap-1" title={gettext("Language")}>
         <.icon name="hero-language-micro" class="size-4" />
-        <span class="hidden sm:inline">{language_label(@current_scope.user.locale)}</span>
+        <span class="hidden sm:inline">{language_label(@current)}</span>
       </div>
       <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-44 p-2 shadow">
         <li :for={{code, label} <- language_options()}>
-          <.link
-            href={~p"/locale/#{code}"}
-            class={@current_scope.user.locale == code && "menu-active"}
-          >
+          <.link href={~p"/locale/#{code}"} class={@current == code && "menu-active"}>
             {label}
           </.link>
         </li>
