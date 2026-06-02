@@ -3582,47 +3582,47 @@ msgstr "绩效分析"
 #: lib/peggy_web/live/farm_live/backup_restore.ex:46
 #, elixir-autogen, elixir-format
 msgid "Pick a backup file and the slug + name for the new farm. You'll become its owner. Animals, services, and other rows are inserted with fresh IDs; user references (technicians, assignees) are cleared."
-msgstr ""
+msgstr "选择备份文件以及新农场的 slug 和名称。您将成为其拥有者。猪只、配种和其他行将以全新 ID 插入；用户引用（技术员、负责人）将被清除。"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:1024
 #, elixir-autogen, elixir-format
 msgid "Pick a destination sow before saving."
-msgstr ""
+msgstr "保存前请选择目标母猪。"
 
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:1037
 #, elixir-autogen, elixir-format
 msgid "Pick a serviceable sow before saving."
-msgstr ""
+msgstr "保存前请选择可配母猪。"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1360
 #, elixir-autogen, elixir-format
 msgid "Pick an existing tag or tick \"Create anyway\" to override."
-msgstr ""
+msgstr "选择现有标签或勾选\"仍然创建\"以覆盖。"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1101
 #, elixir-autogen, elixir-format
 msgid "Piglet death"
-msgstr ""
+msgstr "仔猪死亡"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1107
 #, elixir-autogen, elixir-format
 msgid "Piglet foster-in"
-msgstr ""
+msgstr "仔猪寄入"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1104
 #, elixir-autogen, elixir-format
 msgid "Piglet foster-out"
-msgstr ""
+msgstr "仔猪寄出"
 
 #: lib/peggy_web/live/farm_live/reports.ex:99
 #, elixir-autogen, elixir-format
 msgid "Pigs weaned / sow / year"
-msgstr ""
+msgstr "每头母猪每年断奶仔猪数"
 
 #: lib/peggy_web/live/farm_live/settings.ex:117
 #, elixir-autogen, elixir-format
 msgid "Pin a date the app uses for age, lactation length, gestation day, and other date-of-day calculations. Leave blank to use the real date. Audit timestamps and record-creation times always use real time."
-msgstr ""
+msgstr "固定应用用于日龄、哺乳期、妊娠天数及其他按日计算的日期。留空则使用真实日期。审计时间戳和记录创建时间始终使用真实时间。"
 
 #: lib/peggy_web/live/farm_live/reports.ex:128
 #, elixir-autogen, elixir-format
@@ -3643,7 +3643,7 @@ msgstr "放置"
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1313
 #, elixir-autogen, elixir-format
 msgid "Pooling into existing batch — %{n} head."
-msgstr ""
+msgstr "并入现有批次 — %{n} 头。"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:931
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:962
@@ -3659,23 +3659,23 @@ msgstr "断奶前死亡率"
 #: lib/peggy_web/live/farm_live/house_detail.ex:46
 #, elixir-autogen, elixir-format
 msgid "Prefix"
-msgstr ""
+msgstr "前缀"
 
 #: lib/peggy_web/live/farm_live/animals.ex:818
 #: lib/peggy_web/live/mobile_live/animals.ex:905
 #, elixir-autogen, elixir-format
 msgid "Present (any)"
-msgstr ""
+msgstr "在场（任意）"
 
 #: lib/peggy_web/components/layouts.ex:484
 #, elixir-autogen, elixir-format
 msgid "Presents Animal"
-msgstr ""
+msgstr "在场猪只"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:72
 #, elixir-autogen, elixir-format
 msgid "Preview:"
-msgstr ""
+msgstr "预览："
 
 #: lib/peggy_web/live/farm_live/reports/performance.ex:37
 #, elixir-autogen, elixir-format
@@ -3685,22 +3685,22 @@ msgstr "打印"
 #: lib/peggy_web/live/farm_live/animals_print.ex:139
 #, elixir-autogen, elixir-format
 msgid "Print — Animals"
-msgstr ""
+msgstr "打印 — 猪只"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:133
 #, elixir-autogen, elixir-format
 msgid "Print — Gestating sows"
-msgstr ""
+msgstr "打印 — 妊娠母猪"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:143
 #, elixir-autogen, elixir-format
 msgid "Print — Lactating sows"
-msgstr ""
+msgstr "打印 — 哺乳母猪"
 
 #: lib/peggy_web/live/farm_live/reports/performance_print.ex:92
 #, elixir-autogen, elixir-format
 msgid "Print — Performance Analysis"
-msgstr ""
+msgstr "打印 — 绩效分析"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:440
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:635
@@ -3711,22 +3711,22 @@ msgstr "升级"
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:146
 #, elixir-autogen, elixir-format
 msgid "Promote (%{n})"
-msgstr ""
+msgstr "升级 (%{n})"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:123
 #, elixir-autogen, elixir-format
 msgid "Promote all %{n} batches to %{stage}?"
-msgstr ""
+msgstr "将全部 %{n} 个批次升级到 %{stage}？"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:39
 #, elixir-autogen, elixir-format
 msgid "Promote batch animals"
-msgstr ""
+msgstr "升级批次猪只"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:419
 #, elixir-autogen, elixir-format
 msgid "Promote batch stage"
-msgstr ""
+msgstr "升级批次阶段"
 
 #: lib/peggy_web/live/farm_live/animals.ex:26
 #: lib/peggy_web/live/mobile_live/animals.ex:50
@@ -3746,29 +3746,29 @@ msgstr "升级阶段"
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:268
 #, elixir-autogen, elixir-format
 msgid "Promoted %{n} batches, %{m} failed."
-msgstr ""
+msgstr "%{n} 个批次已升级，%{m} 个失败。"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:373
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:266
 #, elixir-autogen, elixir-format
 msgid "Promoted %{n} batches."
-msgstr ""
+msgstr "%{n} 个批次已升级。"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:439
 #, elixir-autogen, elixir-format
 msgid "Promoting..."
-msgstr ""
+msgstr "升级中..."
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:632
 #, elixir-autogen, elixir-format
 msgid "Promoting…"
-msgstr ""
+msgstr "升级中…"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:49
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:52
 #, elixir-autogen, elixir-format
 msgid "Prty"
-msgstr ""
+msgstr "胎次"
 
 #: lib/peggy_web/live/farm_live/locations.ex:92
 #, elixir-autogen, elixir-format, fuzzy
@@ -3799,7 +3799,7 @@ msgstr "数量"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:442
 #, elixir-autogen, elixir-format
 msgid "Quantity (max %{n})"
-msgstr ""
+msgstr "数量（最多 %{n}）"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:938
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:987
@@ -3807,7 +3807,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:1048
 #, elixir-autogen, elixir-format
 msgid "Quantity exceeds surviving piglets."
-msgstr ""
+msgstr "数量超过存活仔猪数。"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:935
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:983
@@ -3838,7 +3838,7 @@ msgstr "已复配"
 #: lib/peggy_web/live/farm_live/restore.ex:96
 #, elixir-autogen, elixir-format
 msgid "Reading the file and rebuilding the farm. Large backups can take a minute or two — please don't navigate away."
-msgstr ""
+msgstr "正在读取文件并重建农场。大型备份可能需要一两分钟 — 请勿离开页面。"
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:39
 #, elixir-autogen, elixir-format
@@ -3853,123 +3853,123 @@ msgstr "就绪"
 #: lib/peggy_web/live/mobile_live/breeding/movement_form.ex:50
 #, elixir-autogen, elixir-format
 msgid "Reason"
-msgstr ""
+msgstr "原因"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:387
 #, elixir-autogen, elixir-format
 msgid "Rec. Death"
-msgstr ""
+msgstr "记录死亡"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:480
 #, elixir-autogen, elixir-format
 msgid "Rec. Foster"
-msgstr ""
+msgstr "记录寄养"
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:253
 #, elixir-autogen, elixir-format
 msgid "Recent activity"
-msgstr ""
+msgstr "最近活动"
 
 #: lib/peggy_web/live/farm_live/breeding/weaned.ex:20
 #, elixir-autogen, elixir-format
 msgid "Recently weaned litters"
-msgstr ""
+msgstr "最近断奶的窝"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:303
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:571
 #: lib/peggy_web/live/mobile_live/breeding/movement_form.ex:169
 #, elixir-autogen, elixir-format
 msgid "Record"
-msgstr ""
+msgstr "记录"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:283
 #, elixir-autogen, elixir-format
 msgid "Record Death"
-msgstr ""
+msgstr "记录死亡"
 
 #: lib/peggy_web/components/layouts.ex:553
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:467
 #, elixir-autogen, elixir-format
 msgid "Record Farrowing"
-msgstr ""
+msgstr "记录分娩"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:292
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:341
 #, elixir-autogen, elixir-format
 msgid "Record Fostering"
-msgstr ""
+msgstr "记录寄养"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:247
 #, elixir-autogen, elixir-format
 msgid "Record Pre-Wean Death"
-msgstr ""
+msgstr "记录断奶前死亡"
 
 #: lib/peggy_web/components/layouts.ex:546
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:245
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:212
 #, elixir-autogen, elixir-format
 msgid "Record Service"
-msgstr ""
+msgstr "记录配种"
 
 #: lib/peggy_web/components/layouts.ex:558
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:413
 #, elixir-autogen, elixir-format
 msgid "Record Weaning"
-msgstr ""
+msgstr "记录断奶"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:34
 #, elixir-autogen, elixir-format
 msgid "Record abortion, death, or cull — unknown ear tags become new sows on commit. Served-at defaults to result date minus 60 days."
-msgstr ""
+msgstr "记录流产、死亡或淘汰 — 未知耳标在提交时成为新母猪。配种日期默认为结果日期减 60 天。"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:839
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:870
 #, elixir-autogen, elixir-format
 msgid "Record confirmed as reviewed."
-msgstr ""
+msgstr "记录已确认审核。"
 
 #: lib/peggy_web/live/mobile_live/dashboard.ex:91
 #, elixir-autogen, elixir-format
 msgid "Record farrowings, close failed services"
-msgstr ""
+msgstr "记录分娩，关闭失败的配种"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:204
 #, elixir-autogen, elixir-format
 msgid "Record fostering"
-msgstr ""
+msgstr "记录寄养"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:239
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:81
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:441
 #, elixir-autogen, elixir-format
 msgid "Record movement"
-msgstr ""
+msgstr "记录移动"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:196
 #, elixir-autogen, elixir-format
 msgid "Record pre-wean death"
-msgstr ""
+msgstr "记录断奶前死亡"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:302
 #, elixir-autogen, elixir-format
 msgid "Recording..."
-msgstr ""
+msgstr "记录中..."
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:568
 #: lib/peggy_web/live/mobile_live/breeding/movement_form.ex:166
 #, elixir-autogen, elixir-format
 msgid "Recording…"
-msgstr ""
+msgstr "记录中…"
 
 #: lib/peggy_web/live/farm_live/dashboard.ex:82
 #, elixir-autogen, elixir-format
 msgid "Records needing review"
-msgstr ""
+msgstr "需审核的记录"
 
 #: lib/peggy_web/live/farm_live/breeding.ex:47
 #, elixir-autogen, elixir-format
 msgid "Redirecting…"
-msgstr ""
+msgstr "正在跳转…"
 
 #: lib/peggy_web/live/farm_live/animals_print.ex:24
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:24
@@ -3977,7 +3977,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/dashboard.ex:17
 #, elixir-autogen, elixir-format
 msgid "Reference date"
-msgstr ""
+msgstr "参考日期"
 
 #: lib/peggy_web/components/layouts.ex:489
 #: lib/peggy_web/live/farm_live/animals.ex:383
@@ -3986,32 +3986,32 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/animals.ex:280
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Register animal"
-msgstr ""
+msgstr "登记猪只"
 
 #: lib/peggy_web/live/farm_live/batch_register.ex:27
 #, elixir-autogen, elixir-format
 msgid "Register multiple individual animals at once"
-msgstr ""
+msgstr "一次登记多头个体猪"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:539
 #, elixir-autogen, elixir-format
 msgid "Register new sow + backfill service"
-msgstr ""
+msgstr "登记新母猪 + 回填配种"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:469
 #, elixir-autogen, elixir-format
 msgid "Register new sow + backfill service & farrowing"
-msgstr ""
+msgstr "登记新母猪 + 回填配种和分娩"
 
 #: lib/peggy_web/live/farm_live/batch_register.ex:242
 #, elixir-autogen, elixir-format
 msgid "Registered %{n} animals."
-msgstr ""
+msgstr "已登记 %{n} 头猪。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:225
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Removals"
-msgstr ""
+msgstr "移除"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:193
 #: lib/peggy_web/live/farm_live/batch_entry.ex:153
@@ -4023,13 +4023,13 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/herd_import.ex:179
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Remove row"
-msgstr ""
+msgstr "移除行"
 
 #: lib/peggy_web/live/farm_live/tasks.ex:145
 #: lib/peggy_web/live/mobile_live/tasks.ex:99
 #, elixir-autogen, elixir-format
 msgid "Reopen"
-msgstr ""
+msgstr "重新打开"
 
 #: lib/peggy_web/components/layouts.ex:595
 #: lib/peggy_web/live/farm_live/reports.ex:325
@@ -4041,7 +4041,7 @@ msgstr "报告"
 #: lib/peggy_web/live/farm_live/data_import.ex:59
 #, elixir-autogen, elixir-format
 msgid "Required: sows.csv. Other files are optional. Column specs are in IMPORT_LEGACY_DATA.md (or download a header-only template below)."
-msgstr ""
+msgstr "必需：sows.csv。其他文件可选。列规格见 IMPORT_LEGACY_DATA.md（或在下方下载仅含表头的模板）。"
 
 #: lib/peggy_web/live/mobile_live/animals.ex:255
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:640
@@ -4049,62 +4049,62 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:232
 #, elixir-autogen, elixir-format
 msgid "Reset filters"
-msgstr ""
+msgstr "重置筛选"
 
 #: lib/peggy_web/live/farm_live/index.ex:102
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Restore"
-msgstr ""
+msgstr "恢复"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:44
 #, elixir-autogen, elixir-format
 msgid "Restore a backup into a new farm"
-msgstr ""
+msgstr "将备份恢复到新农场"
 
 #: lib/peggy_web/live/farm_live/restore.ex:24
 #, elixir-autogen, elixir-format
 msgid "Restore a farm from backup"
-msgstr ""
+msgstr "从备份恢复农场"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:124
 #: lib/peggy_web/live/farm_live/restore.ex:105
 #, elixir-autogen, elixir-format
 msgid "Restore complete"
-msgstr ""
+msgstr "恢复完成"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:253
 #: lib/peggy_web/live/farm_live/restore.ex:225
 #, elixir-autogen, elixir-format
 msgid "Restore failed: %{err}"
-msgstr ""
+msgstr "恢复失败：%{err}"
 
 #: lib/peggy_web/live/farm_live/index.ex:115
 #, elixir-autogen, elixir-format
 msgid "Restore from backup"
-msgstr ""
+msgstr "从备份恢复"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:101
 #: lib/peggy_web/live/farm_live/restore.ex:80
 #, elixir-autogen, elixir-format
 msgid "Restore into new farm"
-msgstr ""
+msgstr "恢复到新农场"
 
 #: lib/peggy_web/live/farm_live/index.ex:100
 #, elixir-autogen, elixir-format
 msgid "Restore this farm?"
-msgstr ""
+msgstr "恢复此农场？"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:113
 #: lib/peggy_web/live/farm_live/restore.ex:94
 #, elixir-autogen, elixir-format
 msgid "Restoring backup..."
-msgstr ""
+msgstr "正在恢复备份..."
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:100
 #: lib/peggy_web/live/farm_live/restore.ex:79
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Restoring..."
-msgstr ""
+msgstr "恢复中..."
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:52
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:35
@@ -4113,77 +4113,77 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:340
 #, elixir-autogen, elixir-format
 msgid "Result"
-msgstr ""
+msgstr "结果"
 
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:119
 #, elixir-autogen, elixir-format
 msgid "Result at"
-msgstr ""
+msgstr "结果于"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:53
 #, elixir-autogen, elixir-format
 msgid "Result date"
-msgstr ""
+msgstr "结果日期"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:307
 #, elixir-autogen, elixir-format
 msgid "Reuse an existing id to pool; new id starts a fresh batch."
-msgstr ""
+msgstr "重用现有 id 以合并；新 id 开始新批次。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:142
 #, elixir-autogen, elixir-format
 msgid "Roll back this import? This deletes %{a} animals, %{s} services, %{f} farrowings, %{w} weanings."
-msgstr ""
+msgstr "回滚此导入？这将删除 %{a} 头猪、%{s} 次配种、%{f} 次分娩、%{w} 次断奶。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:153
 #, elixir-autogen, elixir-format
 msgid "Rollback"
-msgstr ""
+msgstr "回滚"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:648
 #, elixir-autogen, elixir-format
 msgid "Rollback failed: post-import dependencies block deletion (%{msg})."
-msgstr ""
+msgstr "回滚失败：导入后的依赖阻止删除（%{msg}）。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:631
 #, elixir-autogen, elixir-format
 msgid "Rolled back %{a} animals, %{s} services, %{f} farrowings, %{w} weanings, %{m} movements."
-msgstr ""
+msgstr "已回滚 %{a} 头猪、%{s} 次配种、%{f} 次分娩、%{w} 次断奶、%{m} 次移动。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:120
 #, elixir-autogen, elixir-format
 msgid "Rolling back deletes all rows tagged with the run id (animals, services, farrowings, weanings). Houses and pens are not removed. Rollback fails if any tagged row has post-import dependencies (e.g. a farrowing recorded by hand against an imported sow)."
-msgstr ""
+msgstr "回滚会删除所有标记了运行 id 的行（猪只、配种、分娩、断奶）。猪舍和栏不会被移除。如果任何标记的行存在导入后依赖（例如对导入母猪手动记录的分娩），回滚将失败。"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:665
 #, elixir-autogen, elixir-format
 msgid "Rolling back import..."
-msgstr ""
+msgstr "正在回滚导入..."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:454
 #, elixir-autogen, elixir-format
 msgid "Row"
-msgstr ""
+msgstr "行"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:373
 #, elixir-autogen, elixir-format
 msgid "Row %{i} invalid: %{m}"
-msgstr ""
+msgstr "第 %{i} 行无效：%{m}"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:313
 #, elixir-autogen, elixir-format
 msgid "Run another import"
-msgstr ""
+msgstr "运行另一次导入"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:281
 #, elixir-autogen, elixir-format
 msgid "Run id"
-msgstr ""
+msgstr "运行 id"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:54
 #, elixir-autogen, elixir-format
 msgid "SLive"
-msgstr ""
+msgstr "SLive"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:544
 #: lib/peggy_web/live/farm_live/animals.ex:313
@@ -4199,43 +4199,43 @@ msgstr "保存"
 #: lib/peggy_web/live/farm_live/settings.ex:285
 #, elixir-autogen, elixir-format
 msgid "Save breeding parameters"
-msgstr ""
+msgstr "保存繁殖参数"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:273
 #, elixir-autogen, elixir-format
 msgid "Save failed: %{m}"
-msgstr ""
+msgstr "保存失败：%{m}"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1341
 #, elixir-autogen, elixir-format
 msgid "Save farrowing + backfill service"
-msgstr ""
+msgstr "保存分娩 + 回填配种"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1338
 #, elixir-autogen, elixir-format
 msgid "Save farrowing + register sow"
-msgstr ""
+msgstr "保存分娩 + 登记母猪"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1572
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:311
 #, elixir-autogen, elixir-format
 msgid "Save service"
-msgstr ""
+msgstr "保存配种"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1570
 #, elixir-autogen, elixir-format
 msgid "Save service + register sow"
-msgstr ""
+msgstr "保存配种 + 登记母猪"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1345
 #, elixir-autogen, elixir-format
 msgid "Save weaning + backfill farrowing"
-msgstr ""
+msgstr "保存断奶 + 回填分娩"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1342
 #, elixir-autogen, elixir-format
 msgid "Save weaning + register sow"
-msgstr ""
+msgstr "保存断奶 + 登记母猪"
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:412
 #: lib/peggy_web/live/mobile_live/animals.ex:426
@@ -4248,7 +4248,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/tasks.ex:198
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Saving…"
-msgstr ""
+msgstr "保存中…"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:514
 #: lib/peggy_web/live/farm_live/animal_detail.ex:525
@@ -4257,12 +4257,12 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:401
 #, elixir-autogen, elixir-format
 msgid "Search by ear tag..."
-msgstr ""
+msgstr "按耳标搜索..."
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:95
 #, elixir-autogen, elixir-format
 msgid "Search pen..."
-msgstr ""
+msgstr "搜索栏..."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:268
 #: lib/peggy_web/live/farm_live/animal_detail.ex:285
@@ -4272,48 +4272,48 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:284
 #, elixir-autogen, elixir-format
 msgid "Search pens..."
-msgstr ""
+msgstr "搜索栏..."
 
 #: lib/peggy_web/live/mobile_live/locations.ex:26
 #, elixir-autogen, elixir-format
 msgid "Search pen…"
-msgstr ""
+msgstr "搜索栏…"
 
 #: lib/peggy_web/live/farm_live/breeding/weaned.ex:32
 #, elixir-autogen, elixir-format
 msgid "Search sow tag"
-msgstr ""
+msgstr "搜索母猪标签"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:317
 #, elixir-autogen, elixir-format
 msgid "Search sows..."
-msgstr ""
+msgstr "搜索母猪..."
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:80
 #, elixir-autogen, elixir-format
 msgid "Search tag..."
-msgstr ""
+msgstr "搜索标签..."
 
 #: lib/peggy_web/live/farm_live/batch_entry.ex:114
 #: lib/peggy_web/live/farm_live/batch_entry.ex:127
 #, elixir-autogen, elixir-format
 msgid "Search..."
-msgstr ""
+msgstr "搜索..."
 
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:164
 #, elixir-autogen, elixir-format
 msgid "Select all"
-msgstr ""
+msgstr "全选"
 
 #: lib/peggy_web/live/farm_live/tasks.ex:69
 #, elixir-autogen, elixir-format
 msgid "Selected"
-msgstr ""
+msgstr "已选"
 
 #: lib/peggy_web/live/farm_live/batch_service.ex:50
 #, elixir-autogen, elixir-format
 msgid "Semen"
-msgstr ""
+msgstr "精液"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:407
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:266
@@ -4321,18 +4321,18 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:363
 #, elixir-autogen, elixir-format
 msgid "Semen (optional)"
-msgstr ""
+msgstr "精液（可选）"
 
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:465
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:371
 #, elixir-autogen, elixir-format
 msgid "Semen code"
-msgstr ""
+msgstr "精液编号"
 
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:392
 #, elixir-autogen, elixir-format
 msgid "Serv. Closed"
-msgstr ""
+msgstr "配种已结束"
 
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:34
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:146
@@ -4347,7 +4347,7 @@ msgstr "已配种"
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:173
 #, elixir-autogen, elixir-format
 msgid "Served (still in heat)"
-msgstr ""
+msgstr "已配（仍在发情）"
 
 #: lib/peggy_web/live/farm_live/batch_service.ex:51
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:382
@@ -4358,27 +4358,27 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:352
 #, elixir-autogen, elixir-format
 msgid "Served at"
-msgstr ""
+msgstr "配种于"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:54
 #, elixir-autogen, elixir-format
 msgid "Served at (backfill)"
-msgstr ""
+msgstr "配种于（回填）"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:522
 #, elixir-autogen, elixir-format
 msgid "Served at (defaults to farrowed − %{n}d)"
-msgstr ""
+msgstr "配种于（默认为分娩 − %{n} 天）"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:577
 #, elixir-autogen, elixir-format
 msgid "Served at (defaults to farrowed − 114d)"
-msgstr ""
+msgstr "配种于（默认为分娩 − 114 天）"
 
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:893
 #, elixir-autogen, elixir-format
 msgid "Served-at date is required."
-msgstr ""
+msgstr "需要配种日期。"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1095
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:194
@@ -4391,13 +4391,13 @@ msgstr "配种"
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:1195
 #, elixir-autogen, elixir-format
 msgid "Service closed"
-msgstr ""
+msgstr "配种已结束"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1004
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:909
 #, elixir-autogen, elixir-format
 msgid "Service closed."
-msgstr ""
+msgstr "配种已结束。"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1273
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1513

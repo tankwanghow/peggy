@@ -3582,47 +3582,47 @@ msgstr "Analisis Prestasi"
 #: lib/peggy_web/live/farm_live/backup_restore.ex:46
 #, elixir-autogen, elixir-format
 msgid "Pick a backup file and the slug + name for the new farm. You'll become its owner. Animals, services, and other rows are inserted with fresh IDs; user references (technicians, assignees) are cleared."
-msgstr ""
+msgstr "Pilih fail sandaran dan slug + nama untuk ladang baharu. Anda akan menjadi pemiliknya. Ternakan, kawin dan baris lain dimasukkan dengan ID baharu; rujukan pengguna (juruteknik, penerima tugas) dikosongkan."
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:1024
 #, elixir-autogen, elixir-format
 msgid "Pick a destination sow before saving."
-msgstr ""
+msgstr "Pilih babi ibu destinasi sebelum menyimpan."
 
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:1037
 #, elixir-autogen, elixir-format
 msgid "Pick a serviceable sow before saving."
-msgstr ""
+msgstr "Pilih babi ibu boleh dikawin sebelum menyimpan."
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1360
 #, elixir-autogen, elixir-format
 msgid "Pick an existing tag or tick \"Create anyway\" to override."
-msgstr ""
+msgstr "Pilih tag sedia ada atau tandakan \"Cipta juga\" untuk menggantikan."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1101
 #, elixir-autogen, elixir-format
 msgid "Piglet death"
-msgstr ""
+msgstr "Kematian anak babi"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1107
 #, elixir-autogen, elixir-format
 msgid "Piglet foster-in"
-msgstr ""
+msgstr "Tukar masuk anak babi"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1104
 #, elixir-autogen, elixir-format
 msgid "Piglet foster-out"
-msgstr ""
+msgstr "Tukar keluar anak babi"
 
 #: lib/peggy_web/live/farm_live/reports.ex:99
 #, elixir-autogen, elixir-format
 msgid "Pigs weaned / sow / year"
-msgstr ""
+msgstr "Babi dicerai susu / babi ibu / tahun"
 
 #: lib/peggy_web/live/farm_live/settings.ex:117
 #, elixir-autogen, elixir-format
 msgid "Pin a date the app uses for age, lactation length, gestation day, and other date-of-day calculations. Leave blank to use the real date. Audit timestamps and record-creation times always use real time."
-msgstr ""
+msgstr "Tetapkan tarikh yang digunakan aplikasi untuk umur, tempoh penyusuan, hari kebuntingan dan pengiraan tarikh harian lain. Biarkan kosong untuk guna tarikh sebenar. Cap masa audit dan masa penciptaan rekod sentiasa guna masa sebenar."
 
 #: lib/peggy_web/live/farm_live/reports.ex:128
 #, elixir-autogen, elixir-format
@@ -3643,7 +3643,7 @@ msgstr "Penempatan"
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1313
 #, elixir-autogen, elixir-format
 msgid "Pooling into existing batch — %{n} head."
-msgstr ""
+msgstr "Menggabung ke kumpulan sedia ada — %{n} ekor."
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:931
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:962
@@ -3659,23 +3659,23 @@ msgstr "Kematian sebelum cerai susu"
 #: lib/peggy_web/live/farm_live/house_detail.ex:46
 #, elixir-autogen, elixir-format
 msgid "Prefix"
-msgstr ""
+msgstr "Awalan"
 
 #: lib/peggy_web/live/farm_live/animals.ex:818
 #: lib/peggy_web/live/mobile_live/animals.ex:905
 #, elixir-autogen, elixir-format
 msgid "Present (any)"
-msgstr ""
+msgstr "Hadir (mana-mana)"
 
 #: lib/peggy_web/components/layouts.ex:484
 #, elixir-autogen, elixir-format
 msgid "Presents Animal"
-msgstr ""
+msgstr "Ternakan Hadir"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:72
 #, elixir-autogen, elixir-format
 msgid "Preview:"
-msgstr ""
+msgstr "Pratonton:"
 
 #: lib/peggy_web/live/farm_live/reports/performance.ex:37
 #, elixir-autogen, elixir-format
@@ -3685,22 +3685,22 @@ msgstr "Cetak"
 #: lib/peggy_web/live/farm_live/animals_print.ex:139
 #, elixir-autogen, elixir-format
 msgid "Print — Animals"
-msgstr ""
+msgstr "Cetak — Ternakan"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:133
 #, elixir-autogen, elixir-format
 msgid "Print — Gestating sows"
-msgstr ""
+msgstr "Cetak — Babi Ibu bunting"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:143
 #, elixir-autogen, elixir-format
 msgid "Print — Lactating sows"
-msgstr ""
+msgstr "Cetak — Babi Ibu menyusu"
 
 #: lib/peggy_web/live/farm_live/reports/performance_print.ex:92
 #, elixir-autogen, elixir-format
 msgid "Print — Performance Analysis"
-msgstr ""
+msgstr "Cetak — Analisis Prestasi"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:440
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:635
@@ -3711,22 +3711,22 @@ msgstr "Naik taraf"
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:146
 #, elixir-autogen, elixir-format
 msgid "Promote (%{n})"
-msgstr ""
+msgstr "Naik taraf (%{n})"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:123
 #, elixir-autogen, elixir-format
 msgid "Promote all %{n} batches to %{stage}?"
-msgstr ""
+msgstr "Naik taraf semua %{n} kumpulan ke %{stage}?"
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:39
 #, elixir-autogen, elixir-format
 msgid "Promote batch animals"
-msgstr ""
+msgstr "Naik taraf ternakan kumpulan"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:419
 #, elixir-autogen, elixir-format
 msgid "Promote batch stage"
-msgstr ""
+msgstr "Naik taraf peringkat kumpulan"
 
 #: lib/peggy_web/live/farm_live/animals.ex:26
 #: lib/peggy_web/live/mobile_live/animals.ex:50
@@ -3746,29 +3746,29 @@ msgstr "Naik taraf peringkat"
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:268
 #, elixir-autogen, elixir-format
 msgid "Promoted %{n} batches, %{m} failed."
-msgstr ""
+msgstr "%{n} kumpulan dinaik taraf, %{m} gagal."
 
 #: lib/peggy_web/live/farm_live/promote_batches.ex:373
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:266
 #, elixir-autogen, elixir-format
 msgid "Promoted %{n} batches."
-msgstr ""
+msgstr "%{n} kumpulan dinaik taraf."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:439
 #, elixir-autogen, elixir-format
 msgid "Promoting..."
-msgstr ""
+msgstr "Menaik taraf..."
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:632
 #, elixir-autogen, elixir-format
 msgid "Promoting…"
-msgstr ""
+msgstr "Menaik taraf…"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:49
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:52
 #, elixir-autogen, elixir-format
 msgid "Prty"
-msgstr ""
+msgstr "Plt"
 
 #: lib/peggy_web/live/farm_live/locations.ex:92
 #, elixir-autogen, elixir-format, fuzzy
@@ -3799,7 +3799,7 @@ msgstr "Kuantiti"
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:442
 #, elixir-autogen, elixir-format
 msgid "Quantity (max %{n})"
-msgstr ""
+msgstr "Kuantiti (maks %{n})"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:938
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:987
@@ -3807,7 +3807,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:1048
 #, elixir-autogen, elixir-format
 msgid "Quantity exceeds surviving piglets."
-msgstr ""
+msgstr "Kuantiti melebihi anak babi yang hidup."
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:935
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:983
@@ -3838,7 +3838,7 @@ msgstr "Dikawin semula"
 #: lib/peggy_web/live/farm_live/restore.ex:96
 #, elixir-autogen, elixir-format
 msgid "Reading the file and rebuilding the farm. Large backups can take a minute or two — please don't navigate away."
-msgstr ""
+msgstr "Membaca fail dan membina semula ladang. Sandaran besar boleh mengambil masa seminit dua — sila jangan tinggalkan halaman."
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:39
 #, elixir-autogen, elixir-format
@@ -3853,123 +3853,123 @@ msgstr "Sedia"
 #: lib/peggy_web/live/mobile_live/breeding/movement_form.ex:50
 #, elixir-autogen, elixir-format
 msgid "Reason"
-msgstr ""
+msgstr "Sebab"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:387
 #, elixir-autogen, elixir-format
 msgid "Rec. Death"
-msgstr ""
+msgstr "Rek. Kematian"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:480
 #, elixir-autogen, elixir-format
 msgid "Rec. Foster"
-msgstr ""
+msgstr "Rek. Tukar anak"
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:253
 #, elixir-autogen, elixir-format
 msgid "Recent activity"
-msgstr ""
+msgstr "Aktiviti terkini"
 
 #: lib/peggy_web/live/farm_live/breeding/weaned.ex:20
 #, elixir-autogen, elixir-format
 msgid "Recently weaned litters"
-msgstr ""
+msgstr "Sekandang baru dicerai susu"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:303
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:571
 #: lib/peggy_web/live/mobile_live/breeding/movement_form.ex:169
 #, elixir-autogen, elixir-format
 msgid "Record"
-msgstr ""
+msgstr "Rekod"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:283
 #, elixir-autogen, elixir-format
 msgid "Record Death"
-msgstr ""
+msgstr "Rekod Kematian"
 
 #: lib/peggy_web/components/layouts.ex:553
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:467
 #, elixir-autogen, elixir-format
 msgid "Record Farrowing"
-msgstr ""
+msgstr "Rekod Beranak"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:292
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:341
 #, elixir-autogen, elixir-format
 msgid "Record Fostering"
-msgstr ""
+msgstr "Rekod Tukar Anak"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:247
 #, elixir-autogen, elixir-format
 msgid "Record Pre-Wean Death"
-msgstr ""
+msgstr "Rekod Kematian Sebelum Cerai Susu"
 
 #: lib/peggy_web/components/layouts.ex:546
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:245
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:212
 #, elixir-autogen, elixir-format
 msgid "Record Service"
-msgstr ""
+msgstr "Rekod Kawin"
 
 #: lib/peggy_web/components/layouts.ex:558
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:413
 #, elixir-autogen, elixir-format
 msgid "Record Weaning"
-msgstr ""
+msgstr "Rekod Cerai Susu"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:34
 #, elixir-autogen, elixir-format
 msgid "Record abortion, death, or cull — unknown ear tags become new sows on commit. Served-at defaults to result date minus 60 days."
-msgstr ""
+msgstr "Rekod keguguran, kematian atau singkir — tag telinga tidak dikenali menjadi babi ibu baharu semasa laksana. Served-at lalai kepada tarikh hasil tolak 60 hari."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:839
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:870
 #, elixir-autogen, elixir-format
 msgid "Record confirmed as reviewed."
-msgstr ""
+msgstr "Rekod disahkan sebagai disemak."
 
 #: lib/peggy_web/live/mobile_live/dashboard.ex:91
 #, elixir-autogen, elixir-format
 msgid "Record farrowings, close failed services"
-msgstr ""
+msgstr "Rekod beranak, tutup kawin gagal"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:204
 #, elixir-autogen, elixir-format
 msgid "Record fostering"
-msgstr ""
+msgstr "Rekod tukar anak"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:239
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:81
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:441
 #, elixir-autogen, elixir-format
 msgid "Record movement"
-msgstr ""
+msgstr "Rekod pergerakan"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:196
 #, elixir-autogen, elixir-format
 msgid "Record pre-wean death"
-msgstr ""
+msgstr "Rekod kematian sebelum cerai susu"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:302
 #, elixir-autogen, elixir-format
 msgid "Recording..."
-msgstr ""
+msgstr "Merekod..."
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:568
 #: lib/peggy_web/live/mobile_live/breeding/movement_form.ex:166
 #, elixir-autogen, elixir-format
 msgid "Recording…"
-msgstr ""
+msgstr "Merekod…"
 
 #: lib/peggy_web/live/farm_live/dashboard.ex:82
 #, elixir-autogen, elixir-format
 msgid "Records needing review"
-msgstr ""
+msgstr "Rekod memerlukan semakan"
 
 #: lib/peggy_web/live/farm_live/breeding.ex:47
 #, elixir-autogen, elixir-format
 msgid "Redirecting…"
-msgstr ""
+msgstr "Mengubah hala…"
 
 #: lib/peggy_web/live/farm_live/animals_print.ex:24
 #: lib/peggy_web/live/farm_live/breeding/gestating_print.ex:24
@@ -3977,7 +3977,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/dashboard.ex:17
 #, elixir-autogen, elixir-format
 msgid "Reference date"
-msgstr ""
+msgstr "Tarikh rujukan"
 
 #: lib/peggy_web/components/layouts.ex:489
 #: lib/peggy_web/live/farm_live/animals.ex:383
@@ -3986,32 +3986,32 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/animals.ex:280
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Register animal"
-msgstr ""
+msgstr "Daftar ternakan"
 
 #: lib/peggy_web/live/farm_live/batch_register.ex:27
 #, elixir-autogen, elixir-format
 msgid "Register multiple individual animals at once"
-msgstr ""
+msgstr "Daftar beberapa ternakan individu sekaligus"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:539
 #, elixir-autogen, elixir-format
 msgid "Register new sow + backfill service"
-msgstr ""
+msgstr "Daftar babi ibu baharu + isi semula kawin"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:469
 #, elixir-autogen, elixir-format
 msgid "Register new sow + backfill service & farrowing"
-msgstr ""
+msgstr "Daftar babi ibu baharu + isi semula kawin & beranak"
 
 #: lib/peggy_web/live/farm_live/batch_register.ex:242
 #, elixir-autogen, elixir-format
 msgid "Registered %{n} animals."
-msgstr ""
+msgstr "%{n} ekor didaftarkan."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:225
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Removals"
-msgstr ""
+msgstr "Pengeluaran"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:193
 #: lib/peggy_web/live/farm_live/batch_entry.ex:153
@@ -4023,13 +4023,13 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/herd_import.ex:179
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Remove row"
-msgstr ""
+msgstr "Keluarkan baris"
 
 #: lib/peggy_web/live/farm_live/tasks.ex:145
 #: lib/peggy_web/live/mobile_live/tasks.ex:99
 #, elixir-autogen, elixir-format
 msgid "Reopen"
-msgstr ""
+msgstr "Buka semula"
 
 #: lib/peggy_web/components/layouts.ex:595
 #: lib/peggy_web/live/farm_live/reports.ex:325
@@ -4041,7 +4041,7 @@ msgstr "Laporan"
 #: lib/peggy_web/live/farm_live/data_import.ex:59
 #, elixir-autogen, elixir-format
 msgid "Required: sows.csv. Other files are optional. Column specs are in IMPORT_LEGACY_DATA.md (or download a header-only template below)."
-msgstr ""
+msgstr "Diperlukan: sows.csv. Fail lain pilihan. Spesifikasi lajur ada dalam IMPORT_LEGACY_DATA.md (atau muat turun templat tajuk sahaja di bawah)."
 
 #: lib/peggy_web/live/mobile_live/animals.ex:255
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:640
@@ -4049,62 +4049,62 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:232
 #, elixir-autogen, elixir-format
 msgid "Reset filters"
-msgstr ""
+msgstr "Set semula penapis"
 
 #: lib/peggy_web/live/farm_live/index.ex:102
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Restore"
-msgstr ""
+msgstr "Pulih"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:44
 #, elixir-autogen, elixir-format
 msgid "Restore a backup into a new farm"
-msgstr ""
+msgstr "Pulihkan sandaran ke ladang baharu"
 
 #: lib/peggy_web/live/farm_live/restore.ex:24
 #, elixir-autogen, elixir-format
 msgid "Restore a farm from backup"
-msgstr ""
+msgstr "Pulihkan ladang daripada sandaran"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:124
 #: lib/peggy_web/live/farm_live/restore.ex:105
 #, elixir-autogen, elixir-format
 msgid "Restore complete"
-msgstr ""
+msgstr "Pemulihan selesai"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:253
 #: lib/peggy_web/live/farm_live/restore.ex:225
 #, elixir-autogen, elixir-format
 msgid "Restore failed: %{err}"
-msgstr ""
+msgstr "Pemulihan gagal: %{err}"
 
 #: lib/peggy_web/live/farm_live/index.ex:115
 #, elixir-autogen, elixir-format
 msgid "Restore from backup"
-msgstr ""
+msgstr "Pulihkan daripada sandaran"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:101
 #: lib/peggy_web/live/farm_live/restore.ex:80
 #, elixir-autogen, elixir-format
 msgid "Restore into new farm"
-msgstr ""
+msgstr "Pulihkan ke ladang baharu"
 
 #: lib/peggy_web/live/farm_live/index.ex:100
 #, elixir-autogen, elixir-format
 msgid "Restore this farm?"
-msgstr ""
+msgstr "Pulihkan ladang ini?"
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:113
 #: lib/peggy_web/live/farm_live/restore.ex:94
 #, elixir-autogen, elixir-format
 msgid "Restoring backup..."
-msgstr ""
+msgstr "Memulihkan sandaran..."
 
 #: lib/peggy_web/live/farm_live/backup_restore.ex:100
 #: lib/peggy_web/live/farm_live/restore.ex:79
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Restoring..."
-msgstr ""
+msgstr "Memulihkan..."
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:52
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:35
@@ -4113,77 +4113,77 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:340
 #, elixir-autogen, elixir-format
 msgid "Result"
-msgstr ""
+msgstr "Hasil"
 
 #: lib/peggy_web/live/farm_live/reports/inferred.ex:119
 #, elixir-autogen, elixir-format
 msgid "Result at"
-msgstr ""
+msgstr "Hasil pada"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:53
 #, elixir-autogen, elixir-format
 msgid "Result date"
-msgstr ""
+msgstr "Tarikh hasil"
 
 #: lib/peggy_web/live/mobile_live/breeding/lactating.ex:307
 #, elixir-autogen, elixir-format
 msgid "Reuse an existing id to pool; new id starts a fresh batch."
-msgstr ""
+msgstr "Guna semula id sedia ada untuk gabung; id baharu memulakan kumpulan baharu."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:142
 #, elixir-autogen, elixir-format
 msgid "Roll back this import? This deletes %{a} animals, %{s} services, %{f} farrowings, %{w} weanings."
-msgstr ""
+msgstr "Gulung balik import ini? Ini memadam %{a} ternakan, %{s} kawin, %{f} beranak, %{w} cerai susu."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:153
 #, elixir-autogen, elixir-format
 msgid "Rollback"
-msgstr ""
+msgstr "Gulung balik"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:648
 #, elixir-autogen, elixir-format
 msgid "Rollback failed: post-import dependencies block deletion (%{msg})."
-msgstr ""
+msgstr "Gulung balik gagal: kebergantungan selepas import menyekat pemadaman (%{msg})."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:631
 #, elixir-autogen, elixir-format
 msgid "Rolled back %{a} animals, %{s} services, %{f} farrowings, %{w} weanings, %{m} movements."
-msgstr ""
+msgstr "Digulung balik %{a} ternakan, %{s} kawin, %{f} beranak, %{w} cerai susu, %{m} pergerakan."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:120
 #, elixir-autogen, elixir-format
 msgid "Rolling back deletes all rows tagged with the run id (animals, services, farrowings, weanings). Houses and pens are not removed. Rollback fails if any tagged row has post-import dependencies (e.g. a farrowing recorded by hand against an imported sow)."
-msgstr ""
+msgstr "Penggulungan balik memadam semua baris yang ditanda dengan id larian (ternakan, kawin, beranak, cerai susu). Bangsal dan kandang tidak dialih keluar. Gulung balik gagal jika mana-mana baris bertanda mempunyai kebergantungan selepas import (cth. beranak direkod secara manual terhadap babi ibu yang diimport)."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:665
 #, elixir-autogen, elixir-format
 msgid "Rolling back import..."
-msgstr ""
+msgstr "Menggulung balik import..."
 
 #: lib/peggy_web/live/farm_live/data_import.ex:454
 #, elixir-autogen, elixir-format
 msgid "Row"
-msgstr ""
+msgstr "Baris"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:373
 #, elixir-autogen, elixir-format
 msgid "Row %{i} invalid: %{m}"
-msgstr ""
+msgstr "Baris %{i} tidak sah: %{m}"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:313
 #, elixir-autogen, elixir-format
 msgid "Run another import"
-msgstr ""
+msgstr "Jalankan import lain"
 
 #: lib/peggy_web/live/farm_live/data_import.ex:281
 #, elixir-autogen, elixir-format
 msgid "Run id"
-msgstr ""
+msgstr "Id larian"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating_print.ex:54
 #, elixir-autogen, elixir-format
 msgid "SLive"
-msgstr ""
+msgstr "SLive"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:544
 #: lib/peggy_web/live/farm_live/animals.ex:313
@@ -4199,43 +4199,43 @@ msgstr "Simpan"
 #: lib/peggy_web/live/farm_live/settings.ex:285
 #, elixir-autogen, elixir-format
 msgid "Save breeding parameters"
-msgstr ""
+msgstr "Simpan parameter pembiakan"
 
 #: lib/peggy_web/live/farm_live/house_detail.ex:273
 #, elixir-autogen, elixir-format
 msgid "Save failed: %{m}"
-msgstr ""
+msgstr "Simpan gagal: %{m}"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1341
 #, elixir-autogen, elixir-format
 msgid "Save farrowing + backfill service"
-msgstr ""
+msgstr "Simpan beranak + isi semula kawin"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1338
 #, elixir-autogen, elixir-format
 msgid "Save farrowing + register sow"
-msgstr ""
+msgstr "Simpan beranak + daftar babi ibu"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1572
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:311
 #, elixir-autogen, elixir-format
 msgid "Save service"
-msgstr ""
+msgstr "Simpan kawin"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1570
 #, elixir-autogen, elixir-format
 msgid "Save service + register sow"
-msgstr ""
+msgstr "Simpan kawin + daftar babi ibu"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1345
 #, elixir-autogen, elixir-format
 msgid "Save weaning + backfill farrowing"
-msgstr ""
+msgstr "Simpan cerai susu + isi semula beranak"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1342
 #, elixir-autogen, elixir-format
 msgid "Save weaning + register sow"
-msgstr ""
+msgstr "Simpan cerai susu + daftar babi ibu"
 
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:412
 #: lib/peggy_web/live/mobile_live/animals.ex:426
@@ -4248,7 +4248,7 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/tasks.ex:198
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Saving…"
-msgstr ""
+msgstr "Menyimpan…"
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:514
 #: lib/peggy_web/live/farm_live/animal_detail.ex:525
@@ -4257,12 +4257,12 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:401
 #, elixir-autogen, elixir-format
 msgid "Search by ear tag..."
-msgstr ""
+msgstr "Cari mengikut tag telinga..."
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:95
 #, elixir-autogen, elixir-format
 msgid "Search pen..."
-msgstr ""
+msgstr "Cari kandang..."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:268
 #: lib/peggy_web/live/farm_live/animal_detail.ex:285
@@ -4272,48 +4272,48 @@ msgstr ""
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:284
 #, elixir-autogen, elixir-format
 msgid "Search pens..."
-msgstr ""
+msgstr "Cari kandang..."
 
 #: lib/peggy_web/live/mobile_live/locations.ex:26
 #, elixir-autogen, elixir-format
 msgid "Search pen…"
-msgstr ""
+msgstr "Cari kandang…"
 
 #: lib/peggy_web/live/farm_live/breeding/weaned.ex:32
 #, elixir-autogen, elixir-format
 msgid "Search sow tag"
-msgstr ""
+msgstr "Cari tag babi ibu"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:317
 #, elixir-autogen, elixir-format
 msgid "Search sows..."
-msgstr ""
+msgstr "Cari babi ibu..."
 
 #: lib/peggy_web/live/farm_live/bulk_move.ex:80
 #, elixir-autogen, elixir-format
 msgid "Search tag..."
-msgstr ""
+msgstr "Cari tag..."
 
 #: lib/peggy_web/live/farm_live/batch_entry.ex:114
 #: lib/peggy_web/live/farm_live/batch_entry.ex:127
 #, elixir-autogen, elixir-format
 msgid "Search..."
-msgstr ""
+msgstr "Cari..."
 
 #: lib/peggy_web/live/mobile_live/promote_batches.ex:164
 #, elixir-autogen, elixir-format
 msgid "Select all"
-msgstr ""
+msgstr "Pilih semua"
 
 #: lib/peggy_web/live/farm_live/tasks.ex:69
 #, elixir-autogen, elixir-format
 msgid "Selected"
-msgstr ""
+msgstr "Dipilih"
 
 #: lib/peggy_web/live/farm_live/batch_service.ex:50
 #, elixir-autogen, elixir-format
 msgid "Semen"
-msgstr ""
+msgstr "Air mani"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:407
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:266
@@ -4321,18 +4321,18 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:363
 #, elixir-autogen, elixir-format
 msgid "Semen (optional)"
-msgstr ""
+msgstr "Air mani (pilihan)"
 
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:465
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:371
 #, elixir-autogen, elixir-format
 msgid "Semen code"
-msgstr ""
+msgstr "Kod air mani"
 
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:392
 #, elixir-autogen, elixir-format
 msgid "Serv. Closed"
-msgstr ""
+msgstr "Kawin Ditutup"
 
 #: lib/peggy_web/live/farm_live/breeding/deleted.ex:34
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:146
@@ -4347,7 +4347,7 @@ msgstr "Telah dikawin"
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:173
 #, elixir-autogen, elixir-format
 msgid "Served (still in heat)"
-msgstr ""
+msgstr "Dikawin (masih berahi)"
 
 #: lib/peggy_web/live/farm_live/batch_service.ex:51
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:382
@@ -4358,27 +4358,27 @@ msgstr ""
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:352
 #, elixir-autogen, elixir-format
 msgid "Served at"
-msgstr ""
+msgstr "Dikawin pada"
 
 #: lib/peggy_web/live/farm_live/batch_close_services.ex:54
 #, elixir-autogen, elixir-format
 msgid "Served at (backfill)"
-msgstr ""
+msgstr "Dikawin pada (isi semula)"
 
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:522
 #, elixir-autogen, elixir-format
 msgid "Served at (defaults to farrowed − %{n}d)"
-msgstr ""
+msgstr "Dikawin pada (lalai kepada beranak − %{n}h)"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:577
 #, elixir-autogen, elixir-format
 msgid "Served at (defaults to farrowed − 114d)"
-msgstr ""
+msgstr "Dikawin pada (lalai kepada beranak − 114h)"
 
 #: lib/peggy_web/live/mobile_live/breeding/serviceable.ex:893
 #, elixir-autogen, elixir-format
 msgid "Served-at date is required."
-msgstr ""
+msgstr "Tarikh dikawin diperlukan."
 
 #: lib/peggy_web/live/farm_live/animal_detail.ex:1095
 #: lib/peggy_web/live/farm_live/breeding/serviceable.ex:194
@@ -4391,13 +4391,13 @@ msgstr "Kawin"
 #: lib/peggy_web/live/mobile_live/animal_detail.ex:1195
 #, elixir-autogen, elixir-format
 msgid "Service closed"
-msgstr ""
+msgstr "Kawin ditutup"
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1004
 #: lib/peggy_web/live/mobile_live/breeding/gestating.ex:909
 #, elixir-autogen, elixir-format
 msgid "Service closed."
-msgstr ""
+msgstr "Kawin ditutup."
 
 #: lib/peggy_web/live/farm_live/breeding/gestating.ex:1273
 #: lib/peggy_web/live/farm_live/breeding/lactating.ex:1513
