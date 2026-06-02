@@ -64,15 +64,7 @@ defmodule PeggyWeb.Plugs.AutoRouteByDevice do
   defp desktop_url?(path), do: String.starts_with?(path, "/farms/")
   defp mobile_url?(path), do: String.starts_with?(path, "/m/")
 
-  defp mobile_ua?(conn) do
-    ua =
-      conn
-      |> get_req_header("user-agent")
-      |> List.first()
-      |> Kernel.||("")
-
-    String.match?(ua, ~r/Mobile|Android|iPhone|iPod|Opera Mini|IEMobile/i)
-  end
+  defp mobile_ua?(conn), do: PeggyWeb.Device.mobile_ua?(conn)
 
   defp maybe_redirect_to_mobile(conn, path) do
     case path_tail(path, "/farms/") do
