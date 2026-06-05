@@ -1630,7 +1630,7 @@ defmodule Peggy.Breeding do
 
     q =
       if search do
-        like = "#{search}%"
+        like = "%#{search}%"
         from [sow: sow] in q, where: ilike(sow.ear_tag, ^like)
       else
         q
@@ -1884,7 +1884,7 @@ defmodule Peggy.Breeding do
 
     q =
       if search do
-        like = "#{search}%"
+        like = "%#{search}%"
         from a in q, where: ilike(a.ear_tag, ^like)
       else
         q
@@ -3262,7 +3262,7 @@ defmodule Peggy.Breeding do
 
     q =
       if search do
-        like = "#{search}%"
+        like = "%#{search}%"
         from [sow: sow] in q, where: ilike(sow.ear_tag, ^like)
       else
         q
@@ -3908,7 +3908,7 @@ defmodule Peggy.Breeding do
 
     q =
       if search do
-        like = "#{search}%"
+        like = "%#{search}%"
         from [w, f, sow] in q, where: ilike(sow.ear_tag, ^like)
       else
         q
