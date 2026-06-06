@@ -123,6 +123,48 @@ defmodule PeggyWeb.MobileLive.AutocompletePickersTest do
     end
   end
 
+  describe "animals list — search clear button and result count" do
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+
+      house = house_fixture(scope, code: "EB")
+      pen = pen_fixture(scope, house, code: "12", capacity: 50)
+
+      animal_fixture(scope, ear_tag: "FINDME", stage: "sow", current_pen_id: pen.id)
+      animal_fixture(scope, ear_tag: "OTHER", stage: "sow", current_pen_id: pen.id)
+
+      conn =
+        conn
+        |> log_in_user(owner)
+        |> Plug.Test.put_req_cookie("peggy_view", "mobile")
+
+      %{conn: conn, farm: farm, scope: scope}
+    end
+
+    test "searching filters the list and clear button resets it", ctx do
+      %{conn: conn, farm: farm} = ctx
+
+      {:ok, lv, html} = live(conn, ~p"/m/#{farm.slug}/animals")
+
+      assert html =~ "FINDME"
+      assert html =~ "OTHER"
+
+      # Search narrows the card stream to the matching ear tag.
+      render_change(lv, "search", %{"q" => "FINDME"})
+      filtered = render(lv)
+      assert filtered =~ "FINDME"
+      refute filtered =~ "OTHER"
+
+      # Clear button resets the search → all animals visible again.
+      lv |> element("button[phx-click='clear_search']") |> render_click()
+      cleared = render(lv)
+      assert cleared =~ "FINDME"
+      assert cleared =~ "OTHER"
+    end
+  end
+
   describe "gestating re-service sheet — boar autocomplete" do
     setup %{conn: conn} do
       owner = user_fixture()

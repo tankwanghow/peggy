@@ -38,6 +38,15 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               class="input input-bordered input-lg flex-1 font-mono text-base"
             />
             <button
+              :if={@filters.q not in [nil, ""]}
+              type="button"
+              phx-click="clear_search"
+              aria-label={gettext("Clear search")}
+              class="btn btn-ghost btn-circle btn-sm"
+            >
+              <.icon name="hero-x-mark" class="size-5" />
+            </button>
+            <button
               type="button"
               phx-click="open_filters"
               class="btn btn-ghost btn-square btn-lg relative"
@@ -75,6 +84,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             {gettext("Lactating")}
           </.link>
         </nav>
+
+        <p :if={@total > 0} class="px-4 pt-1 text-xs text-base-content/50">
+          {gettext("%{n} results", n: @total)}
+        </p>
 
         <%!-- Cards --%>
         <ul id="gestating-cards" phx-update="stream" class="px-3 py-2 space-y-2">
@@ -736,6 +749,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
   @impl true
   def handle_event("search", %{"q" => q}, socket),
     do: {:noreply, push_patch_filters(socket, %{"q" => q})}
+
+  def handle_event("clear_search", _params, socket),
+    do: {:noreply, push_patch_filters(socket, %{"q" => ""})}
 
   def handle_event("filter", params, socket) do
     {:noreply,
