@@ -15,8 +15,10 @@ defmodule PeggyWeb.MobileLive.AutocompletePickersTest do
   import Peggy.FarmsFixtures
   import Peggy.LocationsFixtures
   import Peggy.AnimalsFixtures
+  import Peggy.BreedingFixtures
 
   alias Peggy.Animals
+  alias Peggy.Breeding
   alias Peggy.FarmClock
 
   describe "serviceable move sheet — To pen autocomplete" do
@@ -118,6 +120,69 @@ defmodule PeggyWeb.MobileLive.AutocompletePickersTest do
 
       assert animal
       assert animal.current_pen_id == pen.id
+    end
+  end
+
+  describe "gestating re-service sheet — boar autocomplete" do
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+
+      house = house_fixture(scope, code: "GB")
+      pen = pen_fixture(scope, house, code: "21", capacity: 50)
+
+      sow =
+        animal_fixture(scope,
+          ear_tag: "SOW-21",
+          stage: "sow",
+          status: "open",
+          current_pen_id: pen.id
+        )
+
+      boar =
+        animal_fixture(scope,
+          ear_tag: "BOAR-9",
+          stage: "boar",
+          status: "active",
+          current_pen_id: pen.id
+        )
+
+      # Open (un-resulted) service → puts the sow on the gestating tab.
+      service =
+        service_fixture(scope, sow, %{service_type: "ai", served_at: ~D[2026-05-01]})
+
+      conn =
+        conn
+        |> log_in_user(owner)
+        |> Plug.Test.put_req_cookie("peggy_view", "mobile")
+
+      %{conn: conn, farm: farm, scope: scope, sow: sow, boar: boar, service: service}
+    end
+
+    test "picking a boar records the re-service with that boar_id", ctx do
+      %{conn: conn, farm: farm, scope: scope, sow: sow, boar: boar, service: service} = ctx
+
+      {:ok, lv, _html} = live(conn, ~p"/m/#{farm.slug}/breeding/gestating")
+
+      # Open the action sheet for the sow's service, then the re-service form.
+      lv |> element("#service-#{service.id}") |> render_click()
+      render_click(lv, "action_re_service", %{})
+
+      today = FarmClock.today(scope) |> to_string()
+
+      # Hidden input carries the chosen boar id, mirroring the JS hook.
+      save_params = %{
+        "service_type" => "natural",
+        "boar_id" => Integer.to_string(boar.id),
+        "served_at" => today,
+        "sow_tag" => sow.ear_tag
+      }
+
+      render_submit(lv, "service_save", save_params)
+
+      services = Breeding.list_services_for_animal(scope, boar.id)
+      assert Enum.any?(services, &(&1.boar_id == boar.id))
     end
   end
 end
