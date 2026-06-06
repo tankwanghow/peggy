@@ -70,4 +70,54 @@ defmodule PeggyWeb.MobileLive.AutocompletePickersTest do
       assert reloaded.current_pen_id == to_pen.id
     end
   end
+
+  describe "register sheet — pen autocomplete" do
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+
+      house = house_fixture(scope, code: "EB")
+      pen = pen_fixture(scope, house, code: "12", capacity: 50)
+
+      conn =
+        conn
+        |> log_in_user(owner)
+        |> Plug.Test.put_req_cookie("peggy_view", "mobile")
+
+      %{conn: conn, farm: farm, scope: scope, pen: pen}
+    end
+
+    test "registering with a chosen pen sets current_pen_id", ctx do
+      %{conn: conn, farm: farm, scope: scope, pen: pen} = ctx
+
+      {:ok, lv, _html} = live(conn, ~p"/m/#{farm.slug}/animals")
+
+      lv |> element("button[phx-click=register_open]") |> render_click()
+
+      # Hidden input carries the chosen pen id, mirroring the JS hook.
+      save_params = %{
+        "animal" => %{
+          "tracking_type" => "individual",
+          "ear_tag" => "NEW-1",
+          "stage" => "sow"
+        },
+        "pen_id" => Integer.to_string(pen.id)
+      }
+
+      # register_save push_navigates to the new animal's detail page.
+      assert {:error, {:live_redirect, %{to: to}}} =
+               render_submit(lv, "register_save", save_params)
+
+      assert to =~ ~r{/m/#{farm.slug}/animals/\d+\z}
+
+      animal =
+        scope
+        |> Animals.list_animals(status: "present")
+        |> Enum.find(&(&1.ear_tag == "NEW-1"))
+
+      assert animal
+      assert animal.current_pen_id == pen.id
+    end
+  end
 end
