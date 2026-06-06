@@ -10,7 +10,7 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
   """
   use PeggyWeb, :html
 
-  alias Peggy.{Animals, FarmClock, Locations}
+  alias Peggy.{Animals, FarmClock}
   alias Peggy.Animals.{Animal, Movement}
 
   # ── Component ──────────────────────────────────────────────────────
@@ -28,10 +28,11 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
   """
   attr :form, :any, required: true
   attr :animal, :any, required: true
-  attr :from_code, :string, required: true
-  attr :from_state, :atom, required: true
-  attr :to_code, :string, required: true
-  attr :to_state, :atom, required: true
+  attr :pen_items, :list, default: []
+  attr :from_label, :string, default: nil
+  attr :from_id, :any, default: nil
+  attr :to_label, :string, default: nil
+  attr :to_id, :any, default: nil
   attr :error, :any, default: nil
   attr :change, :string, default: "move_validate"
   attr :submit, :string, default: "move_save"
@@ -59,68 +60,44 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
         </select>
       </label>
 
-      <label
-        :if={
-          @animal.tracking_type == "batch" and
-            Phoenix.HTML.Form.input_value(f, :reason) not in ["placement", "adjustment_gain"]
-        }
-        class="block"
-      >
-        <span class="text-xs uppercase text-base-content/60">{gettext("From pen")}</span>
-        <input
-          type="text"
-          name="from_code"
-          value={@from_code}
-          phx-debounce="300"
+      <div :if={
+        @animal.tracking_type == "batch" and
+          Phoenix.HTML.Form.input_value(f, :reason) not in ["placement", "adjustment_gain"]
+      }>
+        <.autocomplete
+          id="move-from-pen"
+          label={gettext("From pen")}
+          name="from_pen_id"
+          value={@from_id}
+          items={@pen_items}
+          selected_label={@from_label}
           placeholder="EB-12"
-          class={[
-            "input input-bordered input-lg w-full mt-1 font-mono",
-            @from_state == :resolved && "border-success focus:border-success",
-            @from_state == :not_found && "border-error focus:border-error"
-          ]}
+          drop_up
+          touch
+          empty_text={gettext("No active pen with that code")}
         />
-        <span class={[
-          "text-xs mt-1 block",
-          @from_state == :resolved && "text-success",
-          @from_state == :not_found && "text-error",
-          @from_state == :empty && "text-base-content/50"
-        ]}>
-          {pen_state_text(@from_state)}
-        </span>
-      </label>
+      </div>
 
-      <label
-        :if={
-          Phoenix.HTML.Form.input_value(f, :reason) in [
-            "placement",
-            "pen_transfer",
-            "adjustment_gain"
-          ]
-        }
-        class="block"
-      >
-        <span class="text-xs uppercase text-base-content/60">{gettext("To pen")}</span>
-        <input
-          type="text"
-          name="to_code"
-          value={@to_code}
-          phx-debounce="300"
+      <div :if={
+        Phoenix.HTML.Form.input_value(f, :reason) in [
+          "placement",
+          "pen_transfer",
+          "adjustment_gain"
+        ]
+      }>
+        <.autocomplete
+          id="move-to-pen"
+          label={gettext("To pen")}
+          name="to_pen_id"
+          value={@to_id}
+          items={@pen_items}
+          selected_label={@to_label}
           placeholder="EB-12"
-          class={[
-            "input input-bordered input-lg w-full mt-1 font-mono",
-            @to_state == :resolved && "border-success focus:border-success",
-            @to_state == :not_found && "border-error focus:border-error"
-          ]}
+          drop_up
+          touch
+          empty_text={gettext("No active pen with that code")}
         />
-        <span class={[
-          "text-xs mt-1 block",
-          @to_state == :resolved && "text-success",
-          @to_state == :not_found && "text-error",
-          @to_state == :empty && "text-base-content/50"
-        ]}>
-          {pen_state_text(@to_state)}
-        </span>
-      </label>
+      </div>
 
       <div class="grid grid-cols-2 gap-3">
         <label :if={@animal.tracking_type == "batch"} class="block">
@@ -180,11 +157,10 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
     %{
       move_form: nil,
       move_animal: nil,
-      move_from_code: "",
-      move_from_state: :empty,
+      move_pen_items: [],
+      move_from_label: nil,
       move_from_id: nil,
-      move_to_code: "",
-      move_to_state: :empty,
+      move_to_label: nil,
       move_to_id: nil,
       move_error: nil
     }
@@ -196,8 +172,7 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
   """
   def open(socket, %Animal{} = animal) do
     today = FarmClock.today(socket.assigns.current_scope)
-    from_code = pen_code(animal)
-    from_state = if from_code == "", do: :empty, else: :resolved
+    from_label = pen_code(animal)
 
     cs =
       Animals.change_movement(%Movement{
@@ -209,11 +184,10 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
     Phoenix.Component.assign(socket,
       move_form: Phoenix.Component.to_form(cs, as: :movement),
       move_animal: animal,
-      move_from_code: from_code,
-      move_from_state: from_state,
+      move_pen_items: PeggyWeb.Pickers.pen_items(socket.assigns.current_scope),
+      move_from_label: if(from_label == "", do: nil, else: from_label),
       move_from_id: animal.current_pen_id,
-      move_to_code: "",
-      move_to_state: :empty,
+      move_to_label: nil,
       move_to_id: nil,
       move_error: nil
     )
@@ -225,22 +199,23 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
   end
 
   @doc """
-  Re-validates the changeset and re-resolves the pen codes.
+  Re-validates the changeset and stores the chosen pen ids.
 
-  `params` is the full phx-change payload (`%{"movement" => ..., "from_code" => ..., "to_code" => ...}`).
+  `params` is the full phx-change payload
+  (`%{"movement" => ..., "from_pen_id" => ..., "to_pen_id" => ...}`). The
+  pen ids are written into the hidden inputs by the autocomplete JS hook.
   """
   def validate(socket, params) do
     cs =
       Animals.change_movement(%Movement{}, Map.get(params, "movement", %{}))
       |> Map.put(:action, :validate)
 
-    socket
-    |> Phoenix.Component.assign(
+    Phoenix.Component.assign(socket,
       move_form: Phoenix.Component.to_form(cs, as: :movement),
+      move_from_id: blank_to_nil(params["from_pen_id"]),
+      move_to_id: blank_to_nil(params["to_pen_id"]),
       move_error: nil
     )
-    |> resolve_pen(:from, params["from_code"])
-    |> resolve_pen(:to, params["to_code"])
   end
 
   @doc """
@@ -250,17 +225,15 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
   (form still open with error message). Caller handles flash + reload.
   """
   def save(socket, params) do
-    socket =
-      socket
-      |> resolve_pen(:from, params["from_code"])
-      |> resolve_pen(:to, params["to_code"])
-
     movement_params = Map.get(params, "movement", %{})
+
+    from_id = blank_to_nil(params["from_pen_id"]) || socket.assigns.move_from_id
+    to_id = blank_to_nil(params["to_pen_id"]) || socket.assigns.move_to_id
 
     attrs =
       movement_params
-      |> Map.put("from_pen_id", socket.assigns.move_from_id)
-      |> Map.put("to_pen_id", socket.assigns.move_to_id)
+      |> Map.put("from_pen_id", from_id)
+      |> Map.put("to_pen_id", to_id)
 
     animal = socket.assigns.move_animal
 
@@ -281,46 +254,12 @@ defmodule PeggyWeb.MobileLive.Breeding.MovementForm do
 
   # ── Internals ──────────────────────────────────────────────────────
 
-  defp resolve_pen(socket, side, nil), do: resolve_pen(socket, side, "")
-
-  defp resolve_pen(socket, side, code) when is_binary(code) do
-    code = String.trim(code)
-
-    {state, pen_id} =
-      cond do
-        code == "" ->
-          {:empty, nil}
-
-        true ->
-          case Locations.find_pen_by_code(socket.assigns.current_scope, code) do
-            nil -> {:not_found, nil}
-            pen -> {:resolved, pen.id}
-          end
-      end
-
-    case side do
-      :from ->
-        Phoenix.Component.assign(socket,
-          move_from_code: code,
-          move_from_state: state,
-          move_from_id: pen_id
-        )
-
-      :to ->
-        Phoenix.Component.assign(socket,
-          move_to_code: code,
-          move_to_state: state,
-          move_to_id: pen_id
-        )
-    end
-  end
-
   defp pen_code(%{current_pen: %{code: code, house: %{code: hcode}}}), do: "#{hcode}-#{code}"
   defp pen_code(_), do: ""
 
-  defp pen_state_text(:resolved), do: gettext("✓")
-  defp pen_state_text(:not_found), do: gettext("⚠ No active pen with that code")
-  defp pen_state_text(_), do: gettext("Type house-pen, e.g. EB-12")
+  defp blank_to_nil(nil), do: nil
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(v), do: v
 
   defp default_reason(_), do: "pen_transfer"
 

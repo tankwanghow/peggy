@@ -516,10 +516,11 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               :if={@sheet_mode == :move and @move_form}
               form={@move_form}
               animal={@move_animal}
-              from_code={@move_from_code}
-              from_state={@move_from_state}
-              to_code={@move_to_code}
-              to_state={@move_to_state}
+              pen_items={@move_pen_items}
+              from_label={@move_from_label}
+              from_id={@move_from_id}
+              to_label={@move_to_label}
+              to_id={@move_to_id}
               error={@move_error}
             />
 
