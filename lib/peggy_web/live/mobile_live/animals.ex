@@ -7,7 +7,7 @@ defmodule PeggyWeb.MobileLive.Animals do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
+  alias Peggy.{Animals, Breeding, FarmClock, Policy}
   alias Peggy.Animals.Animal
 
   @per_page 25
@@ -30,6 +30,15 @@ defmodule PeggyWeb.MobileLive.Animals do
               autocomplete="off"
               class="input input-bordered input-lg flex-1 font-mono text-base"
             />
+            <button
+              :if={@filters.tag_search not in [nil, ""]}
+              type="button"
+              phx-click="clear_search"
+              aria-label={gettext("Clear search")}
+              class="btn btn-ghost btn-circle btn-sm"
+            >
+              <.icon name="hero-x-mark" class="size-5" />
+            </button>
             <button
               type="button"
               phx-click="open_filters"
@@ -62,6 +71,10 @@ defmodule PeggyWeb.MobileLive.Animals do
             </button>
           </form>
         </header>
+
+        <p :if={@total > 0} class="px-4 pt-1 text-xs text-base-content/50">
+          {gettext("%{n} results", n: @total)}
+        </p>
 
         <%!-- Cards --%>
         <ul id="animals-cards" phx-update="stream" class="px-3 py-2 space-y-2">
@@ -387,33 +400,18 @@ defmodule PeggyWeb.MobileLive.Animals do
                 />
               </label>
 
-              <label class="block">
-                <span class="text-xs uppercase text-base-content/60">
-                  {gettext("Pen (HOUSE-PEN)")}
-                </span>
-                <input
-                  type="text"
-                  name="pen_code"
-                  value={@register_pen_code}
-                  phx-debounce="300"
-                  autocomplete="off"
-                  spellcheck="false"
-                  placeholder="EB-12"
-                  class={[
-                    "input input-bordered input-lg w-full mt-1 font-mono",
-                    @register_pen_state == :resolved && "border-success focus:border-success",
-                    @register_pen_state == :not_found && "border-error focus:border-error"
-                  ]}
-                />
-                <span class={[
-                  "text-xs mt-1 block",
-                  @register_pen_state == :resolved && "text-success",
-                  @register_pen_state == :not_found && "text-error",
-                  @register_pen_state == :empty && "text-base-content/50"
-                ]}>
-                  {pen_state_text(@register_pen_state)}
-                </span>
-              </label>
+              <.autocomplete
+                id="register-pen"
+                label={gettext("Pen (HOUSE-PEN)")}
+                name="pen_id"
+                value={@register_pen_id}
+                items={@register_pen_items}
+                selected_label={@register_pen_label}
+                placeholder="EB-12"
+                drop_up
+                touch
+                empty_text={gettext("No active pen with that code")}
+              />
 
               <p :if={@register_error} class="text-sm text-error">{@register_error}</p>
 
@@ -456,8 +454,8 @@ defmodule PeggyWeb.MobileLive.Animals do
        can_manage: Policy.can?(scope, :manage_animals),
        register_form: nil,
        register_tracking: "individual",
-       register_pen_code: "",
-       register_pen_state: :empty,
+       register_pen_items: [],
+       register_pen_label: nil,
        register_pen_id: nil,
        register_error: nil
      )
@@ -489,6 +487,9 @@ defmodule PeggyWeb.MobileLive.Animals do
   @impl true
   def handle_event("search", %{"q" => q}, socket),
     do: {:noreply, push_patch_filters(socket, %{"tag_search" => q})}
+
+  def handle_event("clear_search", _params, socket),
+    do: {:noreply, push_patch_filters(socket, %{"tag_search" => ""})}
 
   def handle_event("filter", params, socket) do
     new_stage = params["stage"] || ""
@@ -544,8 +545,8 @@ defmodule PeggyWeb.MobileLive.Animals do
        assign(socket,
          register_form: to_form(cs, as: :animal),
          register_tracking: "individual",
-         register_pen_code: "",
-         register_pen_state: :empty,
+         register_pen_items: PeggyWeb.Pickers.pen_items(socket.assigns.current_scope),
+         register_pen_label: nil,
          register_pen_id: nil,
          register_error: nil
        )}
@@ -576,20 +577,20 @@ defmodule PeggyWeb.MobileLive.Animals do
     |> assign(
       register_form: to_form(cs, as: :animal),
       register_tracking: new_tracking,
+      register_pen_id: blank_to_nil(all["pen_id"]),
       register_error: nil
     )
-    |> resolve_register_pen(all["pen_code"])
     |> then(&{:noreply, &1})
   end
 
   def handle_event("register_save", %{"animal" => params} = all, socket) do
     if socket.assigns.can_manage do
-      socket = resolve_register_pen(socket, all["pen_code"])
+      pen_id = blank_to_nil(all["pen_id"])
       tracking = Map.get(params, "tracking_type", socket.assigns.register_tracking)
 
       attrs =
         params
-        |> Map.put("current_pen_id", socket.assigns.register_pen_id)
+        |> Map.put("current_pen_id", pen_id)
         |> Map.put("status", "active")
         |> Map.put("tracking_type", tracking)
 
@@ -599,7 +600,7 @@ defmodule PeggyWeb.MobileLive.Animals do
            socket
            |> reset_register()
            |> load_rows()
-           |> push_patch(
+           |> push_navigate(
              to: ~p"/m/#{socket.assigns.current_scope.farm.slug}/animals/#{animal.id}"
            )
            |> put_flash(:info, gettext("Animal registered."))}
@@ -940,39 +941,10 @@ defmodule PeggyWeb.MobileLive.Animals do
     assign(socket,
       register_form: nil,
       register_tracking: "individual",
-      register_pen_code: "",
-      register_pen_state: :empty,
+      register_pen_items: [],
+      register_pen_label: nil,
       register_pen_id: nil,
       register_error: nil
     )
   end
-
-  defp resolve_register_pen(socket, nil), do: socket
-
-  defp resolve_register_pen(socket, ""),
-    do: assign(socket, register_pen_code: "", register_pen_state: :empty, register_pen_id: nil)
-
-  defp resolve_register_pen(socket, code) when is_binary(code) do
-    code = String.trim(code)
-
-    case Locations.find_pen_by_code(socket.assigns.current_scope, code) do
-      nil ->
-        assign(socket,
-          register_pen_code: code,
-          register_pen_state: :not_found,
-          register_pen_id: nil
-        )
-
-      pen ->
-        assign(socket,
-          register_pen_code: code,
-          register_pen_state: :resolved,
-          register_pen_id: pen.id
-        )
-    end
-  end
-
-  defp pen_state_text(:resolved), do: "✓"
-  defp pen_state_text(:not_found), do: "⚠ No active pen with that code"
-  defp pen_state_text(_), do: "Type house-pen, e.g. EB-12"
 end

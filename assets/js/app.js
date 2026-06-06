@@ -48,6 +48,8 @@ const AutoComplete = {
     // can also leave any typed value as-is (no companion hidden input,
     // no "no matching selection" warning).
     const freetext = this.el.dataset.acFreetext === "true"
+    const dropUp = this.el.dataset.acDropUp === "true"
+    const touch = this.el.dataset.acTouch === "true"
     const hiddenId = this.el.id.replace(/-input$/, "-value")
     const hidden = freetext ? null : document.getElementById(hiddenId)
     const warningId = this.el.id.replace(/-input$/, "-warning")
@@ -95,6 +97,9 @@ const AutoComplete = {
       }
     })
 
+    const listPos = dropUp ? "bottom-full mb-1" : "top-full mt-1"
+    const rowPad = touch ? "px-3 py-3" : "px-3 py-1.5"
+
     this.ac = new autoComplete({
       selector: () => this.el,
       wrapper: false,
@@ -108,7 +113,7 @@ const AutoComplete = {
         maxResults: 20,
         tabSelect: true,
         class:
-          "ac-results absolute top-full left-0 z-50 mt-1 w-full max-h-48 overflow-y-auto rounded border border-base-300 bg-base-100 shadow-lg text-sm",
+          `ac-results absolute ${listPos} left-0 z-50 w-full max-h-60 overflow-y-auto rounded border border-base-300 bg-base-100 shadow-lg text-sm divide-y divide-base-200`,
         noResults: (list, _query) => {
           if (!emptyText) return
           const msg = document.createElement("li")
@@ -120,7 +125,7 @@ const AutoComplete = {
         }
       },
       resultItem: {
-        class: "ac-result px-3 py-1.5 cursor-pointer hover:bg-base-200",
+        class: `ac-result ${rowPad} cursor-pointer hover:bg-base-200`,
         highlight: true,
         selected: "bg-base-200"
       },

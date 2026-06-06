@@ -37,6 +37,15 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
               class="input input-bordered input-lg flex-1 font-mono text-base"
             />
             <button
+              :if={@filters.q not in [nil, ""]}
+              type="button"
+              phx-click="clear_search"
+              aria-label={gettext("Clear search")}
+              class="btn btn-ghost btn-circle btn-sm"
+            >
+              <.icon name="hero-x-mark" class="size-5" />
+            </button>
+            <button
               type="button"
               phx-click="open_filters"
               class="btn btn-ghost btn-square btn-lg relative"
@@ -74,6 +83,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
             {gettext("Lactating")}
           </.link>
         </nav>
+
+        <p :if={@total > 0} class="px-4 pt-1 text-xs text-base-content/50">
+          {gettext("%{n} results", n: @total)}
+        </p>
 
         <%!-- Cards --%>
         <ul id="lactating-cards" phx-update="stream" class="px-3 py-2 space-y-2">
@@ -537,10 +550,11 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
               :if={@sheet_mode == :move and @move_form}
               form={@move_form}
               animal={@move_animal}
-              from_code={@move_from_code}
-              from_state={@move_from_state}
-              to_code={@move_to_code}
-              to_state={@move_to_state}
+              pen_items={@move_pen_items}
+              from_label={@move_from_label}
+              from_id={@move_from_id}
+              to_label={@move_to_label}
+              to_id={@move_to_id}
               error={@move_error}
             />
 
@@ -763,6 +777,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
   def handle_event("search", %{"q" => q}, socket) do
     {:noreply, push_patch_filters(socket, %{"q" => q})}
   end
+
+  def handle_event("clear_search", _params, socket),
+    do: {:noreply, push_patch_filters(socket, %{"q" => ""})}
 
   def handle_event("filter", params, socket) do
     {:noreply,

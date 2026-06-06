@@ -367,6 +367,15 @@ defmodule PeggyWeb.CoreComponents do
     doc:
       "If true, the visible input itself is the form field — picking from the dropdown writes the item's `id` into it; typing any free-text value is also accepted (no \"no match\" warning). Use for fields like a batch tag where the user may pick an existing pool or create a new one."
 
+  attr :drop_up, :boolean,
+    default: false,
+    doc:
+      "Open the results list upward (above the input). Use on mobile so the on-screen keyboard never covers it."
+
+  attr :touch, :boolean,
+    default: false,
+    doc: "Touch-friendly sizing: input-lg and taller result rows (~44px). Use on the phone UI."
+
   def autocomplete(assigns) do
     assigns = assign(assigns, :has_label?, is_binary(assigns.label) and assigns.label != "")
 
@@ -392,11 +401,13 @@ defmodule PeggyWeb.CoreComponents do
           value={if @freetext, do: @value || "", else: @selected_label || ""}
           placeholder={@placeholder || @label}
           autocomplete="off"
-          class={@class || "w-full input"}
+          class={@class || ["w-full input", @touch && "input-lg"]}
           phx-hook="AutoComplete"
           data-ac-items={Jason.encode!(@items)}
           data-ac-empty-text={@empty_text || ""}
           data-ac-freetext={if @freetext, do: "true"}
+          data-ac-drop-up={if @drop_up, do: "true"}
+          data-ac-touch={if @touch, do: "true"}
         />
       </label>
       <p

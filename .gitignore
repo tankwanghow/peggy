@@ -41,3 +41,6 @@ npm-debug.log
 /priv/repo/legacy*.exs
 
 secret.txt
+
+# Visual brainstorming companion scratch
+.superpowers/

@@ -38,6 +38,15 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               class="input input-bordered input-lg flex-1 font-mono text-base"
             />
             <button
+              :if={@filters.q not in [nil, ""]}
+              type="button"
+              phx-click="clear_search"
+              aria-label={gettext("Clear search")}
+              class="btn btn-ghost btn-circle btn-sm"
+            >
+              <.icon name="hero-x-mark" class="size-5" />
+            </button>
+            <button
               type="button"
               phx-click="open_filters"
               class="btn btn-ghost btn-square btn-lg relative"
@@ -75,6 +84,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             {gettext("Lactating")}
           </.link>
         </nav>
+
+        <p :if={@total > 0} class="px-4 pt-1 text-xs text-base-content/50">
+          {gettext("%{n} results", n: @total)}
+        </p>
 
         <%!-- Cards --%>
         <ul id="gestating-cards" phx-update="stream" class="px-3 py-2 space-y-2">
@@ -418,29 +431,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                 </select>
               </label>
 
-              <label :if={@service_type == "natural"} class="block">
-                <span class="text-xs uppercase text-base-content/60">{gettext("Boar ear tag")}</span>
-                <input
-                  type="text"
-                  name="boar_tag"
-                  value={@service_boar_tag}
-                  phx-debounce="300"
-                  autocomplete="off"
-                  class={[
-                    "input input-bordered input-lg w-full mt-1 font-mono",
-                    @service_boar_state == :resolved && "border-success focus:border-success",
-                    @service_boar_state == :not_found && "border-error focus:border-error"
-                  ]}
+              <div :if={@service_type == "natural"}>
+                <.autocomplete
+                  id="service-boar"
+                  label={gettext("Boar ear tag")}
+                  name="boar_id"
+                  value={@service_boar_id}
+                  items={@service_boar_items}
+                  selected_label={@service_boar_label}
+                  drop_up
+                  touch
+                  empty_text={gettext("No boar with that tag")}
                 />
-                <span class={[
-                  "text-xs mt-1 block",
-                  @service_boar_state == :resolved && "text-success",
-                  @service_boar_state == :not_found && "text-error",
-                  @service_boar_state == :empty && "text-base-content/50"
-                ]}>
-                  {service_boar_state_text(@service_boar_state)}
-                </span>
-              </label>
+              </div>
 
               <label class="block">
                 <span class="text-xs uppercase text-base-content/60">{gettext("Served at")}</span>
@@ -516,10 +519,11 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               :if={@sheet_mode == :move and @move_form}
               form={@move_form}
               animal={@move_animal}
-              from_code={@move_from_code}
-              from_state={@move_from_state}
-              to_code={@move_to_code}
-              to_state={@move_to_state}
+              pen_items={@move_pen_items}
+              from_label={@move_from_label}
+              from_id={@move_from_id}
+              to_label={@move_to_label}
+              to_id={@move_to_id}
               error={@move_error}
             />
 
@@ -672,8 +676,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
        service_sow_state: :empty,
        service_sow_status: nil,
        service_sow_id: nil,
-       service_boar_tag: "",
-       service_boar_state: :empty,
+       service_boar_items: [],
+       service_boar_label: nil,
        service_boar_id: nil,
        service_type: "ai",
        service_served_at: to_string(FarmClock.today(scope)),
@@ -745,6 +749,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
   @impl true
   def handle_event("search", %{"q" => q}, socket),
     do: {:noreply, push_patch_filters(socket, %{"q" => q})}
+
+  def handle_event("clear_search", _params, socket),
+    do: {:noreply, push_patch_filters(socket, %{"q" => ""})}
 
   def handle_event("filter", params, socket) do
     {:noreply,
@@ -947,8 +954,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
          service_sow_state: :empty,
          service_sow_status: nil,
          service_sow_id: nil,
-         service_boar_tag: "",
-         service_boar_state: :empty,
+         service_boar_items: PeggyWeb.Pickers.boar_items(socket.assigns.current_scope),
+         service_boar_label: nil,
          service_boar_id: nil,
          service_type: "ai",
          service_served_at: to_string(today),
@@ -1014,10 +1021,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       service_type: Map.get(params, "service_type", socket.assigns.service_type),
       service_served_at: Map.get(params, "served_at", socket.assigns.service_served_at),
       service_semen: Shared.presence(Map.get(params, "semen", socket.assigns.service_semen)),
+      service_boar_id: blank_to_nil(params["boar_id"]),
       service_error: nil
     )
     |> resolve_service_sow(params["sow_tag"])
-    |> resolve_service_boar(params["boar_tag"])
     |> resolve_service_pen(params["pen_code"])
     |> then(&{:noreply, &1})
   end
@@ -1027,8 +1034,9 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       socket =
         socket
         |> resolve_service_sow(params["sow_tag"])
-        |> resolve_service_boar(params["boar_tag"])
         |> resolve_service_pen(params["pen_code"])
+
+      boar_id = blank_to_nil(params["boar_id"])
 
       cond do
         socket.assigns.service_sow_state != :existing ->
@@ -1037,7 +1045,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
              service_error: gettext("Pick a serviceable sow before saving.")
            )}
 
-        socket.assigns.service_type == "natural" and is_nil(socket.assigns.service_boar_id) ->
+        socket.assigns.service_type == "natural" and is_nil(boar_id) ->
           {:noreply,
            assign(socket,
              service_error: gettext("Boar tag is required for natural service.")
@@ -1050,7 +1058,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
               "service_type" => socket.assigns.service_type,
               "served_at" => params["served_at"]
             }
-            |> maybe_put("boar_id", socket.assigns.service_boar_id)
+            |> maybe_put("boar_id", boar_id)
             |> maybe_put("pen_id", socket.assigns.service_pen_id)
             |> maybe_put("semen", Shared.presence(params["semen"]))
 
@@ -1244,8 +1252,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
       service_sow_state: :empty,
       service_sow_status: nil,
       service_sow_id: nil,
-      service_boar_tag: "",
-      service_boar_state: :empty,
+      service_boar_items: [],
+      service_boar_label: nil,
       service_boar_id: nil,
       service_type: "ai",
       service_served_at: to_string(socket.assigns.today),
@@ -1299,38 +1307,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
     end
   end
 
-  defp resolve_service_boar(socket, nil), do: resolve_service_boar(socket, "")
-
-  defp resolve_service_boar(socket, tag) when is_binary(tag) do
-    tag = String.trim(tag)
-
-    cond do
-      tag == "" ->
-        assign(socket,
-          service_boar_tag: "",
-          service_boar_state: :empty,
-          service_boar_id: nil
-        )
-
-      true ->
-        case Animals.find_by_ear_tag(socket.assigns.current_scope, tag) do
-          %{stage: "boar", id: id} ->
-            assign(socket,
-              service_boar_tag: tag,
-              service_boar_state: :resolved,
-              service_boar_id: id
-            )
-
-          _ ->
-            assign(socket,
-              service_boar_tag: tag,
-              service_boar_state: :not_found,
-              service_boar_id: nil
-            )
-        end
-    end
-  end
-
   defp resolve_service_pen(socket, nil), do: resolve_service_pen(socket, "")
 
   defp resolve_service_pen(socket, code) when is_binary(code) do
@@ -1372,10 +1348,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
   end
 
   defp service_save_enabled?(_), do: false
-
-  defp service_boar_state_text(:resolved), do: "✓"
-  defp service_boar_state_text(:not_found), do: "⚠ No boar with that tag"
-  defp service_boar_state_text(_), do: "Type the boar's ear tag"
 
   defp gestating_pen_state_text(:resolved), do: "✓"
   defp gestating_pen_state_text(:not_found), do: "⚠ No active pen with that code"
