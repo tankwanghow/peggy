@@ -227,4 +227,85 @@ defmodule PeggyWeb.MobileLive.AutocompletePickersTest do
       assert Enum.any?(services, &(&1.boar_id == boar.id))
     end
   end
+
+  describe "lactating wean sheet — sow destination pen" do
+    setup %{conn: conn} do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      scope = scope_for(owner, farm)
+
+      house = house_fixture(scope, code: "16B")
+      lactating_pen = pen_fixture(scope, house, code: "101", capacity: 20)
+      dry_pen = pen_fixture(scope, house, code: "102", capacity: 40)
+      boar = animal_fixture(scope, ear_tag: "BOAR-W", stage: "boar")
+
+      sow =
+        animal_fixture(scope,
+          ear_tag: "5157",
+          stage: "sow",
+          current_pen_id: lactating_pen.id
+        )
+
+      farrowing =
+        farrowing_fixture(scope, sow,
+          boar_id: boar.id,
+          born_alive: 11,
+          pen_id: lactating_pen.id
+        )
+
+      conn =
+        conn
+        |> log_in_user(owner)
+        |> Plug.Test.put_req_cookie("peggy_view", "mobile")
+
+      %{
+        conn: conn,
+        farm: farm,
+        scope: scope,
+        sow: sow,
+        farrowing: farrowing,
+        dry_pen: dry_pen
+      }
+    end
+
+    test "destination pen picker uses hidden id input (not freetext)", ctx do
+      %{conn: conn, farm: farm, farrowing: farrowing} = ctx
+
+      {:ok, lv, _html} = live(conn, ~p"/m/#{farm.slug}/breeding/lactating")
+
+      render_click(lv, "open_actions", %{"farrowing-id" => Integer.to_string(farrowing.id)})
+      html = render_click(lv, "action_wean", %{})
+
+      # Hidden input carries pen id; visible input is label-only (no name).
+      assert html =~ ~s(id="mobile-wean-dest-pen-)
+      assert html =~ ~s(name="weaning[destination_pen_id]")
+      assert html =~ ~s(type="hidden")
+      refute html =~ ~s(data-ac-freetext="true")
+    end
+
+    test "weaning with destination pen moves the sow", ctx do
+      %{conn: conn, farm: farm, scope: scope, sow: sow, farrowing: farrowing, dry_pen: dry_pen} =
+        ctx
+
+      {:ok, lv, _html} = live(conn, ~p"/m/#{farm.slug}/breeding/lactating")
+
+      render_click(lv, "open_actions", %{"farrowing-id" => Integer.to_string(farrowing.id)})
+      render_click(lv, "action_wean", %{})
+
+      today = FarmClock.today(scope) |> Date.to_iso8601()
+
+      render_submit(lv, "save_wean", %{
+        "weaning" => %{
+          "weaned_at" => today,
+          "weaned_count" => "11",
+          "batch_tag" => "W#{String.replace(today, "-", "")}",
+          "destination_pen_id" => Integer.to_string(dry_pen.id)
+        }
+      })
+
+      reloaded = Animals.get_animal!(scope, sow.id)
+      assert reloaded.current_pen_id == dry_pen.id
+      refute Breeding.latest_open_farrowing_for_sow(scope, sow.id)
+    end
+  end
 end

@@ -65,6 +65,39 @@ defmodule Peggy.Breeding do
 
   def wean_due_days(ref), do: param(ref, :wean_due_days, @default_wean_due_days)
 
+  @doc """
+  Default weaner batch id from `weaned_at`: `W` + `YYYYMMDD` (e.g. `W20260612`).
+
+  Litters weaned on the same calendar day share this id and pool into one
+  weaner batch unless the operator overrides `batch_tag`.
+  """
+  def default_wean_batch_tag(%Date{} = date) do
+    "W" <> String.replace(Date.to_iso8601(date), "-", "")
+  end
+
+  def default_wean_batch_tag(date) when is_binary(date) do
+    case String.trim(date) do
+      "" -> nil
+      trimmed -> "W" <> String.replace(trimmed, "-", "")
+    end
+  end
+
+  def default_wean_batch_tag(_), do: nil
+
+  @doc """
+  Refreshes an auto-filled batch tag when `weaned_at` changes; leaves
+  operator-entered tags untouched.
+  """
+  def refresh_auto_batch_tag(tag, prev_weaned_at, new_weaned_at) do
+    auto = default_wean_batch_tag(new_weaned_at)
+
+    cond do
+      tag in [nil, ""] -> auto
+      String.trim(to_string(tag)) == default_wean_batch_tag(prev_weaned_at) -> auto
+      true -> String.trim(to_string(tag))
+    end
+  end
+
   defp param(%Scope{farm: farm}, key, default), do: param(farm, key, default)
   defp param(%Farm{} = farm, key, default), do: Map.get(farm, key) || default
 
@@ -3393,8 +3426,9 @@ defmodule Peggy.Breeding do
   writes a `wean` `Movement` (linked via `weaning_id`) that carries the
   count, and increments the batch row's `quantity`. If no active weaner
   batch with that tag exists yet, a fresh row is inserted first with
-  `quantity: 0` and `current_pen_id: nil`. `batch_tag` is required
-  whenever `weaned_count >= 1`.
+  `quantity: 0` and `current_pen_id: nil`. `batch_tag` defaults to
+  `W<YYYYMMDD>` from `weaned_at` (e.g. `W20260612`) whenever
+  `weaned_count >= 1` and no tag is given.
 
   In one atomic transaction:
   1. Inserts the weaning row
@@ -3411,7 +3445,8 @@ defmodule Peggy.Breeding do
   Returns `{:ok, weaning, batch}` on success. `batch` is `nil` when
   `weaned_count == 0`.
 
-  Error reasons include `:already_weaned`, `:batch_tag_required`.
+  Error reasons include `:already_weaned`, `:batch_tag_required` (only when
+  `weaned_count >= 1` and `weaned_at` is missing).
   """
   def record_weaning(%Scope{} = scope, %Farrowing{} = farrowing, attrs) do
     if Repo.one(
@@ -3430,7 +3465,11 @@ defmodule Peggy.Breeding do
     weaned_count = to_int(attrs["weaned_count"]) || 0
     dest_pen_id = to_int(attrs["destination_pen_id"])
     weaned_at = attrs["weaned_at"]
-    batch_tag = normalize_batch_tag(attrs["batch_tag"])
+
+    batch_tag =
+      normalize_batch_tag(attrs["batch_tag"]) ||
+        if(weaned_count >= 1, do: default_wean_batch_tag(weaned_at), else: nil)
+
     created_via = attrs["created_via"]
     sow = Repo.get!(Animal, farrowing.sow_id)
 

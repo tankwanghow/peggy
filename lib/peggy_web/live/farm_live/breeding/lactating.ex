@@ -6,7 +6,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   use PeggyWeb, :live_view
 
   alias Peggy.{Animals, Breeding, FarmClock, Locations, Policy}
-  alias Peggy.Breeding.{Weaning, LitterEvent}
+  alias Peggy.Breeding.LitterEvent
   alias PeggyWeb.FarmLive.Breeding.Shared
 
   @per_page Shared.per_page()
@@ -601,7 +601,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
             />
             <div>
               <.autocomplete
-                id="weaning-batch-tag-picker"
+                id={"weaning-batch-tag-picker-#{weaning_picker_date_key(@form)}"}
                 label={gettext("Weaner batch id")}
                 name="weaning[batch_tag]"
                 value={Shared.fv(@form, :batch_tag)}
@@ -612,7 +612,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
                   )
                 }
                 class="w-full input"
-                placeholder={gettext("e.g. W2026-04-17")}
+                placeholder={gettext("e.g. W20260417")}
                 freetext
               />
               <p class="text-xs text-base-content/60 mt-0.5">
@@ -731,13 +731,13 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     farrowing = Breeding.get_farrowing!(scope, String.to_integer(id))
     surviving = Breeding.surviving_piglet_count(farrowing)
 
-    cs =
-      Breeding.change_weaning(%Weaning{
+    weaner_batches = Breeding.list_active_weaner_batches(scope)
+
+    form =
+      weaning_form(scope, %{
         weaned_at: FarmClock.today(scope),
         weaned_count: surviving
       })
-
-    weaner_batches = Breeding.list_active_weaner_batches(scope)
 
     wn = %{
       locked: true,
@@ -750,14 +750,14 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     {:noreply,
      assign(socket,
        form_mode: :weaning,
-       form: to_form(cs, as: :weaning),
+       form: form,
        form_target: farrowing,
        form_sow_tag: farrowing.sow.ear_tag,
        form_born_alive: farrowing.born_alive,
        form_surviving: surviving,
        ac: Shared.default_ac(scope),
        weaner_batches: weaner_batches,
-       batch_tag_hint: batch_tag_hint(scope, nil),
+       batch_tag_hint: batch_tag_hint(scope, Shared.fv(form, :batch_tag)),
        wn: wn
      )}
   end
@@ -765,11 +765,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   def handle_event("new_top_weaning", _, socket) do
     scope = socket.assigns.current_scope
     today = FarmClock.today(scope)
-
-    cs =
-      Breeding.change_weaning(%Weaning{
-        weaned_at: today
-      })
+    form = weaning_form(scope, %{weaned_at: today})
 
     wn = %{
       locked: false,
@@ -782,25 +778,25 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
     {:noreply,
      assign(socket,
        form_mode: :weaning,
-       form: to_form(cs, as: :weaning),
+       form: form,
        form_target: nil,
        form_sow_tag: nil,
        form_born_alive: nil,
        form_surviving: nil,
        ac: Shared.default_ac(scope),
        weaner_batches: Breeding.list_active_weaner_batches(scope),
-       batch_tag_hint: batch_tag_hint(scope, nil),
+       batch_tag_hint: batch_tag_hint(scope, Shared.fv(form, :batch_tag)),
        wn: wn
      )}
   end
 
   def handle_event("validate_weaning", %{"weaning" => params} = all, socket) do
-    cs = Breeding.change_weaning(%Weaning{}, params) |> Map.put(:action, :validate)
+    params = refresh_weaning_batch_tag(socket.assigns.form, params)
     sow_tag = all["sow_tag"]
 
     socket =
       socket
-      |> assign(:form, to_form(cs, as: :weaning))
+      |> assign(:form, weaning_form(socket.assigns.current_scope, params))
       |> assign(
         :batch_tag_hint,
         batch_tag_hint(socket.assigns.current_scope, params["batch_tag"])
@@ -820,6 +816,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   def handle_event("save_weaning", %{"weaning" => params} = all, socket) do
     if socket.assigns.can_record do
       wn = socket.assigns.wn
+      params = refresh_weaning_batch_tag(socket.assigns.form, params)
 
       socket =
         socket
@@ -1169,7 +1166,7 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
          )}
 
       {:error, cs} ->
-        {:noreply, assign(socket, :form, to_form(cs, as: :weaning))}
+        {:noreply, assign(socket, :form, weaning_form(socket.assigns.current_scope, params, cs))}
     end
   end
 
@@ -1296,6 +1293,63 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
   defp humanize_kind("foster_out"), do: gettext("Foster out")
   defp humanize_kind(other), do: other
 
+  defp weaning_form(scope, fields, changeset \\ nil) do
+    fields = normalize_weaning_fields(fields)
+
+    weaned_at =
+      fields["weaned_at"] ||
+        (changeset && Ecto.Changeset.get_field(changeset, :weaned_at)) ||
+        FarmClock.today(scope)
+
+    params =
+      fields
+      |> Map.put("weaned_at", weaned_at)
+      |> then(fn p ->
+        Map.put(
+          p,
+          "batch_tag",
+          p["batch_tag"] || Breeding.default_wean_batch_tag(weaned_at)
+        )
+      end)
+
+    to_form(params, as: :weaning)
+  end
+
+  defp normalize_weaning_fields(fields) when is_map(fields) do
+    Map.new(fields, fn
+      {k, v} when is_atom(k) -> {Atom.to_string(k), v}
+      {k, v} -> {k, v}
+    end)
+  end
+
+  defp normalize_weaning_fields(fields) when is_list(fields),
+    do: normalize_weaning_fields(Map.new(fields))
+
+  # The batch-tag autocomplete uses phx-update="ignore", so change its
+  # wrapper id when weaned_at changes to remount with the refreshed value.
+  defp weaning_picker_date_key(form) do
+    form
+    |> Shared.fv(:weaned_at)
+    |> case do
+      %Date{} = d -> Date.to_iso8601(d)
+      s when is_binary(s) -> s
+      _ -> "unknown"
+    end
+    |> String.replace("-", "")
+  end
+
+  defp refresh_weaning_batch_tag(form, params) do
+    Map.put(
+      params,
+      "batch_tag",
+      Breeding.refresh_auto_batch_tag(
+        params["batch_tag"] || Shared.fv(form, :batch_tag),
+        Shared.fv(form, :weaned_at),
+        params["weaned_at"]
+      )
+    )
+  end
+
   # Shows a live hint below the batch_tag field so the operator knows
   # whether the tag pools into an existing batch or starts a new one.
   defp batch_tag_hint(scope, tag) do
@@ -1303,7 +1357,9 @@ defmodule PeggyWeb.FarmLive.Breeding.Lactating do
       nil ->
         case (tag || "") |> to_string() |> String.trim() do
           "" ->
-            gettext("Free-text id. Reuse an existing id to pool; new id creates a fresh batch.")
+            gettext(
+              "Defaults to W<date> (e.g. W20260612). Same wean day pools together; override to split."
+            )
 
           _ ->
             gettext("New batch — will be created with this id.")

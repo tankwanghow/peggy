@@ -1566,7 +1566,7 @@ defmodule Peggy.Imports do
         "weaned_at" => row["weaned_at"],
         "weaned_count" => parse_int(row["weaned_count"]),
         "avg_wean_weight_g" => parse_int(row["avg_wean_weight_g"]),
-        "batch_tag" => row["batch_tag"] || "W#{row["weaned_at"]}",
+        "batch_tag" => row["batch_tag"] || Breeding.default_wean_batch_tag(row["weaned_at"]),
         "notes" => row["notes"],
         "created_via" => via
       }

@@ -12,9 +12,10 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
   use PeggyWeb, :live_view
 
   alias Peggy.{Animals, Breeding, FarmClock, Policy}
-  alias Peggy.Breeding.{LitterEvent, Weaning}
+  alias Peggy.Breeding.LitterEvent
   alias PeggyWeb.FarmLive.Breeding.Shared
   alias PeggyWeb.MobileLive.Breeding.MovementForm
+  alias PeggyWeb.Pickers
 
   @per_page 25
 
@@ -312,7 +313,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                   type="text"
                   name="weaning[batch_tag]"
                   value={Phoenix.HTML.Form.input_value(f, :batch_tag)}
-                  placeholder="e.g. W2026-05-04"
+                  placeholder="e.g. W20260504"
                   autocomplete="off"
                   class="input input-bordered input-lg w-full mt-1 font-mono"
                 />
@@ -320,6 +321,19 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                   {gettext("Reuse an existing id to pool; new id starts a fresh batch.")}
                 </span>
               </label>
+
+              <.autocomplete
+                id={"mobile-wean-dest-pen-#{Phoenix.HTML.Form.input_value(f, :weaned_at)}"}
+                label={gettext("Sow destination pen")}
+                name="weaning[destination_pen_id]"
+                value={Phoenix.HTML.Form.input_value(f, :destination_pen_id)}
+                items={@pen_items}
+                selected_label={@wean_dest_pen_label}
+                placeholder="16B-101"
+                drop_up
+                touch
+                empty_text={gettext("No active pen with that code")}
+              />
 
               <p :if={@wean_error} class="text-sm text-error">{@wean_error}</p>
 
@@ -705,8 +719,11 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
        sheet_farrowing: nil,
        sheet_sow_tag: nil,
        sheet_surviving: nil,
+       pen_items: Pickers.pen_items(scope),
+       pens_by_id: pens_by_id(scope),
        wean_form: nil,
        wean_error: nil,
+       wean_dest_pen_label: nil,
        death_form: nil,
        death_error: nil,
        foster_form: nil,
@@ -837,17 +854,12 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
     today = socket.assigns.today
     surviving = socket.assigns.sheet_surviving
 
-    cs =
-      Breeding.change_weaning(%Weaning{
-        weaned_at: today,
-        weaned_count: surviving
-      })
-
     {:noreply,
      assign(socket,
        sheet_mode: :wean,
-       wean_form: to_form(cs, as: :weaning),
-       wean_error: nil
+       wean_form: weaning_form(today, weaned_count: surviving),
+       wean_error: nil,
+       wean_dest_pen_label: nil
      )}
   end
 
@@ -896,16 +908,20 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
   end
 
   def handle_event("validate_wean", %{"weaning" => params}, socket) do
-    cs =
-      Breeding.change_weaning(%Weaning{}, params)
-      |> Map.put(:action, :validate)
+    params = refresh_weaning_batch_tag(socket.assigns.wean_form, params)
 
-    {:noreply, assign(socket, wean_form: to_form(cs, as: :weaning), wean_error: nil)}
+    {:noreply,
+     assign(socket,
+       wean_form: weaning_form(params["weaned_at"], Map.drop(params, ["weaned_at"])),
+       wean_dest_pen_label: pen_label(socket.assigns.pens_by_id, params["destination_pen_id"]),
+       wean_error: nil
+     )}
   end
 
   def handle_event("save_wean", %{"weaning" => params}, socket) do
     if socket.assigns.can_record do
       farrowing = socket.assigns.sheet_farrowing
+      params = refresh_weaning_batch_tag(socket.assigns.wean_form, params)
 
       case Breeding.record_weaning(socket.assigns.current_scope, farrowing, params) do
         {:ok, _weaning, _batch} ->
@@ -1265,6 +1281,46 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
     )
   end
 
+  defp weaning_form(weaned_at, fields) do
+    params =
+      fields
+      |> Enum.map(fn
+        {k, v} when is_atom(k) -> {Atom.to_string(k), v}
+        {k, v} -> {k, v}
+      end)
+      |> Map.new()
+      |> Map.put("weaned_at", weaned_at)
+      |> Map.put_new("batch_tag", Breeding.default_wean_batch_tag(weaned_at))
+      |> Map.put_new("destination_pen_id", "")
+
+    to_form(params, as: :weaning)
+  end
+
+  defp pens_by_id(scope) do
+    scope
+    |> Pickers.pen_items()
+    |> Map.new(fn %{id: id, label: label} -> {to_string(id), label} end)
+  end
+
+  defp pen_label(_pens_by_id, nil), do: nil
+  defp pen_label(_pens_by_id, ""), do: nil
+
+  defp pen_label(pens_by_id, id) do
+    Map.get(pens_by_id, to_string(id))
+  end
+
+  defp refresh_weaning_batch_tag(form, params) do
+    Map.put(
+      params,
+      "batch_tag",
+      Breeding.refresh_auto_batch_tag(
+        params["batch_tag"] || Phoenix.HTML.Form.input_value(form, :batch_tag),
+        Phoenix.HTML.Form.input_value(form, :weaned_at),
+        params["weaned_at"]
+      )
+    )
+  end
+
   # Clears form state without closing the sheet — used when switching
   # between :menu / :wean / :death / :foster modes.
   defp reset_sheet_state(socket) do
@@ -1272,6 +1328,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
     |> assign(
       wean_form: nil,
       wean_error: nil,
+      wean_dest_pen_label: nil,
       death_form: nil,
       death_error: nil,
       foster_form: nil,

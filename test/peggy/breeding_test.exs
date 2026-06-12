@@ -1692,6 +1692,28 @@ defmodule Peggy.BreedingTest do
     end
   end
 
+  describe "default_wean_batch_tag/1" do
+    test "formats Date as W<YYYYMMDD>" do
+      assert Breeding.default_wean_batch_tag(~D[2026-06-12]) == "W20260612"
+    end
+
+    test "formats ISO date strings" do
+      assert Breeding.default_wean_batch_tag("2026-06-12") == "W20260612"
+    end
+  end
+
+  describe "refresh_auto_batch_tag/3" do
+    test "refreshes when tag matched the previous auto value" do
+      assert Breeding.refresh_auto_batch_tag("W20260611", ~D[2026-06-11], ~D[2026-06-12]) ==
+               "W20260612"
+    end
+
+    test "keeps operator overrides" do
+      assert Breeding.refresh_auto_batch_tag("POOL-A", ~D[2026-06-11], ~D[2026-06-12]) ==
+               "POOL-A"
+    end
+  end
+
   describe "record_weaning/3" do
     test "fresh batch_tag creates a new weaner batch with no placement (user places batch later)",
          %{
@@ -1785,22 +1807,56 @@ defmodule Peggy.BreedingTest do
       assert Enum.at(wean_movements, 1).weaning_id == w2.id
     end
 
-    test "missing batch_tag when weaned_count >= 1 errors with :batch_tag_required",
+    test "omitted batch_tag defaults to W<YYYYMMDD> from weaned_at",
          %{scope: scope, sow: sow, boar: boar, pen: pen} do
       f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
 
-      assert {:error, :batch_tag_required} =
+      assert {:ok, _weaning, batch} =
                Breeding.record_weaning(scope, f, %{
                  weaned_at: ~D[2026-04-17],
                  weaned_count: 5
                })
 
-      assert {:error, :batch_tag_required} =
+      assert batch.ear_tag == "W20260417"
+    end
+
+    test "blank batch_tag is treated as omitted",
+         %{scope: scope, pen: pen, boar: boar} do
+      sow = animal_fixture(scope, ear_tag: "AUTO-BLANK", stage: "sow")
+      f = farrowing_fixture(scope, sow, boar_id: boar.id, born_alive: 5, pen_id: pen.id)
+
+      assert {:ok, _weaning, batch} =
                Breeding.record_weaning(scope, f, %{
                  weaned_at: ~D[2026-04-17],
                  weaned_count: 5,
                  batch_tag: "   "
                })
+
+      assert batch.ear_tag == "W20260417"
+    end
+
+    test "same weaned_at without batch_tag pools litters into one weaner batch",
+         %{scope: scope, pen: pen, boar: boar} do
+      sow1 = animal_fixture(scope, ear_tag: "AUTO-W1", stage: "sow")
+      sow2 = animal_fixture(scope, ear_tag: "AUTO-W2", stage: "sow")
+      f1 = farrowing_fixture(scope, sow1, boar_id: boar.id, born_alive: 6, pen_id: pen.id)
+      f2 = farrowing_fixture(scope, sow2, boar_id: boar.id, born_alive: 4, pen_id: pen.id)
+
+      assert {:ok, _, batch1} =
+               Breeding.record_weaning(scope, f1, %{
+                 weaned_at: ~D[2026-06-12],
+                 weaned_count: 6
+               })
+
+      assert {:ok, _, batch2} =
+               Breeding.record_weaning(scope, f2, %{
+                 weaned_at: ~D[2026-06-12],
+                 weaned_count: 4
+               })
+
+      assert batch1.id == batch2.id
+      assert batch2.ear_tag == "W20260612"
+      assert batch2.quantity == 10
     end
 
     test "batch_tag matching a non-weaner or non-active batch is treated as fresh",

@@ -138,18 +138,21 @@ const AutoComplete = {
             hook.ac.start()
           },
           selection: (event) => {
-            const sel = event.detail.selection.value
+            // autoComplete.js nests the picked record under
+            // `selection.value` as `{id, label}` (see vendor feedback()).
+            const item = event.detail.selection.value
+            if (!item || (item.id == null && !item.label)) return
             // Freetext mode: the visible input IS the form field, so we
             // write the item's `id` (e.g. raw batch tag) into it. Hidden
             // mode: visible shows the rich label, hidden carries the id.
             if (freetext) {
-              hook.el.value = sel.id
+              hook.el.value = item.id
               hook.el.dispatchEvent(new Event("input", {bubbles: true}))
             } else {
-              hook.el.value = sel.label
+              hook.el.value = item.label
               showWarning(false)
               if (hidden) {
-                hidden.value = sel.id
+                hidden.value = item.id
                 // Let the form's phx-change handler run.
                 hidden.dispatchEvent(new Event("input", {bubbles: true}))
               }

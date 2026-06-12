@@ -160,7 +160,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
                         autocomplete="off"
                         spellcheck="false"
                         class="input input-bordered w-full font-mono"
-                        placeholder={gettext("e.g. POOL-W24")}
+                        placeholder={gettext("e.g. W20260612")}
                       />
                     </td>
                     <td class="py-1 px-0.5">
@@ -377,7 +377,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
       served_at: served_at && to_string(served_at),
       weaned_count: to_int_or_zero(r.weaned_count),
       avg_wean_weight_g: to_int_or_nil(r.avg_wean_weight_g),
-      batch_tag: presence(r.batch_tag),
+      batch_tag: presence(r.batch_tag) || Breeding.default_wean_batch_tag(r.weaned_at),
       destination_pen_id: r.pen_id,
       pen_id: r.pen_id,
       born_alive: to_int_or_zero(r.weaned_count)
@@ -418,7 +418,7 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
       weaned_at: default_date,
       weaned_count: nil,
       avg_wean_weight_g: nil,
-      batch_tag: "",
+      batch_tag: Breeding.default_wean_batch_tag(default_date),
       pen_input: "",
       pen_id: nil,
       pen_state: :empty,
@@ -435,16 +435,22 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
       params |> Map.get("pen_input", row.pen_input) |> to_string() |> String.trim()
 
     {pen_id, pen_state} = resolve_pen(pen_input, assigns.pens_by_label)
+    weaned_at = Map.get(params, "weaned_at", row.weaned_at)
 
     %{
       row
       | sow_ear_tag:
           params |> Map.get("sow_ear_tag", row.sow_ear_tag) |> to_string() |> String.trim(),
         force_create: truthy?(Map.get(params, "force_create")),
-        weaned_at: Map.get(params, "weaned_at", row.weaned_at),
+        weaned_at: weaned_at,
         weaned_count: Map.get(params, "weaned_count", row.weaned_count),
         avg_wean_weight_g: Map.get(params, "avg_wean_weight_g", row.avg_wean_weight_g),
-        batch_tag: Map.get(params, "batch_tag", row.batch_tag),
+        batch_tag:
+          refresh_row_batch_tag(
+            Map.get(params, "batch_tag", row.batch_tag),
+            row.weaned_at,
+            weaned_at
+          ),
         pen_input: pen_input,
         pen_id: pen_id,
         pen_state: pen_state,
@@ -500,8 +506,11 @@ defmodule PeggyWeb.FarmLive.BatchWeaning do
     row.sow_state in [:existing_open, :existing_no_farrowing, :new, :similar_overridable] and
       row.pen_state in [:found, :empty] and
       not is_nil(row.weaned_at) and row.weaned_at != "" and
-      weaned_count > 0 and
-      presence(row.batch_tag) != nil
+      weaned_count > 0
+  end
+
+  defp refresh_row_batch_tag(tag, prev_weaned_at, new_weaned_at) do
+    Breeding.refresh_auto_batch_tag(tag, prev_weaned_at, new_weaned_at)
   end
 
   defp commit_ready?(rows) do
