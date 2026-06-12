@@ -25,6 +25,20 @@ defmodule PeggyWeb.Layouts do
       </Layouts.app>
 
   """
+  attr :class, :string, default: "size-8", doc: "Tailwind size classes for the logo image"
+
+  def app_logo(assigns) do
+    ~H"""
+    <img
+      src={~p"/images/icons/app-icon.svg"}
+      alt="Peggy"
+      width="32"
+      height="32"
+      class={["shrink-0 rounded-[22%]", @class]}
+    />
+    """
+  end
+
   attr :flash, :map, required: true, doc: "the map of flash messages"
 
   attr :current_scope, :map,
@@ -38,7 +52,7 @@ defmodule PeggyWeb.Layouts do
     <header class="navbar px-4 sm:px-6 lg:px-8 border-b border-base-300">
       <div class="flex-1">
         <.link navigate={~p"/"} class="flex items-center gap-2 font-bold text-lg">
-          <span class="text-2xl">🐷</span>
+          <.app_logo />
           <span>Peggy</span>
           <span
             :if={@current_scope && @current_scope.farm}
