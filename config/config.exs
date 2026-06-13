@@ -7,6 +7,15 @@
 # General application configuration
 import Config
 
+workspace_assets_config = Path.expand("../../shared_config/assets.exs", __DIR__)
+
+if File.exists?(workspace_assets_config) do
+  import_config workspace_assets_config
+else
+  config :esbuild, version: "0.28.1"
+  config :tailwind, version: "4.3.1"
+end
+
 config :peggy, :scopes,
   user: [
     default: true,
@@ -48,9 +57,8 @@ config :peggy, PeggyWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :peggy, Peggy.Mailer, adapter: Swoosh.Adapters.Local
 
-# Configure esbuild (the version is required)
+# Configure esbuild
 config :esbuild,
-  version: "0.25.4",
   peggy: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
@@ -58,9 +66,8 @@ config :esbuild,
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
-# Configure tailwind (the version is required)
+# Configure tailwind
 config :tailwind,
-  version: "4.1.12",
   peggy: [
     args: ~w(
       --input=assets/css/app.css
