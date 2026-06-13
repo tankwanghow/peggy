@@ -12,3 +12,4 @@ for size in 16 32 48 180 192 512; do
 done
 
 convert "$ROOT/icon-16.png" "$ROOT/icon-32.png" "$ROOT/icon-48.png" "$ROOT/../../favicon.ico"
+cp "$ROOT/icon-180.png" "$ROOT/../../apple-touch-icon.png"

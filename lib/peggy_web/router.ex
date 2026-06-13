@@ -22,6 +22,7 @@ defmodule PeggyWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/manifest.webmanifest", ManifestController, :show
     get "/locale/:locale", LocaleController, :update
   end
 
