@@ -77,12 +77,12 @@ defmodule PeggyWeb.MobileLive.Animals do
         </p>
 
         <%!-- Cards --%>
-        <ul id="animals-cards" phx-update="stream" class="px-3 py-2 space-y-2">
+        <ul id="animals-cards" phx-update="stream" class="px-3 py-2 space-y-1">
           <li
             :for={{dom_id, a} <- @streams.animals}
             id={dom_id}
             phx-click={JS.navigate(~p"/m/#{@current_scope.farm.slug}/animals/#{a.id}")}
-            class="p-4 rounded-xl border border-base-300 bg-base-100 shadow-sm
+            class="px-3 py-2 rounded-xl border border-base-300 bg-base-100 shadow-sm
                    active:bg-base-200 cursor-pointer touch-manipulation"
           >
             <div class="flex items-baseline justify-between gap-2">

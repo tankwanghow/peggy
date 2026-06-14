@@ -85,22 +85,21 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
         </p>
 
         <%!-- Cards --%>
-        <ul id="serviceable-cards" phx-update="stream" class="px-3 py-2 space-y-2">
+        <ul id="serviceable-cards" phx-update="stream" class="px-3 py-2 space-y-1">
           <li
             :for={{dom_id, e} <- @streams.serviceable}
             id={dom_id}
             phx-click={@can_record && "open_actions"}
             phx-value-sow-id={e.animal.id}
             class={[
-              "p-4 rounded-xl border border-base-300 bg-base-100 shadow-sm",
+              "p-3 pt-2 rounded-xl border border-base-300 bg-base-100 shadow-sm",
               @can_record && "active:bg-base-200 cursor-pointer touch-manipulation"
             ]}
           >
             <div class="flex items-baseline justify-between">
-              <span class="font-mono font-bold text-xl">
-                {e.animal.ear_tag}
-                <.cull_flag animal={e.animal} />
-              </span>
+              <span class="font-mono font-bold text-xl">{e.animal.ear_tag}</span>
+              <span><.cull_flag animal={e.animal} /></span>
+              <span><Shared.recently_updated_badge at={e.animal.updated_at} /></span>
               <span>
                 <.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
                 <span class="font-mono">{sow_pen_label(e.animal)}</span>
@@ -122,7 +121,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
             <div class="flex items-center gap-2 text-sm text-base-content/70 justify-between">
               <span class="text-base-content/50">
                 {gettext("Parity")}
-                <span class="font-mono font-bold text-info ml-1">{e.parity}</span>
+                <span class="font-mono font-bold text-info">{e.parity}</span>
               </span>
               <div class="text-base-content/60">
                 <Shared.last_event entry={e} empty_text={gettext("No history")} />
@@ -134,7 +133,6 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 {idle_display(e.days_idle)}
               </div>
             </div>
-            <Shared.recently_updated_badge at={e.animal.updated_at} />
           </li>
         </ul>
 

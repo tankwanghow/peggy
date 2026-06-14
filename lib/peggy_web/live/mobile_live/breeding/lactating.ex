@@ -90,13 +90,13 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
         </p>
 
         <%!-- Cards --%>
-        <ul id="lactating-cards" phx-update="stream" class="px-3 py-2 space-y-2">
+        <ul id="lactating-cards" phx-update="stream" class="px-3 py-2 space-y-1">
           <li
             :for={{dom_id, e} <- @streams.lactating}
             id={dom_id}
             phx-click="open_actions"
             phx-value-farrowing-id={e.farrowing.id}
-            class="p-4 rounded-xl border border-base-300 bg-base-100 shadow-sm
+            class="px-3 py-1 rounded-xl border border-base-300 bg-base-100 shadow-sm
                    active:bg-base-200 cursor-pointer touch-manipulation"
           >
             <div class="flex items-baseline justify-between gap-3">

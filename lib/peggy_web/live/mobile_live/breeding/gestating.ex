@@ -90,26 +90,23 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
         </p>
 
         <%!-- Cards --%>
-        <ul id="gestating-cards" phx-update="stream" class="px-3 py-2 space-y-2">
+        <ul id="gestating-cards" phx-update="stream" class="px-3 py-2 space-y-1">
           <li
             :for={{dom_id, e} <- @streams.gestating}
             id={dom_id}
             phx-click="open_actions"
             phx-value-service-id={e.service.id}
-            class="p-4 rounded-xl border border-base-300 bg-base-100 shadow-sm
+            class="px-4 pt-2 rounded-xl border border-base-300 bg-base-100 shadow-sm
                    active:bg-base-200 cursor-pointer touch-manipulation"
           >
             <div class="flex items-baseline justify-between">
-              <span class="font-mono font-bold text-xl">
-                {e.service.sow.ear_tag}
-                <.cull_flag animal={e.service.sow} />
-                <Shared.recently_updated_badge at={e.service.updated_at} />
-              </span>
-              <span><.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
-                <span class="font-mono">{sow_pen_label(e.service.sow)}</span></span>
+              <span class="font-mono font-bold text-xl">{e.service.sow.ear_tag}</span>
+              <span><.cull_flag animal={e.service.sow} /></span>
+              <span><.icon name="hero-map-pin-micro" class="size-4 text-blue-600" /></span>
+              <span class="font-mono">{sow_pen_label(e.service.sow)}</span>
               <span class="text-sm text-base-content/50">
                 {gettext("Parity")}
-                <span class="font-mono font-bold text-info ml-1">{e.parity}</span>
+                <span class="font-mono font-bold text-info">{e.parity}</span>
               </span>
             </div>
 
@@ -118,6 +115,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                 <span class="text-base-content/50">
                   {gettext("Type")}
                   <span class="uppercase font-semibold">{e.service.service_type}</span>
+                  <span><Shared.recently_updated_badge at={e.service.updated_at} /></span>
                 </span>
                 <div>
                   <div class={[

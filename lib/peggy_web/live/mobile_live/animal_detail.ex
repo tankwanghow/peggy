@@ -220,7 +220,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
           <%!-- Offspring (sows) --%>
           <div
             :if={@animal.stage == "sow" and @offspring != []}
-            class="rounded-xl border border-base-300 bg-base-100 p-3 text-sm"
+            class="rounded-xl border border-base-300 bg-base-100 px-2 pt-1 text-sm"
           >
             <div class="text-xs uppercase tracking-wide text-base-content/50 mb-1">
               {gettext("Offspring")} ({length(@offspring)})
@@ -255,7 +255,7 @@ defmodule PeggyWeb.MobileLive.AnimalDetail do
           <ul :if={@history != []} class="space-y-2">
             <li
               :for={row <- Enum.take(@history, 20)}
-              class="rounded-xl border border-base-300 bg-base-100 p-3 text-sm"
+              class="rounded-xl border border-base-300 bg-base-100 px-2 py-2 text-sm"
             >
               <div class="flex items-baseline justify-between gap-2">
                 <span class={[
