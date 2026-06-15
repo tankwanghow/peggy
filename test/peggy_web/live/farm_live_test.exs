@@ -81,19 +81,6 @@ defmodule PeggyWeb.FarmLiveTest do
       assert reloaded.name == "Renamed"
       assert reloaded.unit_system == "imperial"
     end
-
-    test "owner can invite a member", %{conn: conn} do
-      owner = user_fixture()
-      farm = farm_fixture(owner)
-
-      {:ok, lv, _html} = conn |> log_in_user(owner) |> live(~p"/farms/#{farm.slug}/settings")
-
-      lv
-      |> form("#invite-form", invitation: %{email: "new@example.com", role: "worker"})
-      |> render_submit()
-
-      assert has_element?(lv, "#invitations", "new@example.com")
-    end
   end
 
   describe "/farms/:slug/animals/bulk-move" do

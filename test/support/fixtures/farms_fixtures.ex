@@ -29,6 +29,22 @@ defmodule Peggy.FarmsFixtures do
     Scope.put_farm(Scope.for_user(user), farm, membership)
   end
 
+  def member_fixture(farm, attrs \\ %{}) do
+    user = user_fixture()
+    role = Map.get(attrs, :role, "worker")
+
+    %Peggy.Farms.Membership{
+      user_id: user.id,
+      farm_id: farm.id,
+      role: role,
+      accepted_at: DateTime.utc_now(:second)
+    }
+    |> Peggy.Farms.Membership.changeset(%{})
+    |> Peggy.Repo.insert!()
+
+    user
+  end
+
   def worker_scope_fixture(attrs \\ %{}) do
     owner_scope = farm_scope_fixture(attrs)
     worker = username_user_fixture()

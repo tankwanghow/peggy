@@ -649,6 +649,12 @@ defmodule PeggyWeb.Layouts do
           label={gettext("Tasks")}
         />
         <.farm_nav_link
+          :if={Peggy.Policy.can?(@current_scope, :view_farm)}
+          href={~p"/farms/#{@current_scope.farm.slug}/members"}
+          icon="hero-users-micro"
+          label={gettext("Members")}
+        />
+        <.farm_nav_link
           :if={Peggy.Policy.can?(@current_scope, :manage_farm_settings)}
           href={~p"/farms/#{@current_scope.farm.slug}/settings"}
           icon="hero-cog-6-tooth-micro"
