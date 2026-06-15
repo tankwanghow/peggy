@@ -80,6 +80,40 @@ defmodule Peggy.Accounts do
     |> Repo.insert()
   end
 
+  @doc """
+  Gets a user by username.
+  """
+  def get_user_by_username(username) when is_binary(username) do
+    Repo.get_by(User, username: username)
+  end
+
+  @doc """
+  Gets a user by a login handle (email or username) and password.
+  """
+  def get_user_by_login_and_password(login, password)
+      when is_binary(login) and is_binary(password) do
+    user = Repo.one(from(u in User, where: u.email == ^login or u.username == ^login, limit: 1))
+    if User.valid_password?(user, password), do: user
+  end
+
+  @doc """
+  Registers an invited member from `%{username, password, email?}` and confirms
+  them immediately.
+  """
+  def register_invited_user(attrs) do
+    %User{}
+    |> User.registration_changeset(attrs)
+    |> Repo.insert()
+    |> case do
+      {:ok, user} -> confirm_user(user)
+      other -> other
+    end
+  end
+
+  defp confirm_user(%User{} = user) do
+    user |> User.confirm_changeset() |> Repo.update()
+  end
+
   ## Settings
 
   @doc """

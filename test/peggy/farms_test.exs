@@ -141,6 +141,61 @@ defmodule Peggy.FarmsTest do
     end
   end
 
+  describe "invite without an email (QR invite)" do
+    test "creates a pending invitation with no email" do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+
+      assert {:ok, invitation} =
+               Farms.invite(farm, %{"role" => "worker"}, owner)
+
+      assert is_nil(invitation.email)
+      assert invitation.role == "worker"
+    end
+  end
+
+  describe "reusable invite sessions" do
+    import Peggy.AccountsFixtures
+
+    defp open_session(role \\ "worker") do
+      owner = user_fixture()
+      farm = farm_fixture(owner)
+      {:ok, inv} = Farms.open_invite_session(farm, owner, role)
+      %{owner: owner, farm: farm, inv: inv}
+    end
+
+    test "two different users can accept the same reusable token" do
+      %{farm: farm, inv: inv} = open_session()
+      u1 = username_user_fixture()
+      u2 = username_user_fixture()
+
+      assert {:ok, m1} = Farms.accept_invitation(u1, inv.token)
+      assert m1.role == "worker"
+      assert {:ok, _m2} = Farms.accept_invitation(u2, inv.token)
+
+      assert {:ok, _} =
+               Farms.get_invitation_by_encoded_token(
+                 Peggy.Farms.Invitation.encode_token(inv.token)
+               )
+
+      assert length(Farms.list_members(farm)) == 3
+    end
+
+    test "a re-accept by an existing member is a no-op success" do
+      %{inv: inv} = open_session()
+      u1 = username_user_fixture()
+      {:ok, _} = Farms.accept_invitation(u1, inv.token)
+      assert {:ok, :already_member} = Farms.accept_invitation(u1, inv.token)
+    end
+
+    test "a closed session rejects new accepts" do
+      %{farm: farm, inv: inv} = open_session()
+      {:ok, _} = Farms.close_invite_session(farm, inv.id)
+      u = username_user_fixture()
+      assert {:error, :closed} = Farms.accept_invitation(u, inv.token)
+    end
+  end
+
   describe "breeding_parameter_changeset promotion thresholds" do
     test "accepts ordered values" do
       cs = Farm.breeding_parameter_changeset(%Farm{}, valid_breeding_params())

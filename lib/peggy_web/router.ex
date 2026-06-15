@@ -72,6 +72,7 @@ defmodule PeggyWeb.Router do
       ] do
       live "/farms/:farm_slug", FarmLive.Dashboard, :show
       live "/farms/:farm_slug/settings", FarmLive.Settings, :edit
+      live "/farms/:farm_slug/invite-session/:role", FarmLive.InviteSession, :show
       live "/farms/:farm_slug/locations", FarmLive.Locations, :index
       live "/farms/:farm_slug/locations/houses/:id", FarmLive.HouseDetail, :show
       live "/farms/:farm_slug/animals", FarmLive.Animals, :index
@@ -143,6 +144,7 @@ defmodule PeggyWeb.Router do
     end
 
     post "/users/log-in", UserSessionController, :create
+    post "/invitations/:token/accept", InvitationController, :accept
     delete "/users/log-out", UserSessionController, :delete
   end
 end

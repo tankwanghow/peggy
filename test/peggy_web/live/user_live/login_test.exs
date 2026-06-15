@@ -51,7 +51,7 @@ defmodule PeggyWeb.UserLive.LoginTest do
 
       form =
         form(lv, "#login_form_password",
-          user: %{email: user.email, password: valid_user_password(), remember_me: true}
+          user: %{identifier: user.email, password: valid_user_password(), remember_me: true}
         )
 
       conn = submit_form(form, conn)
@@ -65,12 +65,14 @@ defmodule PeggyWeb.UserLive.LoginTest do
       {:ok, lv, _html} = live(conn, ~p"/users/log-in")
 
       form =
-        form(lv, "#login_form_password", user: %{email: "test@email.com", password: "123456"})
+        form(lv, "#login_form_password",
+          user: %{identifier: "test@email.com", password: "123456"}
+        )
 
       render_submit(form, %{user: %{remember_me: true}})
 
       conn = follow_trigger_action(form, conn)
-      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid email or password"
+      assert Phoenix.Flash.get(conn.assigns.flash, :error) == "Invalid username/email or password"
       assert redirected_to(conn) == ~p"/users/log-in"
     end
   end

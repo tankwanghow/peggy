@@ -12,6 +12,19 @@ defmodule Peggy.AccountsFixtures do
   def unique_user_email, do: "user#{System.unique_integer()}@example.com"
   def valid_user_password, do: "hello world!"
 
+  def unique_username, do: "user#{System.unique_integer([:positive])}"
+
+  def username_user_fixture(attrs \\ %{}) do
+    attrs =
+      Enum.into(attrs, %{
+        username: unique_username(),
+        password: valid_user_password()
+      })
+
+    {:ok, user} = Peggy.Accounts.register_invited_user(attrs)
+    user
+  end
+
   def valid_user_attributes(attrs \\ %{}) do
     Enum.into(attrs, %{
       email: unique_user_email()

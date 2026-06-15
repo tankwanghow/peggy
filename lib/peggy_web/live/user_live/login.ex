@@ -69,9 +69,9 @@ defmodule PeggyWeb.UserLive.Login do
         >
           <.input
             readonly={!!@current_scope}
-            field={f[:email]}
-            type="email"
-            label={gettext("Email")}
+            field={f[:identifier]}
+            type="text"
+            label={gettext("Email or username")}
             autocomplete="username"
             spellcheck="false"
             required
@@ -97,11 +97,15 @@ defmodule PeggyWeb.UserLive.Login do
 
   @impl true
   def mount(_params, _session, socket) do
-    email =
-      Phoenix.Flash.get(socket.assigns.flash, :email) ||
-        get_in(socket.assigns, [:current_scope, Access.key(:user), Access.key(:email)])
+    current_email =
+      get_in(socket.assigns, [:current_scope, Access.key(:user), Access.key(:email)])
 
-    form = to_form(%{"email" => email}, as: "user")
+    prefill = fn flash_key ->
+      Phoenix.Flash.get(socket.assigns.flash, flash_key) || current_email
+    end
+
+    form =
+      to_form(%{"email" => prefill.(:email), "identifier" => prefill.(:identifier)}, as: "user")
 
     {:ok, assign(socket, form: form, trigger_submit: false)}
   end

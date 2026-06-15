@@ -7,47 +7,97 @@ defmodule PeggyWeb.InvitationLive.Show do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
-      <div class="mx-auto max-w-md text-center">
-        <%= case @state do %>
-          <% :invalid -> %>
-            <.header>{gettext("Invitation not valid")}</.header>
-            <p class="mt-4 text-base-content/70">
-              {gettext("This invitation link is invalid, expired, or already accepted.")}
-            </p>
-          <% :needs_login -> %>
-            <.header>{gettext("Log in to accept")}</.header>
-            <p class="mt-4">
-              {gettext("You've been invited to join")} <b>{@invitation.farm.name}</b>
-              {gettext("as")} <b>{@invitation.role}</b>. {gettext("Log in or register with")} <b>{@invitation.email}</b>, {gettext(
-                "then open this link again."
-              )}
-            </p>
-            <.link
-              navigate={~p"/users/register?email=#{@invitation.email}"}
-              class="btn btn-primary mt-4"
+      <div class="mx-auto max-w-md">
+        <%= if @invitation do %>
+          <.header>
+            {gettext("Join %{farm}", farm: @invitation.farm.name)}
+            <:subtitle>
+              {gettext("You've been invited as")} <b>{@invitation.role}</b>.
+            </:subtitle>
+          </.header>
+
+          <%= if @current_scope do %>
+            <.form
+              for={@accept_form}
+              id="accept-form"
+              action={~p"/invitations/#{@token}/accept"}
+              class="mt-6"
             >
-              {gettext("Register")}
-            </.link>
-            <p class="mt-3 text-sm text-base-content/60">
-              {gettext("Already have an account?")}
-              <.link navigate={~p"/users/log-in"} class="link link-primary">
-                {gettext("Log in")}
-              </.link>
-              {gettext("and return here.")}
-            </p>
-          <% :email_mismatch -> %>
-            <.header>{gettext("Different email required")}</.header>
-            <p class="mt-4">
-              {gettext("This invitation is for")} <b>{@invitation.email}</b>, {gettext(
-                "but you are logged in as"
-              )} <b>{@current_scope.user.email}</b>. {gettext("Log out and try again.")}
-            </p>
-          <% :ready -> %>
-            <.header>{gettext("Join %{farm}", farm: @invitation.farm.name)}</.header>
-            <p class="mt-4">{gettext("Role:")} <b>{@invitation.role}</b></p>
-            <button phx-click="accept" class="btn btn-primary mt-6">
-              {gettext("Accept invitation")}
-            </button>
+              <.button class="btn btn-primary w-full" phx-disable-with={gettext("Joining...")}>
+                {gettext("Accept invitation")}
+              </.button>
+            </.form>
+          <% else %>
+            <.form
+              for={@create_form}
+              id="create-form"
+              action={~p"/invitations/#{@token}/accept"}
+              class="mt-6 space-y-2"
+            >
+              <p class="font-semibold">{gettext("New here? Create your login")}</p>
+              <.input
+                field={@create_form[:username]}
+                label={gettext("Username")}
+                autocomplete="username"
+                spellcheck="false"
+                phx-mounted={JS.focus()}
+                required
+              />
+              <.input
+                field={@create_form[:password]}
+                type="password"
+                label={gettext("Password")}
+                autocomplete="new-password"
+                required
+              />
+              <.input
+                field={@create_form[:email]}
+                type="email"
+                label={gettext("Email (optional)")}
+                autocomplete="email"
+                spellcheck="false"
+              />
+              <.button class="btn btn-primary w-full" phx-disable-with={gettext("Creating...")}>
+                {gettext("Create account & join")}
+              </.button>
+            </.form>
+
+            <div class="divider">{gettext("or")}</div>
+
+            <.form
+              for={@login_form}
+              id="login-form"
+              action={~p"/invitations/#{@token}/accept"}
+              class="space-y-2"
+            >
+              <p class="font-semibold">{gettext("Already have an account?")}</p>
+              <.input
+                field={@login_form[:identifier]}
+                label={gettext("Username or email")}
+                autocomplete="username"
+                spellcheck="false"
+                required
+              />
+              <.input
+                field={@login_form[:password]}
+                type="password"
+                label={gettext("Password")}
+                autocomplete="current-password"
+                required
+              />
+              <.button
+                class="btn btn-primary btn-soft w-full"
+                phx-disable-with={gettext("Joining...")}
+              >
+                {gettext("Log in & join")}
+              </.button>
+            </.form>
+          <% end %>
+        <% else %>
+          <.header>{gettext("Invitation not valid")}</.header>
+          <p class="mt-4 text-center text-base-content/70">
+            {gettext("This invitation link is invalid, expired, or already accepted.")}
+          </p>
         <% end %>
       </div>
     </Layouts.app>
@@ -56,47 +106,19 @@ defmodule PeggyWeb.InvitationLive.Show do
 
   @impl true
   def mount(%{"token" => token}, _session, socket) do
-    case Farms.get_invitation_by_token(token) do
-      {:ok, invitation} ->
-        {:ok, socket |> assign(:invitation, invitation) |> compute_state()}
-
-      :error ->
-        {:ok, assign(socket, state: :invalid, invitation: nil)}
-    end
-  end
-
-  @impl true
-  def handle_event("accept", _, socket) do
-    invitation = socket.assigns.invitation
-    user = socket.assigns.current_scope.user
-
-    case Farms.accept_invitation(invitation, user) do
-      {:ok, _membership} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, gettext("Welcome to %{farm}!", farm: invitation.farm.name))
-         |> push_navigate(to: ~p"/farms/#{invitation.farm.slug}")}
-
-      {:error, :seat_limit_reached} ->
-        {:noreply,
-         put_flash(socket, :error, gettext("That farm is full — ask an owner to free up a seat."))}
-
-      {:error, _changeset} ->
-        {:noreply, put_flash(socket, :error, gettext("Could not accept invitation."))}
-    end
-  end
-
-  defp compute_state(socket) do
-    invitation = socket.assigns.invitation
-    user = socket.assigns.current_scope && socket.assigns.current_scope.user
-
-    state =
-      cond do
-        is_nil(user) -> :needs_login
-        String.downcase(user.email) != invitation.email -> :email_mismatch
-        true -> :ready
+    invitation =
+      case Farms.get_invitation_by_encoded_token(token) do
+        {:ok, invitation} -> invitation
+        :error -> nil
       end
 
-    assign(socket, :state, state)
+    {:ok,
+     assign(socket,
+       token: token,
+       invitation: invitation,
+       accept_form: to_form(%{}, as: "accept"),
+       create_form: to_form(%{}, as: "create"),
+       login_form: to_form(%{}, as: "login")
+     )}
   end
 end

@@ -293,7 +293,15 @@ defmodule PeggyWeb.FarmLive.Settings do
           <ul id="members" class="mt-3 divide-y divide-base-300">
             <li :for={m <- @members} id={"member-#{m.id}"} class="py-3 flex justify-between gap-3">
               <div>
-                <div class="font-medium">{m.user.email}</div>
+                <div class="font-medium">
+                  <span :if={m.user.email}>{m.user.email}</span>
+                  <span :if={m.user.email && m.user.username} class="mx-2 text-base-content/40">♦</span>
+                  <span :if={m.user.username} class="text-base-content/70">{m.user.username}</span>
+                  <span :if={m.user_id == @current_scope.user.id} class="mx-2 text-base-content/40">♦</span>
+                  <span :if={m.user_id == @current_scope.user.id} class="text-base-content/40">
+                    {gettext("you")}
+                  </span>
+                </div>
                 <div class="text-sm text-base-content/60">{m.role}</div>
               </div>
               <button
@@ -322,7 +330,7 @@ defmodule PeggyWeb.FarmLive.Settings do
             </span>
           </h2>
           <.form for={@invite_form} id="invite-form" phx-submit="invite" class="mt-3 space-y-3">
-            <.input field={@invite_form[:email]} type="email" label={gettext("Email")} required />
+            <.input field={@invite_form[:email]} type="email" label={gettext("Email (optional)")} />
             <.input
               field={@invite_form[:role]}
               type="select"
@@ -337,6 +345,27 @@ defmodule PeggyWeb.FarmLive.Settings do
               {gettext("Send invitation")}
             </.button>
           </.form>
+
+          <div :if={@last_invite_link} class="alert alert-info mt-2" id="invite-link">
+            <a href={@last_invite_link} target="_blank" rel="noopener" class="link break-all">
+              {@last_invite_link}
+            </a>
+          </div>
+
+          <div class="mt-4 flex gap-2">
+            <.link
+              navigate={~p"/farms/#{@current_scope.farm.slug}/invite-session/manager"}
+              class="btn btn-outline btn-sm"
+            >
+              <.icon name="hero-qr-code" class="size-4" /> {gettext("Manager QR")}
+            </.link>
+            <.link
+              navigate={~p"/farms/#{@current_scope.farm.slug}/invite-session/worker"}
+              class="btn btn-outline btn-sm"
+            >
+              <.icon name="hero-qr-code" class="size-4" /> {gettext("Worker QR")}
+            </.link>
+          </div>
 
           <h3 class="mt-6 font-semibold">{gettext("Pending invitations")}</h3>
           <ul id="invitations" class="mt-2 divide-y divide-base-300">
@@ -406,7 +435,12 @@ defmodule PeggyWeb.FarmLive.Settings do
       {:ok, socket |> put_flash(:error, gettext("Not authorized.")) |> redirect(to: "/farms")}
     else
       {:ok,
-       socket |> load() |> assign_invite_form() |> assign_farm_form() |> assign_breeding_form()}
+       socket
+       |> assign(:last_invite_link, nil)
+       |> load()
+       |> assign_invite_form()
+       |> assign_farm_form()
+       |> assign_breeding_form()}
     end
   end
 
@@ -484,9 +518,25 @@ defmodule PeggyWeb.FarmLive.Settings do
     user = socket.assigns.current_scope.user
 
     case Farms.invite(farm, params, user, &url(~p"/invitations/#{&1}")) do
-      {:ok, _invitation} ->
+      {:ok, invitation} ->
+        link =
+          if invitation.email do
+            nil
+          else
+            url(~p"/invitations/#{Invitation.encode_token(invitation.token)}")
+          end
+
+        flash =
+          if invitation.email,
+            do: gettext("Invitation sent."),
+            else: gettext("Invitation link created.")
+
         {:noreply,
-         socket |> put_flash(:info, gettext("Invitation sent.")) |> load() |> assign_invite_form()}
+         socket
+         |> put_flash(:info, flash)
+         |> assign(:last_invite_link, link)
+         |> load()
+         |> assign_invite_form()}
 
       {:error, :seat_limit_reached} ->
         {:noreply,

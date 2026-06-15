@@ -4,6 +4,7 @@ defmodule Peggy.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :username, :string
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
     field :confirmed_at, :utc_datetime
@@ -74,6 +75,65 @@ defmodule Peggy.Accounts.User do
   defp validate_email_changed(changeset) do
     if get_field(changeset, :email) && get_change(changeset, :email) == nil do
       add_error(changeset, :email, "did not change")
+    else
+      changeset
+    end
+  end
+
+  @doc """
+  Registers an invited member from a username + password, with an optional email.
+  """
+  def registration_changeset(user, attrs, opts \\ []) do
+    user
+    |> cast(attrs, [:username, :email, :password])
+    |> normalize_blank_email()
+    |> validate_username(opts)
+    |> maybe_validate_email(opts)
+    |> validate_password(opts)
+  end
+
+  defp normalize_blank_email(changeset) do
+    case get_change(changeset, :email) do
+      email when is_binary(email) ->
+        if String.trim(email) == "", do: delete_change(changeset, :email), else: changeset
+
+      _ ->
+        changeset
+    end
+  end
+
+  defp validate_username(changeset, opts) do
+    changeset =
+      changeset
+      |> validate_required([:username])
+      |> validate_format(:username, ~r/^[a-zA-Z0-9_]+$/,
+        message: "only letters, numbers, and underscores"
+      )
+      |> validate_length(:username, min: 3, max: 30)
+
+    if Keyword.get(opts, :validate_unique, true) do
+      changeset
+      |> unsafe_validate_unique(:username, Peggy.Repo)
+      |> unique_constraint(:username)
+    else
+      changeset
+    end
+  end
+
+  defp maybe_validate_email(changeset, opts) do
+    if get_field(changeset, :email) not in [nil, ""] do
+      changeset =
+        changeset
+        |> validate_format(:email, ~r/^[^@,;\s]+@[^@,;\s]+$/,
+          message: "must have the @ sign and no spaces"
+        )
+        |> validate_length(:email, max: 160)
+
+      if Keyword.get(opts, :validate_unique, true) do
+        changeset |> unsafe_validate_unique(:email, Peggy.Repo) |> unique_constraint(:email)
+      else
+        changeset
+      end
     else
       changeset
     end

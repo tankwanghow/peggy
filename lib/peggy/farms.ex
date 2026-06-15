@@ -238,6 +238,8 @@ defmodule Peggy.Farms do
 
   ## Invitations
 
+  @invitation_validity_days 7
+
   def list_pending_invitations(%Farm{id: farm_id}) do
     Repo.all(
       from i in Invitation,
@@ -278,8 +280,8 @@ defmodule Peggy.Farms do
     if seats_used(farm) >= farm.seat_limit do
       {:error, :seat_limit_reached}
     else
-      with {:ok, invitation} <- farm |> Invitation.build(attrs, invited_by) |> Repo.insert() do
-        if url_fun do
+      with {:ok, invitation} <- insert_invitation(farm, invited_by, attrs) do
+        if url_fun && invitation.email do
           encoded = Invitation.encode_token(invitation.token)
 
           Peggy.Accounts.UserNotifier.deliver_farm_invitation(
@@ -292,6 +294,44 @@ defmodule Peggy.Farms do
 
         {:ok, invitation}
       end
+    end
+  end
+
+  @doc """
+  Opens a reusable, admin-supervised invite session for `role` ("manager" or
+  "worker"). Auto-expires 30 minutes from now; close early with
+  `close_invite_session/2`.
+  """
+  def open_invite_session(%Farm{} = farm, %User{} = inviter, role) do
+    if role not in ["manager", "worker"] do
+      {:error, :invalid_role}
+    else
+      token = :crypto.strong_rand_bytes(32)
+      expires_at = DateTime.add(DateTime.utc_now(:second), 30 * 60, :second)
+
+      %Invitation{farm_id: farm.id, invited_by_id: inviter.id}
+      |> Invitation.changeset(%{
+        role: role,
+        token: token,
+        expires_at: expires_at,
+        reusable: true
+      })
+      |> Repo.insert()
+    end
+  end
+
+  @doc """
+  Closes a reusable invite session. Stamps `closed_at`.
+  """
+  def close_invite_session(%Farm{} = farm, invitation_id) do
+    case Repo.get_by(Invitation, id: invitation_id, farm_id: farm.id, reusable: true) do
+      nil ->
+        {:error, :not_found}
+
+      invitation ->
+        invitation
+        |> Invitation.changeset(%{closed_at: DateTime.utc_now(:second)})
+        |> Repo.update()
     end
   end
 
@@ -322,12 +362,20 @@ defmodule Peggy.Farms do
   end
 
   def get_invitation_by_token(encoded) when is_binary(encoded) do
+    case get_invitation_by_encoded_token(encoded) do
+      {:ok, invitation} -> {:ok, invitation}
+      :error -> :error
+    end
+  end
+
+  @doc """
+  Fetches a pending, non-expired invitation by its URL-safe encoded token,
+  with `:farm` preloaded.
+  """
+  def get_invitation_by_encoded_token(encoded) when is_binary(encoded) do
     with {:ok, token} <- Invitation.decode_token(encoded),
-         %Invitation{} = invitation <-
-           Repo.get_by(Invitation, token: token) |> Repo.preload(:farm) do
-      if Invitation.expired?(invitation) or invitation.accepted_at,
-        do: :error,
-        else: {:ok, invitation}
+         {:ok, invitation} <- fetch_pending_invitation(token) do
+      {:ok, invitation}
     else
       _ -> :error
     end
@@ -335,15 +383,78 @@ defmodule Peggy.Farms do
 
   @doc """
   Accepts an invitation: creates a membership for `user` on the invitation's
-  farm, and marks the invitation accepted. One transaction.
+  farm, and marks the invitation accepted (single-use only). One transaction.
   """
   def accept_invitation(%Invitation{} = invitation, %User{} = user) do
-    now = DateTime.utc_now(:second)
+    accept_invitation(user, invitation.token)
+  end
+
+  def accept_invitation(%User{} = user, token) when is_binary(token) do
+    with {:ok, invitation} <- fetch_pending_invitation(token),
+         true <- seats_available_for_accept?(invitation, user),
+         {:ok, membership} <- accept_invitation_multi(user, invitation) do
+      {:ok, membership}
+    else
+      false -> {:error, :seat_limit_reached}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  def revoke_invitation(%Invitation{} = invitation), do: Repo.delete(invitation)
+
+  defp insert_invitation(farm, inviter, attrs) do
+    attrs = if is_map(attrs), do: attrs, else: %{}
+    email = normalize_invite_email(attrs["email"] || attrs[:email])
+    role = attrs["role"] || attrs[:role]
+    token = :crypto.strong_rand_bytes(32)
+    expires_at = DateTime.utc_now(:second) |> DateTime.add(@invitation_validity_days, :day)
+
+    %Invitation{farm_id: farm.id, invited_by_id: inviter.id}
+    |> Invitation.changeset(%{
+      email: email,
+      role: role,
+      token: token,
+      expires_at: expires_at
+    })
+    |> Repo.insert()
+  end
+
+  defp normalize_invite_email(email) when email in [nil, ""], do: nil
+
+  defp normalize_invite_email(email) when is_binary(email) do
+    email |> String.downcase() |> String.trim()
+  end
+
+  defp fetch_pending_invitation(token) do
+    case Repo.get_by(Invitation, token: token) do
+      %Invitation{} = invitation -> validate_invitation_live(invitation)
+      nil -> {:error, :not_found}
+    end
+  end
+
+  defp validate_invitation_live(%Invitation{reusable: true} = inv) do
+    cond do
+      not is_nil(inv.closed_at) -> {:error, :closed}
+      invitation_expired?(inv) -> {:error, :expired}
+      true -> {:ok, Repo.preload(inv, :farm)}
+    end
+  end
+
+  defp validate_invitation_live(%Invitation{reusable: false} = inv) do
+    cond do
+      not is_nil(inv.accepted_at) -> {:error, :already_accepted}
+      invitation_expired?(inv) -> {:error, :expired}
+      true -> {:ok, Repo.preload(inv, :farm)}
+    end
+  end
+
+  defp invitation_expired?(%Invitation{expires_at: expires_at}) do
+    DateTime.compare(DateTime.utc_now(:second), expires_at) != :lt
+  end
+
+  defp seats_available_for_accept?(%Invitation{} = invitation, %User{} = user) do
     farm = Repo.get!(Farm, invitation.farm_id)
 
-    # Guard against a stale invitation issued before seat_limit was lowered
-    # or before other members filled the cap. Already-accepted members don't
-    # count twice (accept flips the invitation's accepted_at in the same txn).
     current_members =
       Repo.aggregate(
         from(m in Membership,
@@ -352,38 +463,73 @@ defmodule Peggy.Farms do
         :count
       )
 
-    if current_members >= farm.seat_limit and
-         is_nil(Repo.get_by(Membership, user_id: user.id, farm_id: farm.id)) do
-      {:error, :seat_limit_reached}
+    current_members < farm.seat_limit or
+      not is_nil(Repo.get_by(Membership, user_id: user.id, farm_id: farm.id))
+  end
+
+  defp accept_invitation_multi(user, %Invitation{} = invitation) do
+    if Repo.get_by(Membership, user_id: user.id, farm_id: invitation.farm_id) do
+      {:ok, :already_member}
     else
-      accept_invitation_multi(invitation, user, now)
+      do_accept_invitation_multi(user, invitation)
     end
   end
 
-  defp accept_invitation_multi(invitation, user, now) do
-    Multi.new()
-    |> Multi.insert(
-      :membership,
-      Membership.changeset(%Membership{}, %{
-        user_id: user.id,
-        farm_id: invitation.farm_id,
-        role: invitation.role,
-        invited_by_id: invitation.invited_by_id,
-        accepted_at: now
-      }),
-      on_conflict: {:replace, [:role, :accepted_at, :updated_at]},
-      conflict_target: [:user_id, :farm_id]
-    )
-    |> Multi.update(
-      :invitation,
-      Ecto.Changeset.change(invitation, accepted_at: now)
-    )
+  defp do_accept_invitation_multi(user, %Invitation{} = invitation) do
+    now = DateTime.utc_now(:second)
+
+    multi =
+      Multi.new()
+      |> Multi.insert(
+        :membership,
+        Membership.changeset(%Membership{}, %{
+          user_id: user.id,
+          farm_id: invitation.farm_id,
+          role: invitation.role,
+          invited_by_id: invitation.invited_by_id,
+          accepted_at: now,
+          is_default: first_farm_for_user?(user)
+        }),
+        on_conflict: {:replace, [:role, :accepted_at, :updated_at]},
+        conflict_target: [:user_id, :farm_id]
+      )
+
+    multi =
+      if invitation.reusable do
+        multi
+      else
+        Multi.update(
+          multi,
+          :invitation,
+          Invitation.changeset(invitation, %{accepted_at: now})
+        )
+      end
+
+    multi
     |> Repo.transaction()
     |> case do
-      {:ok, %{membership: m}} -> {:ok, m}
-      {:error, _op, changeset, _} -> {:error, changeset}
+      {:ok, %{membership: membership}} ->
+        membership = Repo.preload(membership, :user)
+
+        Phoenix.PubSub.broadcast(
+          Peggy.PubSub,
+          "farm:#{invitation.farm_id}:members",
+          {:member_joined, membership}
+        )
+
+        {:ok, membership}
+
+      {:error, :membership, changeset, _} ->
+        {:error, changeset}
+
+      {:error, :invitation, changeset, _} ->
+        {:error, changeset}
     end
   end
 
-  def revoke_invitation(%Invitation{} = invitation), do: Repo.delete(invitation)
+  defp first_farm_for_user?(%User{} = user) do
+    Membership
+    |> where([m], m.user_id == ^user.id and not is_nil(m.accepted_at))
+    |> Repo.aggregate(:count) == 0
+  end
 end
