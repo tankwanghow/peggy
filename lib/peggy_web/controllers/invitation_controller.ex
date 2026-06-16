@@ -62,7 +62,7 @@ defmodule PeggyWeb.InvitationController do
       {:error, :invalid_credentials} ->
         conn
         |> put_flash(:error, gettext("Those credentials didn't match. Try again."))
-        |> redirect(to: "/m/invitations/#{token}")
+        |> redirect(to: ~p"/m/invitations/#{token}")
 
       {:error, %Ecto.Changeset{}} ->
         conn
@@ -72,7 +72,7 @@ defmodule PeggyWeb.InvitationController do
             "Couldn't create your account — check your username (3+ letters/numbers) and password (12+ characters), then try again."
           )
         )
-        |> redirect(to: "/m/invitations/#{token}")
+        |> redirect(to: ~p"/m/invitations/#{token}")
 
       {:error, :seat_limit_reached} ->
         conn
