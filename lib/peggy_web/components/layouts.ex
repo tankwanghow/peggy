@@ -302,6 +302,18 @@ defmodule PeggyWeb.Layouts do
               <span>{gettext("Locations")}</span>
             </.link>
           </li>
+          <li :if={
+            @current_scope && @current_scope.farm &&
+              Peggy.Policy.can?(@current_scope, :invite_member)
+          }>
+            <.link
+              navigate={~p"/m/#{@current_scope.farm.slug}/invite-session/worker"}
+              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
+            >
+              <.icon name="hero-user-plus" class="size-5 text-base-content/60" />
+              <span>{gettext("Invite workers")}</span>
+            </.link>
+          </li>
           <li :if={@current_scope && @current_scope.farm}>
             <.link
               href={~p"/view-mode?#{[mode: "desktop", to: "/farms/#{@current_scope.farm.slug}"]}"}

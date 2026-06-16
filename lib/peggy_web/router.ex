@@ -126,6 +126,7 @@ defmodule PeggyWeb.Router do
       live "/m/:farm_slug/breeding/serviceable", MobileLive.Breeding.Serviceable, :index
       live "/m/:farm_slug/breeding/gestating", MobileLive.Breeding.Gestating, :index
       live "/m/:farm_slug/breeding/lactating", MobileLive.Breeding.Lactating, :index
+      live "/m/:farm_slug/invite-session/:role", MobileLive.InviteSession, :show
     end
 
     post "/users/update-password", UserSessionController, :update_password
