@@ -22,7 +22,6 @@ defmodule PeggyWeb.Plugs.AutoRouteByDevice do
     "",
     "/animals",
     "/locations",
-    "/tasks",
     "/breeding/gestating",
     "/breeding/lactating"
   ]
@@ -34,24 +33,43 @@ defmodule PeggyWeb.Plugs.AutoRouteByDevice do
   def init(opts), do: opts
 
   def call(conn, _opts) do
+    # Only apply device routing to GET requests. POST/DELETE (form submissions,
+    # log-out, invitation accepts) must reach their intended handler directly.
+    if conn.method != "GET" do
+      conn
+    else
+      do_route(conn)
+    end
+  end
+
+  defp do_route(conn) do
     cookie = conn.cookies["peggy_view"]
     path = conn.request_path
 
     cond do
-      # Cookie set: enforce it absolutely.
       cookie == "mobile" and desktop_url?(path) ->
         maybe_redirect_to_mobile(conn, path)
+
+      cookie == "mobile" and invitation_landing?(path) ->
+        redirect_swap(conn, path, "/invitations/", "/m/invitations/")
+
+      cookie == "desktop" and mobile_invitation_landing?(path) ->
+        redirect_swap(conn, path, "/m/invitations/", "/invitations/")
 
       cookie == "desktop" and mobile_url?(path) ->
         redirect_swap(conn, path, "/m/", "/farms/")
 
-      # Cookie set to the matching side, or any other value: leave alone.
       cookie ->
         conn
 
-      # No cookie: fall back to UA detection.
       mobile_ua?(conn) and desktop_url?(path) ->
         maybe_redirect_to_mobile(conn, path)
+
+      mobile_ua?(conn) and invitation_landing?(path) ->
+        redirect_swap(conn, path, "/invitations/", "/m/invitations/")
+
+      not mobile_ua?(conn) and mobile_invitation_landing?(path) ->
+        redirect_swap(conn, path, "/m/invitations/", "/invitations/")
 
       not mobile_ua?(conn) and mobile_url?(path) ->
         redirect_swap(conn, path, "/m/", "/farms/")
@@ -63,6 +81,22 @@ defmodule PeggyWeb.Plugs.AutoRouteByDevice do
 
   defp desktop_url?(path), do: String.starts_with?(path, "/farms/")
   defp mobile_url?(path), do: String.starts_with?(path, "/m/")
+
+  # Matches only the invitation landing page /invitations/<token>, not /invitations/<token>/accept
+  defp invitation_landing?(path) do
+    case String.split(path, "/invitations/", parts: 2) do
+      ["", token] -> token != "" and not String.contains?(token, "/")
+      _ -> false
+    end
+  end
+
+  # Matches only /m/invitations/<token>, not /m/invitations/<token>/accept
+  defp mobile_invitation_landing?(path) do
+    case String.split(path, "/m/invitations/", parts: 2) do
+      ["", token] -> token != "" and not String.contains?(token, "/")
+      _ -> false
+    end
+  end
 
   defp mobile_ua?(conn), do: PeggyWeb.Device.mobile_ua?(conn)
 

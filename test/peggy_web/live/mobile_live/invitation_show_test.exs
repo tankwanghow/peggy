@@ -14,10 +14,14 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
     %{scope: scope, invitation: invitation, encoded: Invitation.encode_token(invitation.token)}
   end
 
+  # Pin the UI to mobile so the device auto-router doesn't redirect the test
+  # conn (which has no mobile user-agent) away from /m/invitations/*.
+  defp mobile_conn(conn), do: Plug.Test.put_req_cookie(conn, "peggy_view", "mobile")
+
   test "anonymous user sees farm name, role badge, and two CTAs", %{conn: conn} do
     %{scope: scope, encoded: encoded} = pending_invitation()
 
-    {:ok, _lv, html} = live(conn, ~p"/m/invitations/#{encoded}")
+    {:ok, _lv, html} = conn |> mobile_conn() |> live(~p"/m/invitations/#{encoded}")
 
     assert html =~ scope.farm.name
     assert html =~ "worker"
@@ -28,7 +32,7 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
   test "clicking create account shows the account creation form", %{conn: conn} do
     %{encoded: encoded} = pending_invitation()
 
-    {:ok, lv, _html} = live(conn, ~p"/m/invitations/#{encoded}")
+    {:ok, lv, _html} = conn |> mobile_conn() |> live(~p"/m/invitations/#{encoded}")
     html = lv |> element("button[phx-click='pick_create']") |> render_click()
 
     assert html =~ "Username"
@@ -39,7 +43,7 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
   test "clicking log in shows the login form", %{conn: conn} do
     %{encoded: encoded} = pending_invitation()
 
-    {:ok, lv, _html} = live(conn, ~p"/m/invitations/#{encoded}")
+    {:ok, lv, _html} = conn |> mobile_conn() |> live(~p"/m/invitations/#{encoded}")
     html = lv |> element("button[phx-click='pick_login']") |> render_click()
 
     assert html =~ "Username or email"
@@ -49,7 +53,7 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
   test "back button from create mode returns to choose", %{conn: conn} do
     %{encoded: encoded} = pending_invitation()
 
-    {:ok, lv, _html} = live(conn, ~p"/m/invitations/#{encoded}")
+    {:ok, lv, _html} = conn |> mobile_conn() |> live(~p"/m/invitations/#{encoded}")
     lv |> element("button[phx-click='pick_create']") |> render_click()
     html = lv |> element("button[phx-click='pick_choose']") |> render_click()
 
@@ -58,7 +62,7 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
   end
 
   test "invalid token shows error card", %{conn: conn} do
-    {:ok, _lv, html} = live(conn, ~p"/m/invitations/not-a-real-token")
+    {:ok, _lv, html} = conn |> mobile_conn() |> live(~p"/m/invitations/not-a-real-token")
     assert html =~ "Invitation not valid"
   end
 
@@ -66,7 +70,8 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
     %{encoded: encoded} = pending_invitation()
     user = user_fixture()
 
-    {:ok, _lv, html} = conn |> log_in_user(user) |> live(~p"/m/invitations/#{encoded}")
+    {:ok, _lv, html} =
+      conn |> log_in_user(user) |> mobile_conn() |> live(~p"/m/invitations/#{encoded}")
 
     assert html =~ "Accept invitation"
     refute html =~ "Create account"

@@ -133,7 +133,7 @@ defmodule PeggyWeb.Router do
   end
 
   scope "/", PeggyWeb do
-    pipe_through [:browser]
+    pipe_through [:browser, PeggyWeb.Plugs.AutoRouteByDevice]
 
     live_session :current_user,
       on_mount: [{PeggyWeb.UserAuth, :mount_current_scope}, {PeggyWeb.Locale, :default}] do
