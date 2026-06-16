@@ -10,7 +10,10 @@ defmodule PeggyWeb.MobileLive.InvitationShowTest do
 
   defp pending_invitation do
     scope = farm_scope_fixture()
-    {:ok, invitation} = Farms.invite(scope.farm, %{"email" => nil, "role" => "worker"}, scope.user)
+
+    {:ok, invitation} =
+      Farms.invite(scope.farm, %{"email" => nil, "role" => "worker"}, scope.user)
+
     %{scope: scope, invitation: invitation, encoded: Invitation.encode_token(invitation.token)}
   end
 
