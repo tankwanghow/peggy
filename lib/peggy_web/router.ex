@@ -115,13 +115,11 @@ defmodule PeggyWeb.Router do
            :index
 
       get "/farms/:farm_slug/reports/export", ReportsController, :export
-      live "/farms/:farm_slug/tasks", FarmLive.Tasks, :index
       live "/farms/:farm_slug/audit", FarmLive.Audit, :index
 
       # Mobile (phone) UI — scaffold. Same auth + farm scope as desktop.
       live "/m/:farm_slug", MobileLive.Dashboard, :show
       live "/m/:farm_slug/locations", MobileLive.Locations, :index
-      live "/m/:farm_slug/tasks", MobileLive.Tasks, :index
       live "/m/:farm_slug/animals", MobileLive.Animals, :index
       live "/m/:farm_slug/animals/promote", MobileLive.PromoteBatches, :index
       live "/m/:farm_slug/animals/:id", MobileLive.AnimalDetail, :show
@@ -146,6 +144,7 @@ defmodule PeggyWeb.Router do
 
     post "/users/log-in", UserSessionController, :create
     post "/invitations/:token/accept", InvitationController, :accept
+    post "/m/invitations/:token/accept", InvitationController, :mobile_accept
     delete "/users/log-out", UserSessionController, :delete
   end
 end

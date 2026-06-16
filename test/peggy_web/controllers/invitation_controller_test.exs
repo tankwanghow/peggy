@@ -78,4 +78,64 @@ defmodule PeggyWeb.InvitationControllerTest do
     assert redirected_to(conn) == ~p"/"
     refute get_session(conn, :user_token)
   end
+
+  describe "mobile_accept/2" do
+    test "create-account path redirects to mobile farm URL", %{conn: conn} do
+      %{scope: scope, encoded: encoded} = pending_invitation()
+
+      conn =
+        post(conn, ~p"/m/invitations/#{encoded}/accept", %{
+          "create" => %{"username" => "mobilenew", "password" => "supersecret12"}
+        })
+
+      assert redirected_to(conn) == ~p"/m/#{scope.farm.slug}"
+      assert get_session(conn, :user_token)
+    end
+
+    test "log-in-to-accept path redirects to mobile farm URL", %{conn: conn} do
+      existing = username_user_fixture(%{username: "mobilelogin"})
+      %{scope: scope, encoded: encoded} = pending_invitation()
+
+      conn =
+        post(conn, ~p"/m/invitations/#{encoded}/accept", %{
+          "login" => %{"identifier" => "mobilelogin", "password" => valid_user_password()}
+        })
+
+      assert redirected_to(conn) == ~p"/m/#{scope.farm.slug}"
+      assert get_session(conn, :user_token)
+      assert Farms.get_membership(existing, scope.farm)
+    end
+
+    test "already-logged-in user redirects to mobile farm URL", %{conn: conn} do
+      user = username_user_fixture()
+      %{scope: scope, encoded: encoded} = pending_invitation()
+
+      conn =
+        conn
+        |> log_in_user(user)
+        |> post(~p"/m/invitations/#{encoded}/accept", %{})
+
+      assert redirected_to(conn) == ~p"/m/#{scope.farm.slug}"
+      assert Farms.get_membership(user, scope.farm)
+    end
+
+    test "wrong credentials redirect back to mobile invite URL", %{conn: conn} do
+      username_user_fixture(%{username: "wrongmobile"})
+      %{encoded: encoded} = pending_invitation()
+
+      conn =
+        post(conn, ~p"/m/invitations/#{encoded}/accept", %{
+          "login" => %{"identifier" => "wrongmobile", "password" => "wrong password here"}
+        })
+
+      assert redirected_to(conn) == ~p"/m/invitations/#{encoded}"
+      refute get_session(conn, :user_token)
+    end
+
+    test "invalid token redirects home", %{conn: conn} do
+      conn = post(conn, ~p"/m/invitations/garbage/accept", %{})
+      assert redirected_to(conn) == ~p"/"
+      refute get_session(conn, :user_token)
+    end
+  end
 end
