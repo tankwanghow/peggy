@@ -1,0 +1,34 @@
+# Docker build context is the elixir monorepo root (see deploy_to_linode/deploy.sh).
+
+# Sibling projects — not needed for the peggy image
+argus/
+full_circle/
+least_cost_feed/
+orgmind/
+pou_con/
+usbboot/
+
+# Peggy dev / test artifacts
+peggy/_build/
+peggy/deps/
+peggy/cover/
+peggy/doc/
+peggy/test/
+peggy/tmp/
+peggy/.elixir_ls/
+peggy/.git/
+peggy/.superpowers/
+peggy/assets/node_modules/
+peggy/priv/static/assets/
+peggy/priv/static/cache_manifest.json
+peggy/deploy_to_linode/
+peggy/legacy data/
+peggy/*.tar
+peggy/secret.txt
+peggy/deploy.conf
+
+# Trim heroicons git metadata from the build context
+.global_assets/heroicons/.git/
+
+# Monorepo git metadata
+.git/

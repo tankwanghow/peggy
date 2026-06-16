@@ -3,6 +3,10 @@ set -eo pipefail
 
 SETUP_FILE=$1
 script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+project_root="$(cd "$script_path/.." && pwd)"
+monorepo_root="$(cd "$project_root/.." && pwd)"
+global_assets="$monorepo_root/.global_assets"
+shared_config="$monorepo_root/shared_config"
 
 if [ ! -f "$SETUP_FILE" ]; then
     echo "Error: Setup file $SETUP_FILE not found."
@@ -18,19 +22,66 @@ do
     declare "$key=$value"
 done < "$SETUP_FILE"
 
+ensure_global_assets() {
+    if [ ! -f "$shared_config/workspace_assets.ex" ]; then
+        echo "Error: shared_config not found at $shared_config"
+        echo "Deploy expects the elixir monorepo layout (peggy + shared_config + .global_assets)."
+        exit 1
+    fi
+
+    if [ ! -x "$global_assets/bin/esbuild" ] || \
+       [ ! -x "$global_assets/bin/tailwindcss" ] || \
+       [ ! -d "$global_assets/heroicons/optimized" ]; then
+        echo "Global assets missing — running $global_assets/setup.sh"
+        bash "$global_assets/setup.sh"
+    fi
+
+    echo "Using local workspace assets from $global_assets"
+}
+
+stage_dockerignore() {
+    monorepo_dockerignore="$monorepo_root/.dockerignore"
+
+    if [ -f "$monorepo_dockerignore" ]; then
+        DOCKERIGNORE_BACKUP="$(mktemp)"
+        cp "$monorepo_dockerignore" "$DOCKERIGNORE_BACKUP"
+    else
+        DOCKERIGNORE_BACKUP=""
+    fi
+
+    cp "$project_root/.dockerignore" "$monorepo_dockerignore"
+
+    restore_dockerignore() {
+        if [ -n "$DOCKERIGNORE_BACKUP" ]; then
+            cp "$DOCKERIGNORE_BACKUP" "$monorepo_dockerignore"
+            rm -f "$DOCKERIGNORE_BACKUP"
+        else
+            rm -f "$monorepo_dockerignore"
+        fi
+    }
+
+    trap restore_dockerignore EXIT
+}
+
 stty -echo
 echo -n "Please enter password of the server: "
 read LINODE_PWD
 stty echo
 echo
 
+ensure_global_assets
+stage_dockerignore
+
 IMAGE_TAG="latest"
-GIT_SHA=$(git -C "$script_path/.." rev-parse --short HEAD)
+GIT_SHA=$(git -C "$project_root" rev-parse --short HEAD)
 FULL_IMAGE="$DOCKER_HUB_USERNAME/$IMAGE_NAME:$IMAGE_TAG"
 SHA_IMAGE="$DOCKER_HUB_USERNAME/$IMAGE_NAME:$GIT_SHA"
 
-echo "Building Docker image..."
-docker build --builder default -t $FULL_IMAGE -t $SHA_IMAGE -f $script_path/../Dockerfile $script_path/..
+echo "Building Docker image (monorepo context: $monorepo_root)..."
+docker build --builder default \
+    -t $FULL_IMAGE -t $SHA_IMAGE \
+    -f "$project_root/Dockerfile" \
+    "$monorepo_root"
 
 NEW_IMAGE_ID=$(docker image inspect $FULL_IMAGE --format='{{.ID}}')
 echo "Built image ID: $NEW_IMAGE_ID"

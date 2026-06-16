@@ -12,30 +12,35 @@ RUN apt-get update -y && apt-get install -y \
     git \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Monorepo layout: peggy sits beside shared_config/ and .global_assets/
+# so WorkspaceAssets paths resolve the same way as local dev.
+WORKDIR /app/peggy
 
 RUN mix local.hex --force && mix local.rebar --force
 
 ENV MIX_ENV="prod"
 
-COPY mix.exs mix.lock ./
+COPY shared_config /app/shared_config
+COPY .global_assets /app/.global_assets
+
+COPY peggy/mix.exs peggy/mix.lock ./
 RUN HEX_HTTP_CONCURRENCY=8 HEX_HTTP_TIMEOUT=240 mix deps.get --only $MIX_ENV
 RUN mkdir config
 
-COPY config/config.exs config/${MIX_ENV}.exs config/
+COPY peggy/config/config.exs peggy/config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
-COPY priv priv
-COPY lib lib
-COPY assets assets
+COPY peggy/priv priv
+COPY peggy/lib lib
+COPY peggy/assets assets
 
 RUN mix assets.deploy
 
 RUN mix compile
 
-COPY config/runtime.exs config/
+COPY peggy/config/runtime.exs config/
 
-COPY rel rel
+COPY peggy/rel rel
 RUN mix release
 
 FROM ${RUNNER_IMAGE}
@@ -59,7 +64,7 @@ RUN chown nobody /app
 
 ENV MIX_ENV="prod"
 
-COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/peggy ./
+COPY --from=builder --chown=nobody:root /app/peggy/_build/${MIX_ENV}/rel/peggy ./
 
 USER nobody
 
