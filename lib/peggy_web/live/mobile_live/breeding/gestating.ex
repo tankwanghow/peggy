@@ -64,24 +64,24 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
         </header>
 
         <%!-- Tab switch (Lactating / Gestating) — small dual link strip --%>
-        <nav class="px-3 pt-2 flex gap-2 text-xs">
+        <nav class="px-3 pt-2 flex gap-2 text-center">
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
-            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+            class="px-3 py-1 rounded border border-base-300 text-base-content/70"
           >
-            {gettext("Serviceable")}
+            {"💓 " <> gettext("Serviceable")}
           </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
             class="px-3 py-1 rounded-full bg-primary text-primary-content font-semibold"
           >
-            {gettext("Gestating")}
+            {"🤰 " <> gettext("Gestating")}
           </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
-            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+            class="px-3 py-1 rounded border border-base-300 text-base-content/70"
           >
-            {gettext("Lactating")}
+            {"🤱 " <> gettext("Lactating")}
           </.link>
         </nav>
 
@@ -102,8 +102,8 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
             <div class="flex items-baseline justify-between">
               <span class="font-mono font-bold text-xl">{e.service.sow.ear_tag}</span>
               <span><.cull_flag animal={e.service.sow} /></span>
-              <span><.icon name="hero-map-pin-micro" class="size-4 text-blue-600" /></span>
-              <span class="font-mono">{sow_pen_label(e.service.sow)}</span>
+              <span><.icon name="hero-map-pin-micro" class="size-4 text-blue-600" />
+              <span class="font-mono">{sow_pen_label(e.service.sow)}</span></span>
               <span class="text-sm text-base-content/50">
                 {gettext("Parity")}
                 <span class="font-mono font-bold text-info">{e.parity}</span>
@@ -217,28 +217,28 @@ defmodule PeggyWeb.MobileLive.Breeding.Gestating do
                 phx-click="action_farrow"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-success/10"
               >
-                <.icon name="hero-sparkles" class="size-7 text-success" />
+                <span class="text-2xl">🤱</span>
                 <span class="text-xs">{gettext("Farrow")}</span>
               </button>
               <button
                 phx-click="action_re_service"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-pink-500/10"
               >
-                <.icon name="hero-heart" class="size-7 text-pink-500" />
+                <span class="text-2xl">💘</span>
                 <span class="text-xs">{gettext("Re-service")}</span>
               </button>
               <button
                 phx-click="action_move"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
               >
-                <.icon name="hero-truck" class="size-7 text-info" />
+                <span class="text-2xl">🚚</span>
                 <span class="text-xs">{gettext("Move")}</span>
               </button>
               <button
                 phx-click="action_close"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-error/10"
               >
-                <.icon name="hero-x-circle" class="size-7 text-error" />
+                <span class="text-2xl">💔</span>
                 <span class="text-xs">{gettext("Close service")}</span>
               </button>
             </div>

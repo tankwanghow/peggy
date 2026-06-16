@@ -64,24 +64,24 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
         </header>
 
         <%!-- Tab switch (Gestating / Lactating) --%>
-        <nav class="px-3 pt-2 flex gap-2 text-xs">
+        <nav class="px-3 pt-2 flex gap-1 text-center">
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
-            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+            class="px-3 py-1 rounded border border-base-300 text-base-content/70"
           >
-            {gettext("Serviceable")}
+            {"💓 " <> gettext("Serviceable")}
           </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
-            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+            class="px-3 py-1 rounded border border-base-300 text-base-content/70"
           >
-            {gettext("Gestating")}
+            {"🤰 " <> gettext("Gestating")}
           </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
             class="px-3 py-1 rounded-full bg-primary text-primary-content font-semibold"
           >
-            {gettext("Lactating")}
+            {"🤱 " <> gettext("Lactating")}
           </.link>
         </nav>
 
@@ -225,28 +225,28 @@ defmodule PeggyWeb.MobileLive.Breeding.Lactating do
                 phx-click="action_wean"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-success/10"
               >
-                <.icon name="hero-check-circle" class="size-7 text-success" />
+                <span class="text-2xl">👶</span>
                 <span class="text-xs">{gettext("Wean")}</span>
               </button>
               <button
                 phx-click="action_foster"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
               >
-                <.icon name="hero-arrows-right-left" class="size-7 text-info" />
+                <span class="text-2xl">🤗</span>
                 <span class="text-xs">{gettext("Foster")}</span>
               </button>
               <button
                 phx-click="action_move"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
               >
-                <.icon name="hero-truck" class="size-7 text-info" />
+                <span class="text-2xl">🚚</span>
                 <span class="text-xs">{gettext("Sow Move")}</span>
               </button>
               <button
                 phx-click="action_death"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-error/10"
               >
-                <.icon name="hero-minus-circle" class="size-7 text-error" />
+                <span class="text-2xl">🪦</span>
                 <span class="text-xs">{gettext("Litter Death")}</span>
               </button>
             </div>

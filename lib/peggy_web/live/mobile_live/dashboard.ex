@@ -59,19 +59,19 @@ defmodule PeggyWeb.MobileLive.Dashboard do
         </h2>
         <ul class="space-y-2">
           <.workflow_link
-            icon="hero-sparkles"
+            emoji="💓"
             label={gettext("Serviceable sows")}
             sub={gettext("Sows ready for a new service")}
             to={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
           />
           <.workflow_link
-            icon="hero-clipboard-document-list"
+            emoji="🤰"
             label={gettext("Gestating sows")}
             sub={gettext("Record farrowings, close failed services")}
             to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
           />
           <.workflow_link
-            icon="hero-heart"
+            emoji="🤱"
             label={gettext("Lactating sows")}
             sub={gettext("Wean, foster, record deaths")}
             to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
@@ -110,7 +110,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
     """
   end
 
-  attr :icon, :string, required: true
+  attr :emoji, :string, required: true
   attr :label, :string, required: true
   attr :sub, :string, required: true
   attr :to, :string, required: true
@@ -123,7 +123,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
         class="flex items-center gap-3 p-4 rounded-xl border border-base-300 bg-base-100
                active:bg-base-200"
       >
-        <.icon name={@icon} class="size-6 text-primary" />
+        <span class="text-4xl text-primary">{@emoji}</span>
         <div class="flex-1">
           <div class="font-semibold">{@label}</div>
           <div class="text-xs text-base-content/60">{@sub}</div>

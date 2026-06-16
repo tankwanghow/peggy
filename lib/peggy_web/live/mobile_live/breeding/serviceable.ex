@@ -59,24 +59,24 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
         </header>
 
         <%!-- Tab strip --%>
-        <nav class="px-3 pt-2 flex gap-2 text-xs">
+        <nav class="px-3 pt-2 flex gap-1 text-center">
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
             class="px-3 py-1 rounded-full bg-primary text-primary-content font-semibold"
           >
-            {gettext("Serviceable")}
+            {"💓 " <> gettext("Serviceable")}
           </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
-            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+            class="px-3 py-1 rounded border border-base-300 text-base-content/70"
           >
-            {gettext("Gestating")}
+            {"🤰 " <> gettext("Gestating")}
           </.link>
           <.link
             navigate={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
-            class="px-3 py-1 rounded-full border border-base-300 text-base-content/70"
+            class="px-3 py-1 rounded border border-base-300 text-base-content/70"
           >
-            {gettext("Lactating")}
+            {"🤱 " <> gettext("Lactating")}
           </.link>
         </nav>
 
@@ -302,7 +302,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 phx-click="action_service"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-pink-500/10"
               >
-                <.icon name="hero-heart" class="size-7 text-pink-500" />
+                <span class="text-2xl">💘</span>
                 <span class="text-xs">
                   {if @sheet_animal && @sheet_animal.status == "served",
                     do: gettext("+ Mount"),
@@ -313,7 +313,7 @@ defmodule PeggyWeb.MobileLive.Breeding.Serviceable do
                 phx-click="action_move"
                 class="bg-base-100 py-5 flex flex-col items-center gap-1 active:bg-info/10"
               >
-                <.icon name="hero-truck" class="size-7 text-info" />
+                <span class="text-2xl">🚚</span>
                 <span class="text-xs">{gettext("Move")}</span>
               </button>
             </div>
