@@ -20,7 +20,7 @@ defmodule PeggyWeb.FarmLive.BackupRestore do
           <h1 class="text-2xl font-semibold">{gettext("Backup & restore")}</h1>
           <p class="text-sm text-base-content/60 mt-1">
             {gettext(
-              "Export every animal, breeding event, movement, task, and audit row for this farm as a single file. Restore creates a new farm under your account — it never overwrites existing data."
+              "Export every animal, breeding event, movement, and audit row for this farm as a single file. Restore creates a new farm under your account — it never overwrites existing data."
             )}
           </p>
         </header>

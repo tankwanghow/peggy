@@ -189,7 +189,9 @@ defmodule PeggyWeb.FarmLive.Settings do
                 max="42"
               />
               <span class="text-xs text-base-content/60 mt-1">
-                {gettext("Default 21. Lactating sows older than this trigger a “wean due” task.")}
+                {gettext(
+                  "Default 21. Lactating sows older than this appear in the wean-due worklist."
+                )}
               </span>
             </label>
 

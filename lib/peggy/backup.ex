@@ -6,7 +6,7 @@ defmodule Peggy.Backup do
 
   `export/1` walks every farm-scoped table (farms, houses, pens, animals,
   placements, movements, breeding services/farrowings/weanings, litter
-  events, tasks, audit logs) and emits a single gzipped JSON document.
+  events, audit logs) and emits a single gzipped JSON document.
 
   Memberships, invitations, and user records are intentionally
   **excluded** — restore lands the data in a fresh farm owned by the
@@ -54,7 +54,6 @@ defmodule Peggy.Backup do
   alias Peggy.Farms.{Farm, Membership}
   alias Peggy.Locations.{House, Pen}
   alias Peggy.Repo
-  alias Peggy.Tasks.Task
 
   @schema_version 1
 
@@ -71,7 +70,6 @@ defmodule Peggy.Backup do
     {"breeding_weanings", Weaning},
     {"movements", Movement},
     {"breeding_litter_events", LitterEvent},
-    {"tasks", Task},
     {"audit_logs", AuditLog}
   ]
 
@@ -369,15 +367,6 @@ defmodule Peggy.Backup do
     |> remap(:counterpart_farrowing_id, ids["breeding_farrowings"], row)
   end
 
-  defp prepare_row(Task, _key, row, farm_id, ids) do
-    base_attrs(Task, row)
-    |> Map.put(:farm_id, farm_id)
-    |> Map.put(:assignee_user_id, nil)
-    |> Map.put(:created_by_user_id, nil)
-    |> Map.put(:completed_by_user_id, nil)
-    |> remap_task_ref(row, ids)
-  end
-
   defp prepare_row(AuditLog, _key, row, farm_id, ids) do
     base_attrs(AuditLog, row)
     |> Map.put(:farm_id, farm_id)
@@ -479,14 +468,6 @@ defmodule Peggy.Backup do
   defp maybe_put(map, _key, nil), do: map
   defp maybe_put(map, key, value), do: Map.put(map, key, value)
 
-  # task.ref_entity_id is polymorphic — remap by ref_entity_type.
-  defp remap_task_ref(attrs, row, ids) do
-    type = row["ref_entity_type"]
-    table_for_type = ref_table_for(type)
-    new_ref = if table_for_type, do: lookup(ids[table_for_type], row["ref_entity_id"]), else: nil
-    Map.put(attrs, :ref_entity_id, new_ref)
-  end
-
   # audit_log.entity_id is a string; remap when entity_type matches a
   # known table.
   defp remap_audit_entity(attrs, row, ids) do
@@ -513,7 +494,6 @@ defmodule Peggy.Backup do
   defp ref_table_for("pen"), do: "pens"
   defp ref_table_for("house"), do: "houses"
   defp ref_table_for("movement"), do: "movements"
-  defp ref_table_for("task"), do: "tasks"
   defp ref_table_for("litter_event"), do: "breeding_litter_events"
   defp ref_table_for(_), do: nil
 

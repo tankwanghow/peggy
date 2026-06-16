@@ -7,6 +7,6 @@ defmodule PeggyWeb.QR do
 
     url
     |> EQRCode.encode()
-    |> EQRCode.svg(width: width, viewbox: true)
+    |> EQRCode.svg(width: width)
   end
 end

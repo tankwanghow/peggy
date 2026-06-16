@@ -5,7 +5,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Breeding, FarmClock, Tasks}
+  alias Peggy.{Breeding, FarmClock}
 
   @impl true
   def render(assigns) do
@@ -50,27 +50,6 @@ defmodule PeggyWeb.MobileLive.Dashboard do
           tone={tone_for_count(@kpi.farrow_due)}
           to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating?#{[window: "7"]}"}
         />
-      </section>
-
-      <%!-- Tasks tile (full width when there's something pending) --%>
-      <section :if={@kpi.open_tasks > 0} class="px-3 pt-3">
-        <.link
-          navigate={~p"/m/#{@current_scope.farm.slug}/tasks"}
-          class="block rounded-xl border border-warning/40 bg-warning/10 p-4 active:bg-warning/20"
-        >
-          <div class="flex items-center gap-3">
-            <.icon name="hero-check-circle" class="size-6 text-warning" />
-            <div class="flex-1">
-              <div class="font-semibold">
-                {gettext("%{n} open task(s)", n: @kpi.open_tasks)}
-              </div>
-              <div class="text-xs text-base-content/60">
-                {gettext("Tap to review and complete")}
-              </div>
-            </div>
-            <.icon name="hero-chevron-right-micro" class="size-4 text-base-content/40" />
-          </div>
-        </.link>
       </section>
 
       <%!-- Quick actions --%>
@@ -167,8 +146,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
       lactating: Breeding.count_lactating_sows(scope),
       gestating: Breeding.count_gestating_sows(scope),
       wean_due: Breeding.count_lactating_sows(scope, age_bucket: "wean_due"),
-      farrow_due: Breeding.count_gestating_sows(scope, due_window: "7"),
-      open_tasks: Tasks.count_tasks(scope, status: :open)
+      farrow_due: Breeding.count_gestating_sows(scope, due_window: "7")
     }
 
     {:ok, assign(socket, today: today, kpi: kpi, page_title: gettext("Dashboard"))}
