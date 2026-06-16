@@ -19,7 +19,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
       </header>
 
       <%!-- KPI tiles --%>
-      <section class="px-4 grid grid-cols-4 gap-1">
+      <section class="px-4 grid grid-cols-3 gap-1">
         <.kpi_tile
           label={gettext("Piglets")}
           value={@kpi.piglets}
@@ -48,6 +48,12 @@ defmodule PeggyWeb.MobileLive.Dashboard do
           value={@kpi.dry_sow}
           tone={tone_for_opportunity(@kpi.dry_sow)}
           to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "sow", status: "dry"]}"}
+        />
+        <.kpi_tile
+          label={gettext("Open sows")}
+          value={@kpi.open_sow}
+          tone={tone_for_due(@kpi.open_sow)}
+          to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "sow", status: "open"]}"}
         />
         <.kpi_tile
           label={gettext("Total sows")}
@@ -168,6 +174,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
       grower_promote: promotion_head(promotions, :grower_to_finisher),
       finisher_overdue: promotion_head(promotions, :finisher_overdue),
       dry_sow: sow_status_count(snapshot, "dry"),
+      open_sow: sow_status_count(snapshot, "open"),
       total_sows: stage_count(snapshot, "sow"),
       serviceable: Breeding.count_serviceable(scope),
       lactating: Breeding.count_lactating_sows(scope),
