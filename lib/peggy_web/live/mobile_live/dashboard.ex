@@ -5,7 +5,7 @@ defmodule PeggyWeb.MobileLive.Dashboard do
   """
   use PeggyWeb, :live_view
 
-  alias Peggy.{Breeding, FarmClock}
+  alias Peggy.{Animals, Breeding, FarmClock, Reports}
 
   @impl true
   def render(assigns) do
@@ -19,35 +19,51 @@ defmodule PeggyWeb.MobileLive.Dashboard do
       </header>
 
       <%!-- KPI tiles --%>
-      <section class="px-3 grid grid-cols-3 gap-3">
+      <section class="px-4 grid grid-cols-4 gap-1">
         <.kpi_tile
-          label={gettext("Serviceable")}
-          value={@kpi.serviceable}
-          tone={:accent}
-          to={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
-        />
-        <.kpi_tile
-          label={gettext("Gestating")}
-          value={@kpi.gestating}
-          tone={:info}
-          to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
-        />
-        <.kpi_tile
-          label={gettext("Lactating")}
-          value={@kpi.lactating}
-          tone={:success}
+          label={gettext("Piglets")}
+          value={@kpi.piglets}
           to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
+        />
+        <.kpi_tile
+          label={gettext("Weaners")}
+          value={@kpi.weaner}
+          tone={tone_for_promotion_ready(@kpi.weaner_promote)}
+          to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "weaner"]}"}
+        />
+        <.kpi_tile
+          label={gettext("Growers")}
+          value={@kpi.grower}
+          tone={tone_for_promotion_ready(@kpi.grower_promote)}
+          to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "grower"]}"}
+        />
+        <.kpi_tile
+          label={gettext("Finishers")}
+          value={@kpi.finisher}
+          tone={tone_for_overdue(@kpi.finisher_overdue)}
+          to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "finisher"]}"}
+        />
+        <.kpi_tile
+          label={gettext("Dry sows")}
+          value={@kpi.dry_sow}
+          tone={tone_for_opportunity(@kpi.dry_sow)}
+          to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "sow", status: "dry"]}"}
+        />
+        <.kpi_tile
+          label={gettext("Total sows")}
+          value={@kpi.total_sows}
+          to={~p"/m/#{@current_scope.farm.slug}/animals?#{[stage: "sow"]}"}
         />
         <.kpi_tile
           label={gettext("Wean due (this wk)")}
           value={@kpi.wean_due}
-          tone={tone_for_count(@kpi.wean_due)}
+          tone={tone_for_due(@kpi.wean_due)}
           to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating?#{[age: "wean_due"]}"}
         />
         <.kpi_tile
           label={gettext("Farrow due (≤7d)")}
           value={@kpi.farrow_due}
-          tone={tone_for_count(@kpi.farrow_due)}
+          tone={tone_for_due(@kpi.farrow_due)}
           to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating?#{[window: "7"]}"}
         />
       </section>
@@ -60,19 +76,19 @@ defmodule PeggyWeb.MobileLive.Dashboard do
         <ul class="space-y-2">
           <.workflow_link
             emoji="💓"
-            label={gettext("Serviceable sows")}
+            label={gettext("Serviceable sows") <> " (#{Integer.to_string(@kpi.serviceable)})"}
             sub={gettext("Sows ready for a new service")}
             to={~p"/m/#{@current_scope.farm.slug}/breeding/serviceable"}
           />
           <.workflow_link
             emoji="🤰"
-            label={gettext("Gestating sows")}
+            label={gettext("Gestating sows") <> " (#{Integer.to_string(@kpi.gestating)})"}
             sub={gettext("Record farrowings, close failed services")}
             to={~p"/m/#{@current_scope.farm.slug}/breeding/gestating"}
           />
           <.workflow_link
             emoji="🤱"
-            label={gettext("Lactating sows")}
+            label={gettext("Lactating sows") <> " (#{Integer.to_string(@kpi.lactating)})"}
             sub={gettext("Wean, foster, record deaths")}
             to={~p"/m/#{@current_scope.farm.slug}/breeding/lactating"}
           />
@@ -91,11 +107,11 @@ defmodule PeggyWeb.MobileLive.Dashboard do
     ~H"""
     <.link
       navigate={@to}
-      class="rounded-xl border border-base-300 bg-base-100 p-4 active:bg-base-200
+      class="rounded-xl border border-base-300 bg-base-100 p-2 active:bg-base-200
              flex flex-col gap-1"
     >
       <span class={[
-        "text-3xl font-mono font-bold leading-none",
+        "text-xl font-mono font-bold leading-none",
         @tone == :success && "text-success",
         @tone == :info && "text-info",
         @tone == :warning && "text-warning",
@@ -140,8 +156,19 @@ defmodule PeggyWeb.MobileLive.Dashboard do
   def mount(_params, _session, socket) do
     scope = socket.assigns.current_scope
     today = FarmClock.today(scope)
+    snapshot = Reports.herd_snapshot(scope)
+    promotions = Animals.suggest_promotions(scope)
 
     kpi = %{
+      piglets: snapshot.nursing_piglets,
+      weaner: stage_count(snapshot, "weaner"),
+      grower: stage_count(snapshot, "grower"),
+      finisher: stage_count(snapshot, "finisher"),
+      weaner_promote: promotion_head(promotions, :weaner_to_grower),
+      grower_promote: promotion_head(promotions, :grower_to_finisher),
+      finisher_overdue: promotion_head(promotions, :finisher_overdue),
+      dry_sow: sow_status_count(snapshot, "dry"),
+      total_sows: stage_count(snapshot, "sow"),
       serviceable: Breeding.count_serviceable(scope),
       lactating: Breeding.count_lactating_sows(scope),
       gestating: Breeding.count_gestating_sows(scope),
@@ -154,6 +181,27 @@ defmodule PeggyWeb.MobileLive.Dashboard do
 
   # ── Helpers ────────────────────────────────────────────────────────
 
-  defp tone_for_count(0), do: :neutral
-  defp tone_for_count(n) when n > 0, do: :warning
+  defp stage_count(%{by_stage: by_stage}, stage),
+    do: Map.get(by_stage, stage, 0) || 0
+
+  defp sow_status_count(%{sow_status: sow_status}, status),
+    do: Map.get(sow_status, status, 0) || 0
+
+  defp promotion_head(buckets, key) do
+    buckets
+    |> Map.get(key, [])
+    |> Enum.reduce(0, fn %{animal: a}, acc -> acc + (a.quantity || 0) end)
+  end
+
+  defp tone_for_due(0), do: :neutral
+  defp tone_for_due(_), do: :warning
+
+  defp tone_for_opportunity(0), do: :neutral
+  defp tone_for_opportunity(_), do: :accent
+
+  defp tone_for_promotion_ready(0), do: :neutral
+  defp tone_for_promotion_ready(_), do: :info
+
+  defp tone_for_overdue(0), do: :neutral
+  defp tone_for_overdue(_), do: :warning
 end
