@@ -64,14 +64,6 @@ defmodule PeggyWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex items-center gap-2">
-          <li
-            :if={@current_scope && @current_scope.user}
-            class="hidden sm:block text-sm text-base-content/70"
-          >
-            {@current_scope.user.email}
-          </li>
-          <li><.language_switcher current_scope={@current_scope} anonymous={true} /></li>
-          <li><.theme_toggle /></li>
           <%= if @current_scope && @current_scope.user do %>
             <li :if={@current_scope.farm}>
               <.link
@@ -84,19 +76,11 @@ defmodule PeggyWeb.Layouts do
               </.link>
             </li>
             <li>
-              <.link navigate={~p"/farms"} class="btn btn-ghost btn-sm">{gettext("My farms")}</.link>
-            </li>
-            <li>
-              <.link navigate={~p"/users/settings"} class="btn btn-ghost btn-sm">
-                {gettext("Settings")}
-              </.link>
-            </li>
-            <li>
-              <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm">
-                {gettext("Log out")}
-              </.link>
+              <.user_dropdown current_scope={@current_scope} />
             </li>
           <% else %>
+            <li><.language_switcher current_scope={@current_scope} anonymous={true} /></li>
+            <li><.theme_toggle /></li>
             <li>
               <.link navigate={~p"/users/log-in"} class="btn btn-ghost btn-sm">
                 {gettext("Log in")}
@@ -295,15 +279,6 @@ defmodule PeggyWeb.Layouts do
               <.icon name="hero-language" class="size-5 text-base-content/60" />
               <span>{gettext("Language")} <.language_switcher current_scope={@current_scope} /></span>
             </span>
-          </li>
-          <li :if={@current_scope && @current_scope.farm}>
-            <.link
-              navigate={~p"/m/#{@current_scope.farm.slug}/tasks"}
-              class="flex items-center gap-3 px-4 py-4 active:bg-base-200"
-            >
-              <.icon name="hero-check-circle" class="size-5 text-base-content/60" />
-              <span>{gettext("Tasks")}</span>
-            </.link>
           </li>
           <li :if={@current_scope && @current_scope.farm}>
             <.link
@@ -642,24 +617,6 @@ defmodule PeggyWeb.Layouts do
           icon="hero-chart-bar-micro"
           label={gettext("Reports")}
         />
-        <.farm_nav_link
-          :if={Peggy.Policy.can?(@current_scope, :view_tasks)}
-          href={~p"/farms/#{@current_scope.farm.slug}/tasks"}
-          icon="hero-check-circle-micro"
-          label={gettext("Tasks")}
-        />
-        <.farm_nav_link
-          :if={Peggy.Policy.can?(@current_scope, :view_farm)}
-          href={~p"/farms/#{@current_scope.farm.slug}/members"}
-          icon="hero-users-micro"
-          label={gettext("Members")}
-        />
-        <.farm_nav_link
-          :if={Peggy.Policy.can?(@current_scope, :manage_farm_settings)}
-          href={~p"/farms/#{@current_scope.farm.slug}/settings"}
-          icon="hero-cog-6-tooth-micro"
-          label={gettext("Settings")}
-        />
       </div>
     </nav>
     """
@@ -791,6 +748,139 @@ defmodule PeggyWeb.Layouts do
       >
         <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
+    </div>
+    """
+  end
+
+  defp display_name(%{username: u}) when is_binary(u) and u != "", do: u
+  defp display_name(%{email: e}), do: e || "?"
+
+  attr :current_scope, :map, required: true
+
+  defp user_dropdown(assigns) do
+    assigns = assign(assigns, :current_locale, Gettext.get_locale(PeggyWeb.Gettext))
+
+    ~H"""
+    <div class="dropdown dropdown-end">
+      <div
+        tabindex="0"
+        role="button"
+        class="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 pl-1 pr-3 py-1 cursor-pointer hover:bg-primary/20 transition-colors"
+      >
+        <div class="size-7 rounded-full bg-primary flex items-center justify-center text-primary-content text-xs font-bold flex-shrink-0 select-none">
+          {String.upcase(String.first(display_name(@current_scope.user)))}
+        </div>
+        <span class="hidden sm:block text-sm font-medium truncate max-w-[160px]">
+          {display_name(@current_scope.user)}
+        </span>
+        <.icon name="hero-chevron-down-micro" class="size-3 text-base-content/50" />
+      </div>
+
+      <div
+        tabindex="0"
+        class="dropdown-content z-50 mt-2 w-60 rounded-xl border border-base-300 bg-base-100 shadow-xl"
+      >
+        <div class="px-4 py-3 border-b border-base-200 bg-base-200/40">
+          <div class="flex items-center gap-3">
+            <div class="size-9 rounded-full bg-primary flex items-center justify-center text-primary-content text-sm font-bold flex-shrink-0 select-none">
+              {String.upcase(String.first(display_name(@current_scope.user)))}
+            </div>
+            <div class="min-w-0">
+              <div class="font-semibold text-sm truncate">{display_name(@current_scope.user)}</div>
+              <div :if={@current_scope.farm} class="text-xs text-base-content/50 font-mono truncate">
+                {@current_scope.farm.slug}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="py-1">
+          <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-base-content/40 font-semibold">
+            {gettext("Preferences")}
+          </p>
+          <div class="flex items-center justify-between px-3 py-2">
+            <span class="flex items-center gap-2 text-sm">
+              <.icon name="hero-language-micro" class="size-4 text-base-content/50" />
+              {gettext("Language")}
+            </span>
+            <div class="flex gap-0.5">
+              <.link
+                :for={{code, _label} <- language_options()}
+                href={~p"/locale/#{code}"}
+                class={[
+                  "px-1.5 py-0.5 rounded text-xs font-mono",
+                  @current_locale == code &&
+                    "bg-primary text-primary-content font-semibold",
+                  @current_locale != code &&
+                    "text-base-content/50 hover:text-base-content hover:bg-base-200"
+                ]}
+              >
+                {String.upcase(code)}
+              </.link>
+            </div>
+          </div>
+          <div class="flex items-center justify-between px-3 py-2">
+            <span class="flex items-center gap-2 text-sm">
+              <.icon name="hero-swatch-micro" class="size-4 text-base-content/50" />
+              {gettext("Theme")}
+            </span>
+            <.theme_toggle />
+          </div>
+        </div>
+
+        <div class="border-t border-base-200 py-1">
+          <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-base-content/40 font-semibold">
+            {gettext("Farm")}
+          </p>
+          <.link
+            navigate={~p"/farms"}
+            class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-200 rounded transition-colors"
+          >
+            <.icon name="hero-arrow-right-left-micro" class="size-4 text-base-content/50" />
+            {gettext("My farms")}
+          </.link>
+          <.link
+            :if={@current_scope.farm && Peggy.Policy.can?(@current_scope, :view_farm)}
+            navigate={~p"/farms/#{@current_scope.farm.slug}/members"}
+            class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-200 rounded transition-colors"
+          >
+            <.icon name="hero-users-micro" class="size-4 text-base-content/50" />
+            {gettext("Members")}
+          </.link>
+          <.link
+            :if={
+              @current_scope.farm &&
+                Peggy.Policy.can?(@current_scope, :manage_farm_settings)
+            }
+            navigate={~p"/farms/#{@current_scope.farm.slug}/settings"}
+            class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-200 rounded transition-colors"
+          >
+            <.icon name="hero-cog-6-tooth-micro" class="size-4 text-base-content/50" />
+            {gettext("Farm settings")}
+          </.link>
+        </div>
+
+        <div class="border-t border-base-200 py-1">
+          <p class="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-base-content/40 font-semibold">
+            {gettext("Account")}
+          </p>
+          <.link
+            navigate={~p"/users/settings"}
+            class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-200 rounded transition-colors"
+          >
+            <.icon name="hero-user-circle-micro" class="size-4 text-base-content/50" />
+            {gettext("Account settings")}
+          </.link>
+          <.link
+            href={~p"/users/log-out"}
+            method="delete"
+            class="flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors"
+          >
+            <.icon name="hero-arrow-left-on-rectangle-micro" class="size-4" />
+            {gettext("Log out")}
+          </.link>
+        </div>
+      </div>
     </div>
     """
   end
