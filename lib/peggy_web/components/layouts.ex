@@ -243,6 +243,19 @@ defmodule PeggyWeb.Layouts do
     """
   end
 
+  attr :flash, :map, required: true
+  slot :inner_block, required: true
+
+  def mobile_standalone(assigns) do
+    ~H"""
+    <.flash_group flash={@flash} />
+    <div class="min-h-screen bg-base-200 flex flex-col items-center justify-center p-6 gap-6">
+      <div class="text-2xl font-bold tracking-tight">Peggy</div>
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
   attr :current_scope, :map, required: true
 
   defp mobile_more_sheet(assigns) do
@@ -836,7 +849,7 @@ defmodule PeggyWeb.Layouts do
             navigate={~p"/farms"}
             class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-200 rounded transition-colors"
           >
-            <.icon name="hero-arrow-right-left-micro" class="size-4 text-base-content/50" />
+            <.icon name="hero-home-modern-solid" class="size-4 text-base-content/50" />
             {gettext("My farms")}
           </.link>
           <.link
@@ -876,7 +889,7 @@ defmodule PeggyWeb.Layouts do
             method="delete"
             class="flex items-center gap-2 px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors"
           >
-            <.icon name="hero-arrow-left-on-rectangle-micro" class="size-4" />
+            <.icon name="hero-power" class="size-4" />
             {gettext("Log out")}
           </.link>
         </div>
