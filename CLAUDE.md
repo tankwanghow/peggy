@@ -30,6 +30,18 @@ Peggy — a multi-tenant swine (pig) farm management Phoenix 1.8 / LiveView 1.1 
 - `mix ecto.reset` — drop + recreate DB
 - `mix ecto.gen.migration <name_with_underscores>` — always use this to create migrations
 
+### Shared workspace assets & Docker deploy
+
+esbuild, tailwindcss, and heroicons are pinned under `~/Projects/elixir/.global_assets`
+and wired via `~/Projects/elixir/shared_config`. Run `.global_assets/setup.sh` once after
+clone. Full details: `~/Projects/elixir/shared_config/WORKSPACE_ASSETS.md`.
+
+Linode deploy builds from the **monorepo root** (not this directory alone):
+
+```bash
+./deploy_to_linode/deploy.sh deploy.conf
+```
+
 ## Architecture
 
 ### Dual interface (core design constraint)
