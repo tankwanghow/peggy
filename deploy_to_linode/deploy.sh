@@ -3,8 +3,37 @@ set -eo pipefail
 
 SETUP_FILE=$1
 script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+umbrella_root="$(cd "$script_path/../.." && pwd)"
+if [ ! -f "$umbrella_root/shared_config/docker_deploy.sh" ]; then
+  cat <<'EOF'
+Error: global assets / monorepo layout not found.
+
+This app must be deployed from inside the phoenix_app_umbrella monorepo, which
+provides shared_config/ and .global_assets/. To set it up:
+
+  1. Clone the umbrella (global assets) repo:
+       git clone https://github.com/tankwanghow/phoenix_app_umbrella.git
+
+  2. Clone this app inside it, beside shared_config/:
+       cd phoenix_app_umbrella
+       git clone https://github.com/tankwanghow/peggy.git peggy
+
+  3. Download the global asset binaries:
+       bash .global_assets/setup.sh
+
+  4. Deploy from inside the app, e.g.:
+       cd peggy && ./deploy_to_linode/deploy.sh deploy.conf
+
+Expected layout:
+  phoenix_app_umbrella/
+  |- shared_config/
+  |- .global_assets/
+  \- peggy/              <- this repo
+EOF
+  exit 1
+fi
 # shellcheck source=../../shared_config/docker_deploy.sh
-source "$(cd "$script_path/../.." && pwd)/shared_config/docker_deploy.sh"
+source "$umbrella_root/shared_config/docker_deploy.sh"
 docker_deploy_init "$script_path"
 
 if [ ! -f "$SETUP_FILE" ]; then
